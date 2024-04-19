@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @font-face {
+    font-family: Helixa;
+    font-weight: 400;
+    src: url(../fonts/Helixa-Regular.woff) format("woff");
+  }
+
+  @font-face {
+    font-family: Helixa;
+    font-weight: 700;
+    src: url(../fonts/Helixa-Black.woff) format("woff");
+  }
+}
+
+html, body, #app{
+  @apply font-sans;
+  min-height: 100vh;
+}
+
+div.fullheight{
+  min-height: 100vh;
+}
+
+body{
+  @apply bg-gray-800;
+}
+
+table.dark{
+  tr{
+    td{
+      @apply px-2 py-0.5 text-white;
+    }
+  }
+
+  tr:nth-child(even) {
+    @apply bg-gray-950;
+  }
+}
+
+table.library{
+  tr{
+    td.selected-row{
+      @apply text-white bg-indigo-600 !important;
+
+      span {
+        @apply text-white !important;
+      }
+    }
+  }
+
+  tr{
+    td{
+      @apply px-2 py-0.5 text-gray-600 select-none;
+    }
+  }
+
+  tr:nth-child(odd) {
+    td{
+      @apply bg-gray-200;
+    }
+  }
+}
+
+iframe {
+  @apply w-full h-[200px];
+}
