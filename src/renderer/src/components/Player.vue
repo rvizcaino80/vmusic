@@ -35,10 +35,12 @@ onMounted(() => {
   }
 
   player.on('load', (url) => {
+    player.toggleInteraction(false)
     status.value = props.statuses.Cargando
   })
 
   player.on('ready', (d) => {
+    player.toggleInteraction(false)
     emit('loaded')
     duration.value = d
     status.value = props.statuses.Listo
@@ -54,6 +56,7 @@ onMounted(() => {
   })
 
   player.on('finish', () => {
+    player.toggleInteraction(false)
     artist.value = ''
     song.value = ''
     player.empty()
@@ -96,6 +99,7 @@ function calculateVolume(ct) {
 }
 
 function tempFade(duration = 4000) {
+  player.toggleInteraction(false)
   let vol = player.getVolume()
 
   if (vol > 0.4) {
@@ -119,6 +123,7 @@ function volToNormal() {
     player.setVolume(new_vol)
     setTimeout(volToNormal, 100)
   } else {
+    player.toggleInteraction(true)
     status.value = props.statuses.Reproduciendo
   }
 }
@@ -182,44 +187,23 @@ defineExpose({
 </script>
 
 <template>
-  <div class="player p-6">
-    <template v-if="props.position === 'top'">
-      <div :id="playerId" class="wavesurfer mb-3"></div>
-
-      <div class="flex items-center space-x-3">
-        <div
-          class="flex text-[70px] text-white text-bold bg-yellow-500 text-center h-[80px] w-[80px] items-center justify-center">
-          <span>A</span>
-        </div>
-        <div>
-          <h2 class="text-white text-xl">{{ artist || 'Sin artista' }}</h2>
-          <h1 class="text-white text-3xl">{{ song || 'Sin canción' }}</h1>
-          <div class="text-sm text-gray-500">
-            <span>Status: {{ getStatusName(status) }}</span>
-            <span v-if="(status === props.statuses.Nivelando || status === props.statuses.Placa || status === props.statuses.Cambiando)"> ({{ Math.round(volume * 100) }})</span>
-          </div>
+  <div :class="{'flex-col-reverse': props.position === 'top'}" class="player p-6 flex flex-col">
+    <div class="flex items-center space-x-3">
+      <div
+        :class="{'bg-pink-500': props.position === 'bottom', 'bg-yellow-500': props.position === 'top' }"
+        class="flex text-[70px] text-white text-bold text-center h-[80px] w-[80px] items-center justify-center">
+        <span v-if="props.position === 'top'">A</span>
+        <span v-if="props.position === 'bottom'">B</span>
+      </div>
+      <div>
+        <h2 class="text-white text-xl">{{ artist || 'Sin artista' }}</h2>
+        <h1 class="text-white text-3xl">{{ song || 'Sin canción' }}</h1>
+        <div class="text-sm text-gray-500">
+          <span>Status: {{ getStatusName(status) }}</span>
+          <span v-if="(status === props.statuses.Nivelando || status === props.statuses.Placa || status === props.statuses.Cambiando)"> ({{ Math.round(volume * 100) }})</span>
         </div>
       </div>
-    </template>
-
-    <template v-else>
-      <div class="flex items-center space-x-3">
-        <div
-          class="flex text-[70px] text-white text-bold bg-pink-500 text-center h-[80px] w-[80px] items-center justify-center">
-          <span>B</span>
-        </div>
-        <div>
-          <h2 class="text-white text-xl">{{ artist || 'Sin artista' }}</h2>
-          <h1 class="text-white text-3xl">{{ song || 'Sin canción' }}</h1>
-          <div class="text-sm text-gray-500">
-            <span>Status: {{ getStatusName(status) }}</span>
-            <span v-if="(status === props.statuses.Nivelando || status === props.statuses.Placa || status
-            === props.statuses.Cambiando)"> ({{
-                Math.round(volume * 100) }})</span>
-          </div>
-        </div>
-      </div>
-      <div :id="playerId" class="wavesurfer mt-3"></div>
-    </template>
+    </div>
+    <div :id="playerId" class="wavesurfer mb-3"></div>
   </div>
 </template>

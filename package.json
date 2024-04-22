@@ -1,6 +1,6 @@
 {
-  "name": "vmusic",
-  "version": "1.0.0",
+  "name": "Salsamanía",
+  "version": "0.2.0",
   "description": "An Electron application with Vue",
   "main": "./out/main/index.js",
   "author": "example.com",

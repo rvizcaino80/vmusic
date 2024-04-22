@@ -3,7 +3,6 @@ import axios from 'axios'
 import { onMounted, ref, watch } from 'vue'
 import { decodeHTML5 } from 'entities'
 import { Icon } from '@iconify/vue'
-import * as duration from 'duration-fns'
 import hotkeys from 'hotkeys-js'
 
 /* Components */
@@ -36,9 +35,9 @@ const playerStatuses = {
   Reproduciendo: 40,
   Pausado: 50,
   Cambiando: 60,
-  Detenido: 60,
-  Placa: 70,
-  Nivelando: 80,
+  Detenido: 70,
+  Placa: 80,
+  Nivelando: 90,
 }
 
 onMounted(() => {
@@ -179,18 +178,18 @@ function search() {
     })
 }
 
-function download(song) {
-  songId.value = song.id.videoId
-  songDurationOriginal.value = song.contentDetails.duration
-  songDuration.value = duration.toSeconds(song.contentDetails.duration)
+function download() {
+  //songDurationOriginal.value = song.contentDetails.duration
+  //songDuration.value = duration.toSeconds(song.contentDetails.duration)
 
   currentDownloadStep.value = downloadSteps.download
 
   axios
     .post('http://localhost:3000/download', {
-      id: songId.value
+      url: searchQuery.value
     })
     .then(function (response) {
+      songId.value = response.data
       currentDownloadStep.value = downloadSteps.edit
       getTags()
 
@@ -381,6 +380,8 @@ function addToPlaylist(action, play = false) {
 
 function loadPlayers(play = false) {
   selectedSongs.value = []
+
+  console.log(player1.value.status)
 
   if (
     player1.value.status === playerStatuses.Detenido ||
@@ -624,20 +625,20 @@ function playPlaca() {
       @click="hideMenu"
     >
       <div v-if="currentSelectedOption === options.download">
-        <form class="mb-6 space-x-2 flex items-center" @submit.prevent="search">
+        <form class="mb-6 space-x-2 flex items-center" @submit.prevent="download">
           <input
             id="searchQuery"
             v-model="searchQuery"
             type="text"
             class="flex-1"
-            placeholder="Ingresa un término de búsqueda"
+            placeholder="Ingresa el id del video de youtube"
           />
           <button
             type="submit"
             class="p-2 border border-gray-800 bg-gray-800 text-white flex items-center space-x-1 font-bold"
           >
-            <Icon class="w-5 h-5" icon="gravity-ui:magnifier" />
-            <span>Buscar</span>
+            <Icon class="w-5 h-5" icon="ri:download-fill" />
+            <span>Descargar</span>
           </button>
         </form>
 
@@ -1009,7 +1010,7 @@ function playPlaca() {
       <div class="flex flex-col w-full">
         <div
           :class="{ 'bg-gray-300': currentSelectedOption === options.library }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-6"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-3 pb-3"
           @click="setOption(options.library)"
         >
           <div><img class="block" src="/icons/library.png" alt="Library Icon" /></div>
@@ -1018,7 +1019,7 @@ function playPlaca() {
 
         <div
           :class="{ 'bg-gray-300': currentSelectedOption === options.download }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-6"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-3 pb-3"
           @click="setOption(options.download)"
         >
           <div>
@@ -1031,7 +1032,7 @@ function playPlaca() {
       <div class="flex flex-col w-full">
         <div
           :class="{ 'bg-gray-300': currentSelectedOption === options.artists }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pb-6"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-3 pb-3"
           @click="setOption(options.artists)"
         >
           <div>
@@ -1042,7 +1043,7 @@ function playPlaca() {
 
         <div
           :class="{ 'bg-gray-300': currentSelectedOption === options.tags }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pb-6"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-3 pb-3"
           @click="setOption(options.tags)"
         >
           <div>
@@ -1053,7 +1054,7 @@ function playPlaca() {
 
         <div
           :class="{ 'bg-gray-300': currentSelectedOption === options.settings }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pb-6"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-3 pb-3"
           @click="setOption(options.settings)"
         >
           <div>
