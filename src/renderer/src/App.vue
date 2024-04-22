@@ -381,8 +381,6 @@ function addToPlaylist(action, play = false) {
 function loadPlayers(play = false) {
   selectedSongs.value = []
 
-  console.log(player1.value.status)
-
   if (
     player1.value.status === playerStatuses.Detenido ||
     player1.value.status === playerStatuses['Sin Carga']
