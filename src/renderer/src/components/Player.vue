@@ -1,5 +1,5 @@
 <script setup>
-import { defineEmits, onBeforeMount, onMounted, ref } from "vue";
+import { computed, watch, defineEmits, onBeforeMount, onMounted, ref } from "vue";
 import WaveSurfer from 'wavesurfer.js'
 
 let player = null
@@ -11,6 +11,7 @@ const status = ref()
 const playerId = ref('')
 const volume = ref(1.0)
 const left = ref(0)
+const speed = ref(1.0)
 
 onBeforeMount(() => {
   status.value = props.statuses['Sin Carga']
@@ -47,6 +48,7 @@ onMounted(() => {
   })
 
   player.on('play', () => {
+    player.setPlaybackRate(1.0, true)
     player.toggleInteraction(true)
     status.value = props.statuses.Reproduciendo
   })
@@ -162,6 +164,12 @@ function getStatusName(status) {
   }
 }
 
+function setSpeed(){
+  const newSpeed = document.getElementById('speed').value
+  speed.value = parseFloat(newSpeed)
+  player.setPlaybackRate(speed.value)
+}
+
 const emit = defineEmits(['fading', 'stopped', 'loaded'])
 
 const props = defineProps({
@@ -170,6 +178,14 @@ const props = defineProps({
     type: Object,
     required: true
   }
+})
+
+const volumeFixed = computed(() => {
+  return volume.value.toFixed(2)
+})
+
+const speedFixed = computed(() => {
+  return speed.value.toFixed(2)
 })
 
 defineExpose({
@@ -188,6 +204,11 @@ defineExpose({
 
 <template>
   <div :class="{'flex-col-reverse': props.position === 'top'}" class="player p-6 flex flex-col">
+    <div class="py-6 flex items-center space-x-2">
+      <input v-model="volumeFixed" type="text" class="w-16 text-center" disabled readonly>
+
+      <input @keyup.enter="setSpeed" :value="speedFixed" id="speed" type="text" class="w-16 text-center">
+    </div>
     <div class="flex items-center space-x-3">
       <div
         :class="{'bg-pink-500': props.position === 'bottom', 'bg-yellow-500': props.position === 'top' }"
