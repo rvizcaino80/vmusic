@@ -13,8 +13,6 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue'
-
 const { actions, x, y, song } = defineProps(['actions', 'x', 'y', 'song'])
 const emit = defineEmits(['action-clicked'])
 

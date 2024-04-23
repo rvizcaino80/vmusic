@@ -37,11 +37,11 @@ const playerStatuses = {
   Cambiando: 60,
   Detenido: 70,
   Placa: 80,
-  Nivelando: 90,
+  Nivelando: 90
 }
 
 onMounted(() => {
-  hotkeys('space', function(event, handler){
+  hotkeys('space', function (event, handler) {
     event.preventDefault()
     playPlaca()
   })
@@ -87,8 +87,7 @@ const player1 = ref(null)
 const player2 = ref(null)
 const isFirstPlay = ref(true)
 
-watch(selectedSongs, (newValue, oldValue) => {
-})
+watch(selectedSongs, (newValue, oldValue) => {})
 
 function selectAllSongs() {
   if (selectedSongs.value.length === songs.value.length) {
@@ -432,6 +431,7 @@ function getFirstUnplayedSong() {
 
 function play() {
   if (isFirstPlay.value && player1.value.status === playerStatuses.Listo) {
+    isFirstPlay.value = false
     player1.value.play()
   } else {
     if (player1.value.status === playerStatuses.Pausado) {
@@ -897,7 +897,7 @@ function playPlaca() {
       ></Player>
       <div>
         <audio id="placa" class="hidden" controls>
-          <source preload="auto" src="/placa.mp3" type="audio/mp3">
+          <source preload="auto" src="/placa.mp3" type="audio/mp3" />
         </audio>
       </div>
       <Player
@@ -985,14 +985,14 @@ function playPlaca() {
 
       <div class="bg-gray-900 flex-1 overflow-y-auto basis-0">
         <table class="dark border-collapse w-full">
-          <tr v-for="s in playlistDetails" @click="selectRow($event, s.id)">
+          <tr :key="s.id" v-for="s in playlistDetails" @click="selectRow($event, s.id)">
             <td class="cursor-pointer" :class="{ 'bg-pink-500': selectedRows.includes(s.id) }">
               {{ s.name }}
             </td>
             <td class="cursor-pointer" :class="{ 'bg-pink-500': selectedRows.includes(s.id) }">
               {{ s.Artists.map((i) => i.name).join(', ') }}
             </td>
-            <td class="cursor-pointer" :class="{ 'bg-pink-500': selectedRows.includes(s.id) }">
+            <td class="cursor-pointer text-right" :class="{ 'bg-pink-500': selectedRows.includes(s.id) }">
               {{ s.duration_original }}
             </td>
           </tr>

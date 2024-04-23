@@ -26,7 +26,7 @@
 </template>
 
 <script setup>
-import { defineEmits, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import axios from 'axios'
 import slugify from '@sindresorhus/slugify'
 

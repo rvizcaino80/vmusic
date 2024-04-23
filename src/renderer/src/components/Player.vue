@@ -1,6 +1,7 @@
 <script setup>
-import { computed, watch, defineEmits, onBeforeMount, onMounted, ref } from "vue";
+import { computed, onBeforeMount, onMounted, ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
+import { Icon } from '@iconify/vue'
 
 let player = null
 const duration = ref(0.0)
@@ -10,8 +11,10 @@ const artist = ref('')
 const status = ref()
 const playerId = ref('')
 const volume = ref(1.0)
-const left = ref(0)
 const speed = ref(1.0)
+const left = ref(0)
+const speed_added = ref(0.0)
+const volume_added = ref(0.0)
 
 onBeforeMount(() => {
   status.value = props.statuses['Sin Carga']
@@ -20,6 +23,7 @@ onBeforeMount(() => {
 
 onMounted(() => {
   player = WaveSurfer.create({
+    height: 200,
     normalize: true,
     container: '#' + playerId.value,
     cursorColor: '#ffffff'
@@ -35,7 +39,7 @@ onMounted(() => {
     })
   }
 
-  player.on('load', (url) => {
+  player.on('load', () => {
     player.toggleInteraction(false)
     status.value = props.statuses.Cargando
   })
@@ -48,7 +52,6 @@ onMounted(() => {
   })
 
   player.on('play', () => {
-    player.setPlaybackRate(1.0, true)
     player.toggleInteraction(true)
     status.value = props.statuses.Reproduciendo
   })
@@ -58,6 +61,10 @@ onMounted(() => {
   })
 
   player.on('finish', () => {
+    //Get this value from db
+    player.setPlaybackRate(1.0)
+    speed_added.value = 0
+
     player.toggleInteraction(false)
     artist.value = ''
     song.value = ''
@@ -92,7 +99,7 @@ function calculateVolume(ct) {
       player.toggleInteraction(false)
       status.value = props.statuses.Cambiando
 
-      setTimeout(function() {
+      setTimeout(function () {
         emit('fading')
       }, 2500)
     }
@@ -108,7 +115,7 @@ function tempFade(duration = 4000) {
     player.setVolume(vol - 0.1)
     setTimeout(tempFade, 100)
   } else {
-    setTimeout(function() {
+    setTimeout(function () {
       status.value = props.statuses.Nivelando
       volToNormal()
     }, duration)
@@ -135,9 +142,12 @@ function load(url) {
 }
 
 function setSong(s) {
+  //Get this value from db
+  player.setPlaybackRate(1.0)
+  speed_added.value = 0
   songId.value = s.id
   song.value = s.name
-  artist.value = s.Artists.map(i => i.name).join(', ')
+  artist.value = s.Artists.map((i) => i.name).join(', ')
   player.setVolume(1)
   player.load('http://localhost:3000/static/' + s.folder + '/' + s.ytid + '.mp3')
 }
@@ -164,10 +174,20 @@ function getStatusName(status) {
   }
 }
 
-function setSpeed(){
-  const newSpeed = document.getElementById('speed').value
+function setSpeed(val) {
+  speed_added.value = speed_added.value + val
+  const newSpeed = speed.value + val / 100
   speed.value = parseFloat(newSpeed)
   player.setPlaybackRate(speed.value)
+}
+
+function setVolume(val) {
+  volume_added.value = volume_added.value + val
+  const newVolume = volume.value + val / 20
+  console.log(newVolume)
+
+  volume.value = parseFloat(newVolume)
+  player.setVolume(volume.value)
 }
 
 const emit = defineEmits(['fading', 'stopped', 'loaded'])
@@ -178,14 +198,6 @@ const props = defineProps({
     type: Object,
     required: true
   }
-})
-
-const volumeFixed = computed(() => {
-  return volume.value.toFixed(2)
-})
-
-const speedFixed = computed(() => {
-  return speed.value.toFixed(2)
 })
 
 defineExpose({
@@ -203,28 +215,100 @@ defineExpose({
 </script>
 
 <template>
-  <div :class="{'flex-col-reverse': props.position === 'top'}" class="player p-6 flex flex-col">
-    <div class="py-6 flex items-center space-x-2">
-      <input v-model="volumeFixed" type="text" class="w-16 text-center" disabled readonly>
-
-      <input @keyup.enter="setSpeed" :value="speedFixed" id="speed" type="text" class="w-16 text-center">
-    </div>
-    <div class="flex items-center space-x-3">
-      <div
-        :class="{'bg-pink-500': props.position === 'bottom', 'bg-yellow-500': props.position === 'top' }"
-        class="flex text-[70px] text-white text-bold text-center h-[80px] w-[80px] items-center justify-center">
-        <span v-if="props.position === 'top'">A</span>
-        <span v-if="props.position === 'bottom'">B</span>
+  <div :class="{ 'flex-col-reverse': props.position === 'top' }" class="player p-6 flex flex-col">
+    <div
+      :class="{ 'items-end': props.position === 'top', 'items-start': props.position === 'bottom' }"
+      class="flex justify-between space-x-3"
+    >
+      <div class="flex space-x-3">
+        <div
+          :class="{
+            'bg-pink-500': props.position === 'bottom',
+            'bg-yellow-500': props.position === 'top'
+          }"
+          class="flex text-[70px] text-white text-bold text-center h-[80px] w-[80px] items-center justify-center"
+        >
+          <span class="select-none" v-if="props.position === 'top'">A</span>
+          <span class="select-none" v-if="props.position === 'bottom'">B</span>
+        </div>
+        <div>
+          <h2 class="text-white text-xl select-none">{{ artist || 'Sin artista' }}</h2>
+          <h1 class="text-white text-2xl select-none">{{ song || 'Sin canción' }}</h1>
+          <div class="text-sm text-gray-500 select-none">
+            <span>Status: {{ getStatusName(status) }}</span>
+            <span
+              v-if="
+                status === props.statuses.Nivelando ||
+                status === props.statuses.Placa ||
+                status === props.statuses.Cambiando
+              "
+            >
+              ({{ Math.round(volume * 100) }})</span
+            >
+          </div>
+        </div>
       </div>
-      <div>
-        <h2 class="text-white text-xl">{{ artist || 'Sin artista' }}</h2>
-        <h1 class="text-white text-3xl">{{ song || 'Sin canción' }}</h1>
-        <div class="text-sm text-gray-500">
-          <span>Status: {{ getStatusName(status) }}</span>
-          <span v-if="(status === props.statuses.Nivelando || status === props.statuses.Placa || status === props.statuses.Cambiando)"> ({{ Math.round(volume * 100) }})</span>
+
+      <div class="flex flex-col items-center text-gray-500">
+        <!--div class="flex flex-col items-center mb-2">
+          <span class="text-xs leading-none mb-0.5 select-none">Volumen</span>
+          <div class="flex items-center space-x-1">
+            <Icon
+              class="cursor-pointer w-4 h-4 text-white"
+              icon="teenyicons:left-solid"
+              @click="setVolume(-1)"
+            />
+            <span
+              v-if="volume_added > 0"
+              class="text-white font-bold text-sm leading-none select-none"
+              >+</span
+            >
+            <span class="text-white font-bold text-sm leading-none select-none">
+              {{ volume_added }}
+            </span>
+            <Icon
+              class="cursor-pointer w-4 h-4 text-white"
+              icon="teenyicons:right-solid"
+              @click="setVolume(1)"
+            />
+          </div>
+        </div-->
+
+        <div class="flex flex-col items-center">
+          <span class="text-sm mb-0.5 select-none">Velocidad</span>
+          <div class="flex items-center space-x-1">
+            <Icon
+              class="cursor-pointer w-6 h-6 text-white"
+              icon="teenyicons:left-solid"
+              @click="setSpeed(-1)"
+            />
+            <span v-if="speed_added > 0" class="text-lime-500 font-bold text-xl select-none"
+              >+</span
+            >
+            <span
+              :class="{
+                'text-lime-500': speed_added > 0,
+                'text-red-500': speed_added < 0,
+                'text-white': speed_added === 0
+              }"
+              class="font-bold text-xl select-none"
+            >
+              {{ speed_added }}
+            </span>
+            <Icon
+              class="cursor-pointer w-6 h-6 text-white"
+              icon="teenyicons:right-solid"
+              @click="setSpeed(1)"
+            />
+          </div>
         </div>
       </div>
     </div>
-    <div :id="playerId" class="wavesurfer mb-3"></div>
+    <div
+      v-show="status !== props.statuses['Sin Carga']"
+      :id="playerId"
+      :class="{ 'mb-3': props.position === 'top', 'mt-3': props.position === 'bottom' }"
+      class="wavesurfer"
+    ></div>
   </div>
 </template>
