@@ -14,6 +14,8 @@ const totalArtists = ref(1)
 const songTags = ref([])
 const isSaving = ref(false)
 
+const emit = defineEmits(['downloaded'])
+
 const props = defineProps({
   tags: {
     type: Array,
@@ -30,6 +32,8 @@ setTimeout(function () {
 }, 200)
 
 function saveSong() {
+  isSaving.value = true
+  
   const elements = document.querySelectorAll('.artist')
   elements.forEach((e) => {
     artistIds.value.push(e.value)
@@ -52,7 +56,7 @@ function saveSong() {
           songTags: songTags.value
         })
         .then(function (response) {
-          //currentSelectedOption.value = options.library
+          emit('downloaded')
         })
         .catch(function (error) {})
         .finally(function () {
@@ -65,12 +69,6 @@ function saveSong() {
     .finally(function () {
       // always executed
     })
-
-
-}
-
-function download() {
-
 }
 </script>
 
@@ -131,8 +129,8 @@ function download() {
           </div>
           <div class="min-w-0 flex-1 leading-6">
             <label for="person-1" class="select-none font-medium text-gray-900">{{
-                tag.name
-              }}</label>
+              tag.name
+            }}</label>
           </div>
         </div>
       </div>
@@ -142,19 +140,10 @@ function download() {
         type="submit"
         class="p-2 border border-gray-800 bg-gray-800 text-white flex items-center space-x-1 font-bold"
       >
-        <Icon
-          v-if="isSaving"
-          class="w-5 h-5 animate-spin"
-          icon="gg:spinner-two-alt"
-        />
-        <Icon
-          v-else
-          class="w-5 h-5"
-          icon="tdesign:save"
-        />
+        <Icon v-if="isSaving" class="w-5 h-5 animate-spin" icon="gg:spinner-two-alt" />
+        <Icon v-else class="w-5 h-5" icon="tdesign:save" />
         <span>Descargar</span>
       </button>
     </form>
   </div>
-
 </template>

@@ -351,7 +351,7 @@ function play() {
     } else if (player2.value.status === playerStatuses.Pausado) {
       player2.value.play()
     } else {
-      checkPlayers(true)
+      //checkPlayers(true)
     }
   }
 }
@@ -384,7 +384,9 @@ function checkPlayers(play = false) {
     player2.value.status === playerStatuses.Detenido ||
     player2.value.status === playerStatuses['Sin Carga']
   ) {
-    if (playlist.value.length <= 0) {
+    loadPlayers(play)
+
+    /*if (playlist.value.length <= 0) {
       const tag = getTagsForAutoPlaying()
 
       // Add item to playlist
@@ -407,7 +409,7 @@ function checkPlayers(play = false) {
         })
     } else {
       loadPlayers(play)
-    }
+    }*/
   }
 }
 
@@ -509,6 +511,10 @@ function playPlaca() {
 
   audio.play()
 }
+
+function downloaded() {
+  setOption(options.library)
+}
 </script>
 
 <template>
@@ -531,10 +537,11 @@ function playPlaca() {
     @click="hideMenu"
   >
     <div
-      class="right-[115px] fixed flex h-full flex-col bg-gray-300 p-6 w-2/5 text-black"
+      class="right-[115px] fixed flex h-full flex-col bg-gray-300 p-6 w-3/5 text-black"
       @click="hideMenu"
     >
       <Download
+        @downloaded="downloaded"
         :tags="tags"
         v-if="currentSelectedOption === options.download"
         :artists="artists"
@@ -653,7 +660,7 @@ function playPlaca() {
               </td>
               <td class="text-xs">Título</td>
               <td class="text-xs">Artista(s)</td>
-              <td class="text-xs text-right">Duración</td>
+              <td class="text-xs">Duración</td>
             </tr>
             <tr
               v-for="s in songs"
@@ -669,7 +676,7 @@ function playPlaca() {
                 <span class="text-black font-bold">{{ s.name }}</span>
               </td>
               <td class="text-sm text-gray-500">{{ s.Artists.map((i) => i.name).join(', ') }}</td>
-              <td class="text-sm text-right text-gray-400">
+              <td class="text-sm text-gray-400">
                 {{ s.duration_original }}
               </td>
             </tr>
