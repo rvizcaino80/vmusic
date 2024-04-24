@@ -54,7 +54,7 @@ table.library{
 
   tr{
     td{
-      @apply px-2 py-0.5 text-gray-600 select-none;
+      @apply px-2 py-0.5 select-none;
     }
   }
 

@@ -13,7 +13,9 @@ function createWindow() {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      nodeIntegration: true,
+      webSecurity: false,
+      webviewTag: true,
     }
   })
 
@@ -46,6 +48,17 @@ app.whenReady().then(() => {
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
+    window.webContents.session.webRequest.onHeadersReceived({ urls: [ "*://*/*" ] },
+      (d, c)=>{
+        if(d.responseHeaders['X-Frame-Options']){
+          delete d.responseHeaders['X-Frame-Options'];
+        } else if(d.responseHeaders['x-frame-options']) {
+          delete d.responseHeaders['x-frame-options'];
+        }
+
+        c({cancel: false, responseHeaders: d.responseHeaders});
+      }
+    );
     optimizer.watchWindowShortcuts(window)
   })
 
@@ -65,6 +78,7 @@ app.whenReady().then(() => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
+
   })
 })
 

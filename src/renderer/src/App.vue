@@ -1,7 +1,6 @@
 <script setup>
 import axios from 'axios'
 import { onMounted, ref, watch } from 'vue'
-import { decodeHTML5 } from 'entities'
 import { Icon } from '@iconify/vue'
 import hotkeys from 'hotkeys-js'
 
@@ -10,6 +9,7 @@ import ContextMenu from './components/ContextMenu.vue'
 import Artists from './components/Artists.vue'
 import Tags from './components/Tags.vue'
 import Player from './components/Player.vue'
+import Download from './components/Download.vue'
 
 let options = {
   library: 10,
@@ -18,14 +18,6 @@ let options = {
   tags: 30,
   settings: 40,
   artists: 50
-}
-
-let downloadSteps = {
-  search: 10,
-  download: 20,
-  edit: 30,
-  saving: 40,
-  error: 50
 }
 
 const playerStatuses = {
@@ -48,21 +40,6 @@ onMounted(() => {
 })
 
 let currentSelectedOption = ref(null)
-
-// Download
-const isSearchCompleted = ref(false)
-const searchQuery = ref('')
-const searchResults = ref([])
-const searchResultsWithPlayer = ref([])
-const searchResultIds = ref([])
-const currentDownloadStep = ref(downloadSteps.search)
-const songId = ref('')
-const songDuration = ref(0)
-const songDurationOriginal = ref('')
-const song = ref('')
-const artistIds = ref([])
-const totalArtists = ref(1)
-const songTags = ref([])
 
 // Library
 const artists = ref([])
@@ -98,17 +75,6 @@ function selectAllSongs() {
 }
 
 function reset() {
-  songId.value = ''
-  songDuration.value = 0
-  songDurationOriginal.value = ''
-  song.value = ''
-  artistIds.value = []
-  songTags.value = []
-  currentDownloadStep.value = downloadSteps.search
-  searchQuery.value = null
-  searchResults.value = []
-  searchResultsWithPlayer.value = []
-  searchResultIds.value = []
 }
 
 function setOption(option) {
@@ -118,6 +84,7 @@ function setOption(option) {
     reset()
     getArtists(true)
   } else if (currentSelectedOption.value === options.download) {
+    getTags()
     getArtists()
     reset()
 
@@ -177,33 +144,6 @@ function search() {
     })
 }
 
-function download() {
-  //songDurationOriginal.value = song.contentDetails.duration
-  //songDuration.value = duration.toSeconds(song.contentDetails.duration)
-
-  currentDownloadStep.value = downloadSteps.download
-
-  axios
-    .post('http://localhost:3000/download', {
-      url: searchQuery.value
-    })
-    .then(function (response) {
-      songId.value = response.data
-      currentDownloadStep.value = downloadSteps.edit
-      getTags()
-
-      setTimeout(function () {
-        document.getElementById('song').focus()
-      }, 200)
-    })
-    .catch(function (error) {
-      currentDownloadStep.value = downloadSteps.error
-    })
-    .finally(function () {
-      // always executed
-    })
-}
-
 /*Tags*/
 function getTags() {
   axios
@@ -216,34 +156,6 @@ function getTags() {
       // handle error
       console.log(error)
     })
-    .finally(function () {
-      // always executed
-    })
-}
-
-function saveSong() {
-  currentDownloadStep.value = downloadSteps.saving
-
-  const elements = document.querySelectorAll('.artist')
-  elements.forEach((e) => {
-    artistIds.value.push(e.value)
-  })
-
-  axios
-    .post('http://localhost:3000/songs/save', {
-      ytid: songId.value,
-      song: song.value,
-      artists: artistIds.value,
-      duration: songDuration.value,
-      durationOriginal: songDurationOriginal.value,
-      songTags: songTags.value
-    })
-    .then(function (response) {
-      currentSelectedOption.value = options.library
-      getArtists(true)
-      currentDownloadStep.value = downloadSteps.search
-    })
-    .catch(function (error) {})
     .finally(function () {
       // always executed
     })
@@ -622,129 +534,11 @@ function playPlaca() {
       class="right-[115px] fixed flex h-full flex-col bg-gray-300 p-6 w-2/5 text-black"
       @click="hideMenu"
     >
-      <div v-if="currentSelectedOption === options.download">
-        <form class="mb-6 space-x-2 flex items-center" @submit.prevent="download">
-          <input
-            id="searchQuery"
-            v-model="searchQuery"
-            type="text"
-            class="flex-1"
-            placeholder="Ingresa el id del video de youtube"
-          />
-          <button
-            type="submit"
-            class="p-2 border border-gray-800 bg-gray-800 text-white flex items-center space-x-1 font-bold"
-          >
-            <Icon class="w-5 h-5" icon="ri:download-fill" />
-            <span>Descargar</span>
-          </button>
-        </form>
-
-        <div
-          v-if="currentDownloadStep === downloadSteps.error"
-          class="text-red-500 flex items-center space-x-1"
-        >
-          <Icon class="w-6 h-6" icon="bxs:error-alt" />
-          <span>La canción ya existe en la biblioteca.</span>
-        </div>
-
-        <form
-          v-if="
-            currentDownloadStep === downloadSteps.edit ||
-            currentDownloadStep === downloadSteps.saving
-          "
-          class="space-y-3 max-w-[60%] mx-auto"
-          @submit.prevent="saveSong"
-        >
-          <div>
-            <label class="text-sm text-gray-500 block">Título</label>
-            <input
-              id="song"
-              v-model="song"
-              type="text"
-              class="w-full block"
-              placeholder="Título de la canción"
-            />
-          </div>
-
-          <div>
-            <label class="text-sm text-gray-500 block">Artista</label>
-            <div class="flex items-center space-x-2">
-              <select class="w-full block artist">
-                <option value="" selected>-- Seleccionar Artista --</option>
-                <option v-for="artist in artists" :key="artist.id" :value="artist.id">
-                  {{ artist.name }}
-                </option>
-              </select>
-              <Icon class="w-6 h-6 cursor-pointer" icon="el:plus" />
-              <Icon class="text-gray-400 w-6 h-6 cursor-default" icon="el:minus" />
-            </div>
-          </div>
-
-          <div>
-            <label class="text-sm text-gray-500 block">Etiquetas</label>
-
-            <div v-for="tag in tags" :key="tag.id" class="relative flex items-center mb-1">
-              <div class="mr-2 flex items-center">
-                <input
-                  v-model="songTags"
-                  type="checkbox"
-                  :value="tag.id"
-                  class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                />
-              </div>
-              <div class="min-w-0 flex-1 leading-6">
-                <label for="person-1" class="select-none font-medium text-gray-900">{{
-                  tag.name
-                }}</label>
-              </div>
-            </div>
-          </div>
-
-          <button
-            :disabled="currentDownloadStep === downloadSteps.saving"
-            type="submit"
-            class="p-2 border border-gray-800 bg-gray-800 text-white flex items-center space-x-1 font-bold"
-          >
-            <Icon
-              v-if="currentDownloadStep === downloadSteps.edit"
-              class="w-5 h-5"
-              icon="tdesign:save"
-            />
-            <Icon
-              v-if="currentDownloadStep === downloadSteps.saving"
-              class="w-5 h-5 animate-spin"
-              icon="gg:spinner-two-alt"
-            />
-            <span>Guardar</span>
-          </button>
-        </form>
-
-        <div v-if="currentDownloadStep === downloadSteps.download">
-          <Icon class="w-24 h-24 mx-auto animate-spin" icon="icon-park-solid:record-disc" />
-          <div class="text-center">Descargando...</div>
-        </div>
-
-        <div
-          v-if="currentDownloadStep === downloadSteps.search && isSearchCompleted"
-          class="grid grid-cols-2 gap-4"
-        >
-          <div v-for="result in searchResults" :key="result.id">
-            <div class="mb-1">
-              <div v-html="result.player.embedHtml"></div>
-            </div>
-            <div class="text-base leading-tight mb-1">{{ decodeHTML5(result.snippet.title) }}</div>
-
-            <div
-              class="cursor-pointer px-2 py-1 bg-gray-800 text-white flex items-center space-x-1 w-min"
-              @click="download(result)"
-            >
-              <Icon icon="ri:download-fill" />
-              <div class="text-base leading-tight font-bold">Descargar</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Download
+        :tags="tags"
+        v-if="currentSelectedOption === options.download"
+        :artists="artists"
+      ></Download>
 
       <Artists v-if="currentSelectedOption === options.artists"></Artists>
 
@@ -843,7 +637,7 @@ function playPlaca() {
         <div class="flex-1 overflow-y-auto">
           <table class="library border-collapse w-full">
             <tr>
-              <td>
+              <td class="w-[40px]">
                 <Icon
                   v-if="selectedSongs.length === songs.length"
                   class="cursor-pointer"
@@ -852,14 +646,14 @@ function playPlaca() {
                 />
                 <Icon
                   v-else
-                  class="cursor-pointer"
+                  class="text-gray-400 cursor-pointer"
                   icon="icomoon-free:checkbox-unchecked"
                   @click="selectAllSongs"
                 />
               </td>
-              <td class="text-sm">Título</td>
-              <td class="text-sm">Artista(s)</td>
-              <td class="text-sm text-right">Duración</td>
+              <td class="text-xs">Título</td>
+              <td class="text-xs">Artista(s)</td>
+              <td class="text-xs text-right">Duración</td>
             </tr>
             <tr
               v-for="s in songs"
@@ -867,15 +661,15 @@ function playPlaca() {
               @click="toggleSelectedSongs(s.id)"
               @contextmenu.prevent="showContextMenu($event, s)"
             >
-              <td class="w-[40px]">
+              <td class="text-sm w-[40px]">
                 <Icon v-if="selectedSongs.includes(s.id)" icon="icomoon-free:checkbox-checked" />
-                <Icon v-else icon="icomoon-free:checkbox-unchecked" />
+                <Icon class="text-gray-400" v-else icon="icomoon-free:checkbox-unchecked" />
               </td>
-              <td class="font-bold">
-                <span class="text-black">{{ s.name }}</span>
+              <td class="text-sm">
+                <span class="text-black font-bold">{{ s.name }}</span>
               </td>
-              <td>{{ s.Artists.map((i) => i.name).join(', ') }}</td>
-              <td class="text-right">
+              <td class="text-sm text-gray-500">{{ s.Artists.map((i) => i.name).join(', ') }}</td>
+              <td class="text-sm text-right text-gray-400">
                 {{ s.duration_original }}
               </td>
             </tr>

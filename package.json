@@ -1,9 +1,9 @@
 {
-  "name": "Salsamanía",
+  "name": "Salsamania",
   "version": "0.2.0",
   "description": "An Electron application with Vue",
   "main": "./out/main/index.js",
-  "author": "example.com",
+  "author": "Rogers Vizcaino",
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",
