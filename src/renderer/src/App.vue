@@ -1,8 +1,10 @@
 <script setup>
 import axios from 'axios'
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import hotkeys from 'hotkeys-js'
+import { version } from '../../../package.json'
+import dayjs from 'dayjs'
 
 /* Components */
 import ContextMenu from './components/ContextMenu.vue'
@@ -10,6 +12,9 @@ import Artists from './components/Artists.vue'
 import Tags from './components/Tags.vue'
 import Player from './components/Player.vue'
 import Download from './components/Download.vue'
+import Edit from './components/Edit.vue'
+import Wave from './components/Wave.vue'
+import Multiselect from './components/Multiselect.vue'
 
 let options = {
   library: 10,
@@ -17,7 +22,9 @@ let options = {
   downloadDetails: 25,
   tags: 30,
   settings: 40,
-  artists: 50
+  artists: 50,
+  edit: 60,
+  wave: 70
 }
 
 const playerStatuses = {
@@ -32,21 +39,18 @@ const playerStatuses = {
   Nivelando: 90
 }
 
-onMounted(() => {
-  hotkeys('space', function (event, handler) {
-    event.preventDefault()
-    playPlaca()
-  })
-})
-
 let currentSelectedOption = ref(null)
 
 // Library
 const artists = ref([])
+const filteredArtists = ref([])
 const songs = ref([])
+const filteredSongs = ref([])
 const selectedTags = ref([0])
 const selectedArtists = ref([0])
 const selectedSongs = ref([])
+const filterQuery = ref('')
+const deletedSongs = ref([])
 
 // Tags
 const tags = ref([])
@@ -64,17 +68,136 @@ const player1 = ref(null)
 const player2 = ref(null)
 const isFirstPlay = ref(true)
 
-watch(selectedSongs, (newValue, oldValue) => {})
+//Multiselects
+const artistMultiSelect = ref(null)
+const tagMultiSelect = ref(null)
+
+onMounted(() => {
+  setInterval(function() {
+    console.log('here')
+    document.getElementById('logo').classList.add('jello-horizontal')
+    setTimeout(function() {
+      document.getElementById('logo').classList.remove('jello-horizontal')
+    }, 1000)
+  }, 10000)
+  hotkeys('space', function (event, handler) {
+    event.preventDefault()
+    playPlaca()
+  })
+})
+
+const removeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+watch(filterQuery, (newValue, oldValue) => {
+  filteredSongs.value = songs.value.filter((item) => {
+    return (
+      removeAccents(item.name.toLowerCase()).includes(removeAccents(newValue.toLowerCase())) ||
+      removeAccents(
+        item.Artists.map((a) => a.name)
+          .join('')
+          .toLowerCase()
+      ).includes(removeAccents(newValue.toLowerCase()))
+    )
+  })
+})
+
+watch(selectedArtists, (newValue, oldValue) => {
+  filterSongsByArtist()
+})
+
+watch(selectedTags, (newValue, oldValue) => {
+  filterSongs()
+})
+
+const timeLeft = computed(() => {
+  const a = dayjs()
+  let left = 0
+  let left0 = 0
+  let left1 = 0
+  let left2 = 0
+
+  if (playlistDetails.value.length > 0) {
+    left0 = playlistDetails.value.reduce((n, { duration }) => n + duration, 0)
+  }
+
+  if (player1.value && player1.value.left && player1.value.status !== playerStatuses['Sin Carga']) {
+    left1 = player1.value.left
+  }
+
+  if (player2.value && player2.value.left && player2.value.status !== playerStatuses['Sin Carga']) {
+    left2 = player2.value.left
+  }
+
+  left = left0 + left1 + left2
+
+  const b = a.add(left, 'second')
+  const dayDiff = b.diff(a, 'day')
+  return [left, b.format('hh:mm A'), dayDiff]
+})
+
+function playPlaca() {
+  const audio = document.querySelector('#placa')
+  audio.volume = 0.6
+
+  if (player1.value.status === playerStatuses.Reproduciendo) {
+    player1.value.status = playerStatuses.Placa
+    player1.value.tempFade()
+  } else if (player2.value.status === playerStatuses.Reproduciendo) {
+    player2.value.status = playerStatuses.Placa
+    player2.value.tempFade()
+  }
+
+  audio.play()
+}
+
+function remove(array, element) {
+  const index = array.findIndex((item) => item.id === element)
+  array.splice(index, 1)
+  selectedRows.value = []
+}
+
+function removeAll(array) {
+  playlist.value = []
+  playlistDetails.value = []
+  selectedRows.value = []
+}
+
+function move(array, index, delta) {
+  let newIndex = index + delta
+  if (newIndex < 0 || newIndex == array.length) return
+  let indexes = [index, newIndex].sort((a, b) => a - b)
+  array.splice(indexes[0], 2, array[indexes[1]], array[indexes[0]])
+}
+
+function moveFirst(array, element) {
+  const found = array.find((item) => item.id === element)
+
+  const index = array.findIndex((item) => item.id === element)
+  array.splice(index, 1)
+  array.unshift(found)
+}
+
+function moveUp(array, element) {
+  const index = array.findIndex((item) => item.id === element)
+  move(array, index, -1)
+}
+
+function moveDown(array, element) {
+  const index = array.findIndex((item) => item.id === element)
+  move(array, index, 1)
+}
 
 function selectAllSongs() {
-  if (selectedSongs.value.length === songs.value.length) {
+  if (selectedSongs.value.length === filteredSongs.value.length) {
     selectedSongs.value = []
   } else {
-    selectedSongs.value = songs.value.map((item) => item.id)
+    selectedSongs.value = filteredSongs.value.map((item) => item.id)
   }
 }
 
 function reset() {
+  filterQuery.value = ''
+  selectedSongs.value = []
 }
 
 function setOption(option) {
@@ -87,10 +210,6 @@ function setOption(option) {
     getTags()
     getArtists()
     reset()
-
-    setTimeout(function () {
-      document.getElementById('searchQuery').focus()
-    }, 200)
   } else if (currentSelectedOption.value === options.tags) {
     getTags()
   }
@@ -149,7 +268,7 @@ function getTags() {
   axios
     .get('http://localhost:3000/tags')
     .then(function (response) {
-      tags.value = response.data
+      tags.value = response.data.sort((a, b) => a.name.localeCompare(b.name))
       selectedTags.value = tags.value.map((item) => item.id)
     })
     .catch(function (error) {
@@ -165,8 +284,7 @@ function getArtists(filter = false) {
   axios
     .get('http://localhost:3000/artists')
     .then(function (response) {
-      artists.value = response.data
-      selectedArtists.value = artists.value.map((item) => item.id)
+      artists.value = response.data.sort((a, b) => a.name.localeCompare(b.name))
 
       if (filter) {
         filterSongsByArtist()
@@ -185,8 +303,9 @@ function filterSongsByArtist() {
       tags: selectedTags.value
     })
     .then(function (response) {
-      songs.value = response.data.songs
-      tags.value = response.data.tags
+      songs.value = response.data.songs.sort((a, b) => a.name.localeCompare(b.name))
+      filteredSongs.value = response.data.songs
+      tags.value = response.data.tags.sort((a, b) => a.name.localeCompare(b.name))
       selectedTags.value = tags.value.map((item) => item.id)
     })
     .catch(function (error) {})
@@ -202,7 +321,8 @@ function filterSongs() {
       tags: selectedTags.value
     })
     .then(function (response) {
-      songs.value = response.data
+      songs.value = response.data.sort((a, b) => a.name.localeCompare(b.name))
+      filteredSongs.value = response.data
     })
     .catch(function (error) {})
     .finally(function () {
@@ -214,13 +334,9 @@ const showMenu = ref(false)
 const menuX = ref(0)
 const menuY = ref(0)
 const targetRow = ref({})
-const contextMenuActions = ref([
-  { label: 'Agregar al comienzo', action: 'add-first' },
-  { label: 'Agregar al final', action: 'add-last' }
-])
+const contextMenuActions = ref([{ label: 'Eliminar', action: 'delete' }])
 
 const showContextMenu = (event, song) => {
-  closeContextMenu()
   //selectRow(song)
   event.preventDefault()
   showMenu.value = true
@@ -231,6 +347,20 @@ const showContextMenu = (event, song) => {
 
 const closeContextMenu = () => {
   showMenu.value = false
+}
+
+function deleteSong() {
+  axios
+    .post('http://localhost:3000/songs/delete', {
+      id: selectedSongs.value[0]
+    })
+    .then(function (response) {
+      deletedSongs.value.push(response.data[0])
+    })
+    .catch(function (error) {})
+    .finally(function () {
+      selectedSongs.value = []
+    })
 }
 
 const shuffle = (array) => {
@@ -297,7 +427,9 @@ function loadPlayers(play = false) {
     player1.value.status === playerStatuses['Sin Carga']
   ) {
     let nextSong = getFirstUnplayedSong()
-    player1.value.setSong(nextSong)
+    if (nextSong) {
+      player1.value.setSong(nextSong)
+    }
   }
 
   if (
@@ -328,6 +460,26 @@ function loadPlayers(play = false) {
   }
 }
 
+function loadDeck(deck) {
+  const index = playlistDetails.value.findIndex((item) => item.id === selectedRows.value[0])
+  const found = playlistDetails.value.find((item) => item.id === selectedRows.value[0])
+  playlistDetails.value.splice(index, 1)
+
+  if (deck === 'A'){
+    if(player1.value.status === playerStatuses.Listo || player1.value.status === playerStatuses.Pausado) {
+      playlistDetails.value.splice(index, 0, player1.value.songFull)
+      player1.value.setSong(found)
+    }
+  } else {
+    if(player2.value.status === playerStatuses.Listo || player2.value.status === playerStatuses.Pausado) {
+      playlistDetails.value.splice(index, 0, player2.value.songFull)
+      player2.value.setSong(found)
+    }
+  }
+
+  selectedRows.value = []
+}
+
 function getFirstUnplayedSong() {
   if (playlistDetails.value.length > 0) {
     history.value.push(playlist.value.shift())
@@ -346,12 +498,10 @@ function play() {
     isFirstPlay.value = false
     player1.value.play()
   } else {
-    if (player1.value.status === playerStatuses.Pausado) {
-      player1.value.play()
-    } else if (player2.value.status === playerStatuses.Pausado) {
+    if (player2.value.status === playerStatuses.Pausado) {
       player2.value.play()
     } else {
-      //checkPlayers(true)
+      player1.value.play()
     }
   }
 }
@@ -368,9 +518,13 @@ function pause() {
 
 function songFading(p) {
   if (p.position === 'top') {
-    player2.value.play()
+    if (player2.value.status === playerStatuses.Listo) {
+      player2.value.play()
+    }
   } else if (p.position === 'bottom') {
-    player1.value.play()
+    if (player1.value.status === playerStatuses.Listo) {
+      player1.value.play()
+    }
   } else {
     player1.value.stop()
     player2.value.stop()
@@ -438,7 +592,6 @@ function getTagsForAutoPlaying() {
   }
 
   let calculatedTag = Object.keys(mode)[getRandomInt(Object.keys(mode).length - 1)]
-  console.log(calculatedTag)
   let found = false
 
   let tags = []
@@ -497,29 +650,88 @@ function selectRow(e, id) {
   }
 }
 
-function playPlaca() {
-  const audio = document.querySelector('#placa')
-  audio.volume = 0.6
-
-  if (player1.value.status === playerStatuses.Reproduciendo) {
-    player1.value.status = playerStatuses.Placa
-    player1.value.tempFade()
-  } else if (player2.value.status === playerStatuses.Reproduciendo) {
-    player2.value.status = playerStatuses.Placa
-    player2.value.tempFade()
-  }
-
-  audio.play()
-}
-
 function downloaded() {
   setOption(options.library)
+}
+
+function updated() {
+  selectedSongs.value = []
+  setOption(options.library)
+}
+
+function waveUpdated(markers) {
+  axios
+    .post('http://localhost:3000/songs/update-markers/' + selectedSongs.value[0], markers)
+    .then(function (response) {})
+    .catch(function (error) {
+      console.log(error)
+    })
+    .finally(function () {
+      selectedSongs.value = []
+      setOption(options.library)
+    })
+}
+
+function saveSpeed(p) {
+  let id = null
+  let speed = null
+
+  if (p.position === 'top') {
+    id = player1.value.songId
+    speed = player1.value.speed_added
+  } else {
+    id = player2.value.songId
+    speed = player2.value.speed_added
+  }
+
+  axios
+    .post('http://localhost:3000/songs/save-speed', {
+      id: id,
+      speed: speed
+    })
+    .then(function (response) {})
+}
+
+function next() {
+  if (player1.value.status === playerStatuses.Reproduciendo) {
+    player1.value.next()
+  } else if (player2.value.status === playerStatuses.Reproduciendo) {
+    player2.value.next()
+  }
+}
+
+function artistsChanged(data) {
+  selectedArtists.value = data
+}
+
+function tagsChanged(data) {
+  selectedTags.value = data
+}
+
+function selectAllArtists() {
+  artistMultiSelect.value.selectAll()
+}
+
+function selectNoneArtists() {
+  artistMultiSelect.value.selectNone()
+}
+
+function selectAllTags() {
+  tagMultiSelect.value.selectAll()
+}
+
+function selectNoneTags() {
+  tagMultiSelect.value.selectNone()
 }
 </script>
 
 <template>
   <!-- Overlay to close the menu -->
   <div v-if="showMenu" class="overlay" @click="closeContextMenu" @click.right="closeContextMenu" />
+
+  <audio id="placa" class="hidden" controls>
+    <source preload="auto" src="/placa.mp3" type="audio/mp3" />
+  </audio>
 
   <!-- Custom Context Menu -->
   <ContextMenu
@@ -537,108 +749,167 @@ function downloaded() {
     @click="hideMenu"
   >
     <div
-      class="right-[115px] fixed flex h-full flex-col bg-gray-300 p-6 w-3/5 text-black"
+      :class="{
+        'w-9/12': currentSelectedOption === options.library,
+        'w-11/12': currentSelectedOption === options.wave,
+        'w-2/5': currentSelectedOption !== options.wave && currentSelectedOption !== options.library
+      }"
+      class="right-[40px] fixed flex h-full flex-col min-h-[0] bg-gray-300 p-6 text-black"
       @click="hideMenu"
     >
-      <Download
-        @downloaded="downloaded"
+      <Edit
+        v-if="currentSelectedOption === options.edit"
+        :id="selectedSongs[0]"
         :tags="tags"
-        v-if="currentSelectedOption === options.download"
         :artists="artists"
+        @updated="updated"
+      ></Edit>
+
+      <Download
+        v-if="currentSelectedOption === options.download"
+        :tags="tags"
+        :artists="artists"
+        @downloaded="downloaded"
       ></Download>
 
       <Artists v-if="currentSelectedOption === options.artists"></Artists>
 
-      <Tags v-if="currentSelectedOption === options.tags" :tags="tags" @saved="getTags"></Tags>
+      <Tags v-if="currentSelectedOption === options.tags" :tags="tags" @added="getTags"></Tags>
 
+      <Wave
+        v-if="currentSelectedOption === options.wave"
+        :id="selectedSongs[0]"
+        @wave-updated="waveUpdated"
+      ></Wave>
       <div
         v-if="currentSelectedOption === options.library"
         class="flex flex-col space-y-4 flex-1 min-h-[0]"
       >
         <div class="library-filters flex items-start h-[200px] space-x-4">
-          <div class="h-full flex-1 flex flex-col">
-            <label class="block text-sm text-gray-600 mb-1">Artista</label>
-            <select
-              id="selectedArtists"
-              v-model="selectedArtists"
-              name="selectedArtists"
-              class="h-full flex-1 p-0"
-              multiple
-              @change="filterSongsByArtist"
-            >
-              <option v-for="a in artists" :key="a.id" class="px-2" :value="a.id">
-                {{ a.name }}
-              </option>
-            </select>
+          <div class="h-full flex-1 flex flex-col min-h-[0]">
+            <div class="flex items-center space-x-2 text-xs text-white mb-2">
+              <button @click="selectAllArtists" class="px-2 py-1 bg-gray-700 flex items-center space-x-1">
+                <Icon class="w-4 h-4" icon="ri:checkbox-line" />
+                <span>Todos</span>
+              </button>
+              <button @click="selectNoneArtists" class="px-2 py-1 bg-gray-700 flex items-center space-x-1">
+                <Icon class="w-4 h-4" icon="carbon:checkbox" />
+                <span>Ninguno</span>
+              </button>
+            </div>
+
+            <div class="overflow-y-scroll bg-gray-300 flex-1">
+              <multiselect
+                ref="artistMultiSelect"
+                name="artists"
+                :list="artists"
+                @changed="artistsChanged"
+              ></multiselect>
+            </div>
           </div>
 
-          <div class="h-full flex-1 flex flex-col">
-            <label class="block text-sm text-gray-600 mb-1">Etiqueta</label>
-            <select
-              id="selectedTags"
-              v-model="selectedTags"
-              class="h-full flex-1 p-0"
-              name="selectedTags"
-              multiple
-              @change="filterSongs"
-            >
-              <option v-for="tag in tags" :key="tag.id" class="px-2" :value="tag.id">
-                {{ tag.name }}
-              </option>
-            </select>
+          <div class="h-full flex-1 flex flex-col min-h-[0]">
+            <div class="flex items-center space-x-2 text-xs text-white mb-2">
+              <button @click="selectAllTags" class="px-2 py-1 bg-gray-700 flex items-center space-x-1">
+                <Icon class="w-4 h-4" icon="ri:checkbox-line" />
+                <span>Todos</span>
+              </button>
+              <button @click="selectNoneTags" class="px-2 py-1 bg-gray-700 flex items-center space-x-1">
+                <Icon class="w-4 h-4" icon="carbon:checkbox" />
+                <span>Ninguno</span>
+              </button>
+            </div>
+
+            <div class="overflow-y-scroll bg-gray-300 flex-1">
+              <multiselect
+                ref="tagMultiSelect"
+                name="tags"
+                :list="tags"
+                @changed="tagsChanged"
+              ></multiselect>
+            </div>
           </div>
         </div>
 
-        <div class="flex items-center space-x-3">
-          <button
-            v-if="playlistDetails.length === 0"
-            :disabled="selectedSongs.length <= 0"
-            type="button"
-            class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
-            @click="addToPlaylist(0)"
-          >
-            <Icon class="w-5 h-5" icon="material-symbols:add" />
-            <span>Agregar</span>
-          </button>
-          <button
-            v-if="playlistDetails.length === 0"
-            :disabled="selectedSongs.length <= 0"
-            type="button"
-            class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
-            @click="addToPlaylist(3)"
-          >
-            <Icon class="w-4 h-4" icon="oi:random" />
-            <span>Agregar aleatorio</span>
-          </button>
-          <template v-if="playlistDetails.length > 0">
+        <div class="flex items-center justify-between space-x-3">
+          <div class="flex items-center space-x-3">
             <button
-              :disabled="selectedSongs.length <= 0"
+              v-if="playlistDetails.length === 0"
+              :disabled="selectedSongs.length <= 0 || player1.status === playerStatuses.Cambiando || player2.status
+              === playerStatuses.Cambiando"
               type="button"
               class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
-              @click="addToPlaylist(1)"
+              @click="addToPlaylist(0)"
             >
-              <Icon class="w-5 h-5" icon="ic:baseline-move-up" />
-              <span>Al comienzo</span>
+              <Icon class="w-5 h-5" icon="material-symbols:add" />
+              <span>Agregar</span>
             </button>
             <button
-              :disabled="selectedSongs.length <= 0"
+              v-if="playlistDetails.length === 0"
+              :disabled="selectedSongs.length <= 1  || player1.status === playerStatuses.Cambiando || player2.status
+              === playerStatuses.Cambiando"
               type="button"
               class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
-              @click="addToPlaylist(2)"
+              @click="addToPlaylist(3)"
             >
-              <Icon class="w-5 h-5" icon="ic:baseline-move-down" />
-              <span>Al final</span>
+              <Icon class="w-4 h-4" icon="oi:random" />
+              <span>Aleatorio</span>
             </button>
-          </template>
-          <button
-            :disabled="selectedSongs.length <= 0"
-            type="button"
-            class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
-            @click="addToPlaylist(2)"
-          >
-            <Icon class="w-5 h-5" icon="material-symbols:info-outline" />
-            <span>Info</span>
-          </button>
+            <template v-if="playlistDetails.length > 0">
+              <button
+                :disabled="selectedSongs.length <= 0"
+                type="button"
+                class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
+                @click="addToPlaylist(1)"
+              >
+                <Icon class="w-5 h-5" icon="ic:baseline-move-up" />
+                <span>Al comienzo</span>
+              </button>
+              <button
+                :disabled="selectedSongs.length <= 0"
+                type="button"
+                class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
+                @click="addToPlaylist(2)"
+              >
+                <Icon class="w-5 h-5" icon="ic:baseline-move-down" />
+                <span>Al final</span>
+              </button>
+            </template>
+            <button
+              :disabled="selectedSongs.length !== 1"
+              type="button"
+              class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
+              @click="currentSelectedOption = options.edit"
+            >
+              <Icon class="w-5 h-5" icon="material-symbols:info-outline" />
+              <span>Info</span>
+            </button>
+            <button
+              :disabled="selectedSongs.length !== 1"
+              type="button"
+              class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
+              @click="currentSelectedOption = options.wave"
+            >
+              <Icon class="w-5 h-5" icon="mdi:sine-wave" />
+              <span>Onda</span>
+            </button>
+            <button
+              :disabled="selectedSongs.length !== 1"
+              type="button"
+              class="text-sm whitespace-nowrap px-2 py-2 bg-red-600 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
+              @click="deleteSong"
+            >
+              <Icon class="w-5 h-5" icon="iwwa:delete" />
+              <span>Eliminar</span>
+            </button>
+          </div>
+
+          <input
+            v-model="filterQuery"
+            placeholder="Filtrar por título o artista"
+            class="text-sm min-w-[170px]"
+            type="text"
+          />
         </div>
 
         <div class="flex-1 overflow-y-auto">
@@ -646,7 +917,7 @@ function downloaded() {
             <tr>
               <td class="w-[40px]">
                 <Icon
-                  v-if="selectedSongs.length === songs.length"
+                  v-if="selectedSongs.length === filteredSongs.length"
                   class="cursor-pointer"
                   icon="icomoon-free:checkbox-checked"
                   @click="selectAllSongs"
@@ -661,23 +932,39 @@ function downloaded() {
               <td class="text-xs">Título</td>
               <td class="text-xs">Artista(s)</td>
               <td class="text-xs">Duración</td>
+              <td class="text-xs text-center">Fuente</td>
             </tr>
-            <tr
-              v-for="s in songs"
-              :key="s.id"
-              @click="toggleSelectedSongs(s.id)"
-              @contextmenu.prevent="showContextMenu($event, s)"
-            >
+            <tr v-for="s in filteredSongs" :key="s.id" @click="toggleSelectedSongs(s.id)">
               <td class="text-sm w-[40px]">
-                <Icon v-if="selectedSongs.includes(s.id)" icon="icomoon-free:checkbox-checked" />
-                <Icon class="text-gray-400" v-else icon="icomoon-free:checkbox-unchecked" />
+                <template v-if="!deletedSongs.includes(s.id)">
+                  <Icon v-if="selectedSongs.includes(s.id)" icon="icomoon-free:checkbox-checked" />
+                  <Icon v-else class="text-gray-400" icon="icomoon-free:checkbox-unchecked" />
+                </template>
               </td>
               <td class="text-sm">
-                <span class="text-black font-bold">{{ s.name }}</span>
+                <span
+                  :class="{ 'text-red-500 line-through': deletedSongs.includes(s.id) }"
+                  class="text-black"
+                  >{{ s.name }}</span
+                >
               </td>
-              <td class="text-sm text-gray-500">{{ s.Artists.map((i) => i.name).join(', ') }}</td>
-              <td class="text-sm text-gray-400">
+              <td
+                :class="{ 'text-red-500 line-through': deletedSongs.includes(s.id) }"
+                class="text-sm text-gray-500"
+              >
+                {{ s.Artists.map((i) => i.name).join(', ') }}
+              </td>
+              <td
+                :class="{ 'text-red-500 line-through': deletedSongs.includes(s.id) }"
+                class="text-sm text-gray-500"
+              >
                 {{ s.duration_original }}
+              </td>
+              <td
+                class="text-center text-sm text-gray-500"
+              >
+                <Icon v-if="s.isAppleMusic" class="mx-auto w-6 h-6" icon="ic:baseline-apple" />
+                <Icon v-else class="mx-auto w-6 h-6" icon="mingcute:youtube-fill" />
               </td>
             </tr>
           </table>
@@ -695,11 +982,20 @@ function downloaded() {
         @loaded="checkPlayers(player1)"
         @stopped="checkPlayers(player1)"
         @fading="songFading(player1)"
+        @speed="saveSpeed(player1)"
       ></Player>
-      <div>
-        <audio id="placa" class="hidden" controls>
-          <source preload="auto" src="/placa.mp3" type="audio/mp3" />
-        </audio>
+      <div class="p-6">
+        <div class="relative">
+          <div class="select-none absolute text-sm text-gray-500 right-[140px] top-[40px]">
+            v{{ version }}
+          </div>
+          <img
+            id="logo"
+            class="w-full h-auto select-none"
+            src="/logo.png"
+            alt="Salsamanía por Rogers Vizcaino"
+          />
+        </div>
       </div>
       <Player
         ref="player2"
@@ -708,23 +1004,13 @@ function downloaded() {
         @loaded="checkPlayers(player2)"
         @stopped="checkPlayers(player2)"
         @fading="songFading(player2)"
+        @speed="saveSpeed(player2)"
       ></Player>
     </div>
 
-    <div class="flex-[6] flex flex-col p-4 pr-10 space-y-4">
-      <div class="flex items-center justify-between">
+    <div class="flex-[6] flex flex-col p-4 space-y-2">
+      <div class="flex items-center space-x-10 justify-between">
         <div class="control-buttons flex items-center space-x-3">
-          <button
-            :disabled="
-              (player1 && player1.status === playerStatuses.Cambiando) ||
-              (player2 && player2.status === playerStatuses.Cambiando)
-            "
-            type="button"
-            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
-          >
-            <Icon class="w-6 h-6 text-white" icon="material-symbols:skip-previous" />
-          </button>
-
           <button
             v-if="
               (player1 &&
@@ -752,8 +1038,10 @@ function downloaded() {
           <button
             v-else
             :disabled="
-              (player1 && player1.status === playerStatuses.Cambiando) ||
-              (player2 && player2.status === playerStatuses.Cambiando)
+               (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
+              playerStatuses['Sin Carga'])
+               && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
+                player2.status === playerStatuses.Cambiando)
             "
             type="button"
             class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
@@ -764,103 +1052,189 @@ function downloaded() {
 
           <button
             :disabled="
-              (player1 && player1.status === playerStatuses.Cambiando) ||
-              (player2 && player2.status === playerStatuses.Cambiando)
+              (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
+              playerStatuses['Sin Carga'])
+               && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
+                player2.status === playerStatuses.Cambiando)
             "
             type="button"
             class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+            @click="next"
           >
             <Icon class="w-6 h-6 text-white" icon="material-symbols:skip-next" />
           </button>
         </div>
 
-        <div>
-          <select
-            v-model="currentMode"
-            class="text-base block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600"
+        <div class="flex items-center space-x-3">
+          <button
+            :disabled="selectedRows.length <= 0"
+            type="button"
+            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+            @click="moveFirst(playlistDetails, selectedRows[0])"
           >
-            <option value="0">Manual</option>
-          </select>
+            <Icon class="w-6 h-6 text-white" icon="ic:baseline-move-up" />
+          </button>
+
+          <button
+            :disabled="selectedRows.length <= 0"
+            type="button"
+            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+            @click="moveUp(playlistDetails, selectedRows[0])"
+          >
+            <Icon class="w-6 h-6 text-white" icon="teenyicons:up-solid" />
+          </button>
+
+          <button
+            :disabled="selectedRows.length <= 0"
+            type="button"
+            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+            @click="moveDown(playlistDetails, selectedRows[0])"
+          >
+            <Icon class="w-6 h-6 text-white" icon="teenyicons:down-solid" />
+          </button>
+
+          <button
+            :disabled="selectedRows.length <= 0"
+            type="button"
+            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 text-white p-2"
+            @click="remove(playlistDetails, selectedRows[0])"
+          >
+            <Icon class="w-6 h-6 text-white" icon="mdi:remove-bold" />
+          </button>
+        </div>
+
+        <div class="flex items-center space-x-3">
+          <button
+            :disabled="!player1 || selectedRows.length <= 0 || player1.status === playerStatuses.Reproduciendo ||
+            player1.status === playerStatuses.Cambiando"
+            type="button"
+            class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 text-white p-2"
+            @click="loadDeck('A')"
+          >
+            <Icon class="w-6 h-6 text-white" icon="ic:baseline-download" />
+            <span class="inline-block bg-[#EAB308FF] p-1 leading-none">A</span>
+          </button>
+
+          <button
+            :disabled="!player2 || selectedRows.length <= 0 || player2.status === playerStatuses.Reproduciendo ||
+            player2.status === playerStatuses.Cambiando"
+            type="button"
+            class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 text-white p-2"
+            @click="loadDeck('B')"
+          >
+            <Icon class="w-6 h-6 text-white" icon="ic:baseline-download" />
+            <span class="inline-block bg-[#EC4899FF] p-1 leading-none">B</span>
+          </button>
         </div>
       </div>
 
       <div class="bg-gray-900 flex-1 overflow-y-auto basis-0">
-        <table class="dark border-collapse w-full">
-          <tr :key="s.id" v-for="s in playlistDetails" @click="selectRow($event, s.id)">
+        <table class="dark border-collapse w-full text-sm">
+          <tr v-for="s in playlistDetails" :key="s.id" @click="selectRow($event, s.id)">
             <td class="cursor-pointer" :class="{ 'bg-pink-500': selectedRows.includes(s.id) }">
               {{ s.name }}
             </td>
             <td class="cursor-pointer" :class="{ 'bg-pink-500': selectedRows.includes(s.id) }">
               {{ s.Artists.map((i) => i.name).join(', ') }}
             </td>
-            <td class="cursor-pointer text-right" :class="{ 'bg-pink-500': selectedRows.includes(s.id) }">
-              {{ s.duration_original }}
-            </td>
           </tr>
         </table>
       </div>
 
-      <div class="play-next-status text-sm text-white">
-        {{ playlistDetails.length }} canciones restantes
+      <div class="flex items-center justify-between">
+        <div class="play-next-status text-xs text-white">
+          <span v-if="playlistDetails.length <= 0">No hay más canciones</span>
+          <span v-else-if="playlistDetails.length > 1">{{ playlistDetails.length }} canciones restantes</span>
+          <span v-else>1 canción restante</span>.
+          <span v-if="timeLeft[0] > 0">La reproducción terminará a las {{ timeLeft[1] }}</span>
+          <span class="text-lime-500" v-if="timeLeft[2] > 0"> +{{ timeLeft[2] }} día(s).</span>
+          <span v-else>.</span>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button
+            :disabled="playlistDetails.length <= 1"
+            type="button"
+            class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
+            @click="shuffle(playlistDetails)"
+          >
+            <Icon class="w-4 h-4" icon="ic:baseline-shuffle" />
+            <span>Revolver</span>
+          </button>
+
+          <button
+            :disabled="playlistDetails.length <= 0"
+            type="button"
+            class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
+            @click="removeAll(playlistDetails)"
+          >
+            <Icon class="w-4 h-4" icon="iconamoon:trash-fill" />
+            <span>Vaciar</span>
+          </button>
+        </div>
       </div>
+
     </div>
 
-    <div class="z-50 flex flex-col space-y-10 justify-between items-center bg-gray-100 fullheight">
+    <div
+      class="z-50 text-sm flex flex-col space-y-10 justify-between items-center bg-gray-100 fullheight"
+    >
       <div class="flex flex-col w-full">
         <div
-          :class="{ 'bg-gray-300': currentSelectedOption === options.library }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-3 pb-3"
+          :class="{
+            'bg-gray-300':
+              currentSelectedOption === options.library || currentSelectedOption === options.wave
+          }"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
           @click="setOption(options.library)"
         >
-          <div><img class="block" src="/icons/library.png" alt="Library Icon" /></div>
-          <div class="text-center font-bold">Biblioteca</div>
+          <div>
+            <Icon class="w-8 h-8" icon="material-symbols:library-music-outline-sharp" />
+          </div>
         </div>
 
         <div
           :class="{ 'bg-gray-300': currentSelectedOption === options.download }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-3 pb-3"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
           @click="setOption(options.download)"
         >
           <div>
-            <Icon class="w-16 h-16" icon="ic:sharp-download" />
+            <Icon class="w-10 h-10" icon="ic:sharp-download" />
           </div>
-          <div class="text-center font-bold">Descargar</div>
         </div>
       </div>
 
       <div class="flex flex-col w-full">
         <div
           :class="{ 'bg-gray-300': currentSelectedOption === options.artists }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-3 pb-3"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
           @click="setOption(options.artists)"
         >
           <div>
-            <Icon class="w-16 h-16" icon="material-symbols:artist" />
+            <Icon class="w-8 h-8" icon="material-symbols:artist" />
           </div>
-          <div class="text-center font-bold">Artistas</div>
         </div>
 
         <div
           :class="{ 'bg-gray-300': currentSelectedOption === options.tags }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-3 pb-3"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
           @click="setOption(options.tags)"
         >
           <div>
-            <Icon class="w-16 h-16" icon="mdi:tags" />
+            <Icon class="w-8 h-8" icon="mdi:tags" />
           </div>
-          <div class="text-center font-bold">Etiquetas</div>
         </div>
 
-        <div
+        <!--div
           :class="{ 'bg-gray-300': currentSelectedOption === options.settings }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-6 pt-3 pb-3"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-3 pt-3 pb-3"
           @click="setOption(options.settings)"
         >
           <div>
-            <Icon class="w-16 h-16" icon="ic:sharp-settings" />
+            <Icon class="w-8 h-8" icon="ic:sharp-settings" />
           </div>
           <div class="text-center font-bold">Ajustes</div>
-        </div>
+        </div-->
       </div>
     </div>
   </div>

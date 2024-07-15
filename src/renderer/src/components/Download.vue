@@ -13,7 +13,8 @@ const artistIds = ref([])
 const totalArtists = ref(1)
 const songTags = ref([])
 const isSaving = ref(false)
-
+const isError = ref(false)
+const errorMessage = ref('')
 const emit = defineEmits(['downloaded'])
 
 const props = defineProps({
@@ -32,65 +33,80 @@ setTimeout(function () {
 }, 200)
 
 function saveSong() {
-  isSaving.value = true
-  
+  isError.value = false
+  errorMessage.value = ''
+  artistIds.value = []
+
   const elements = document.querySelectorAll('.artist')
   elements.forEach((e) => {
-    artistIds.value.push(e.value)
+    if (parseInt(e.value)) {
+      artistIds.value.push(parseInt(e.value))
+    }
   })
 
-  axios
-    .post('http://localhost:3000/download', {
-      url: url.value
-    })
-    .then(function (response) {
-      songId.value = response.data
+  if (
+    songTags.value.length <= 0 ||
+    artistIds.value.length <= 0 ||
+    url.value.length <= 0 ||
+    song.value.length <= 0
+  ) {
+    errorMessage.value = 'La información está incompleta'
+    isError.value = true
+  } else {
+    isSaving.value = true
 
-      axios
-        .post('http://localhost:3000/songs/save', {
-          ytid: songId.value,
-          song: song.value,
-          artists: artistIds.value,
-          duration: songDuration.value,
-          durationOriginal: songDurationOriginal.value,
-          songTags: songTags.value
-        })
-        .then(function (response) {
-          emit('downloaded')
-        })
-        .catch(function (error) {})
-        .finally(function () {
-          // always executed
-        })
-    })
-    .catch(function (error) {
-      console.log(error)
-    })
-    .finally(function () {
-      // always executed
-    })
+    axios
+      .post('http://localhost:3000/download', {
+        url: url.value
+      })
+      .then(function (response) {
+        songId.value = response.data
+
+        axios
+          .post('http://localhost:3000/songs/save', {
+            ytid: songId.value,
+            song: song.value,
+            artists: artistIds.value,
+            duration: songDuration.value,
+            durationOriginal: songDurationOriginal.value,
+            songTags: songTags.value
+          })
+          .then(function (response) {
+            emit('downloaded')
+          })
+          .catch(function (error) {})
+          .finally(function () {
+            // always executed
+          })
+      })
+      .catch(function (error) {
+        isSaving.value = false
+        isError.value = true
+        errorMessage.value = error.response.data.message
+      })
+      .finally(function () {
+        // always executed
+      })
+  }
+}
+
+function addArtist() {
+  totalArtists.value += 1
 }
 </script>
 
 <template>
   <div>
-    <form class="space-y-3 max-w-[80%] mx-auto" @submit.prevent="saveSong">
-      <div>
-        <label class="text-sm text-gray-500 block">URL de Youtube</label>
-        <input
-          id="url"
-          v-model="url"
-          type="text"
-          class="w-full block"
-          placeholder="URL de Youtube"
-        />
-      </div>
 
+    <div v-if="isError" class="px-2 py-1 bg-red-300 text-red-700 mb-4">
+      {{ errorMessage }}.
+    </div>
+    <form class="space-y-3 mx-auto" @submit.prevent="saveSong">
       <div>
         <label class="text-sm text-gray-500 block">Artista</label>
-        <div class="flex items-center space-x-2">
-          <select class="w-full block artist">
-            <option value="" selected>-- Seleccionar Artista --</option>
+        <div class="space-y-2">
+          <select :key="index" v-for="index in totalArtists" class="w-full block artist">
+            <option value="" selected>-- Vacío --</option>
             <option v-for="artist in artists" :key="artist.id" :value="artist.id">
               {{ artist.name }}
             </option>
@@ -98,10 +114,25 @@ function saveSong() {
         </div>
 
         <div class="mt-2">
-          <button type="button" class="text-sm py-1 px-2 text-gray-800 bg-gray-400">
+          <button
+            type="button"
+            class="text-sm py-1 px-2 text-gray-800 bg-gray-400"
+            @click="addArtist"
+          >
             Agregar artista {{ totalArtists + 1 }}
           </button>
         </div>
+      </div>
+
+      <div>
+        <label class="text-sm text-gray-500 block">URL de Apple Music / Youtube</label>
+        <input
+          id="url"
+          v-model="url"
+          type="text"
+          class="w-full block"
+          placeholder="URL"
+        />
       </div>
 
       <div>
@@ -121,6 +152,7 @@ function saveSong() {
         <div v-for="tag in tags" :key="tag.id" class="relative flex items-center mb-1">
           <div class="mr-2 flex items-center">
             <input
+              :id="`tag${tag.id}`"
               v-model="songTags"
               type="checkbox"
               :value="tag.id"
@@ -128,7 +160,7 @@ function saveSong() {
             />
           </div>
           <div class="min-w-0 flex-1 leading-6">
-            <label for="person-1" class="select-none font-medium text-gray-900">{{
+            <label :for="`tag${tag.id}`" class="select-none font-medium text-gray-900">{{
               tag.name
             }}</label>
           </div>

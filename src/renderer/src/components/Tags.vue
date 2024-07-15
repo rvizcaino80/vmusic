@@ -46,7 +46,7 @@ function getTags() {
   axios
     .get('http://localhost:3000/tags')
     .then(function (response) {
-      tags.value = response.data
+      tags.value = response.data.sort((a, b) => a.name.localeCompare(b.name))
     })
     .catch(function (error) {
       // handle error

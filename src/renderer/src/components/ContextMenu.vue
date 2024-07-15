@@ -17,6 +17,6 @@ const { actions, x, y, song } = defineProps(['actions', 'x', 'y', 'song'])
 const emit = defineEmits(['action-clicked'])
 
 const emitAction = (action) => {
-  emit('action-clicked', action)
+  emit('action-clicked', { action: action, id: song.id })
 }
 </script>

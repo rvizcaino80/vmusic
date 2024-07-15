@@ -1,11 +1,15 @@
 <script setup>
 import { computed, onBeforeMount, onMounted, ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 
 let player = null
 const duration = ref(0.0)
+const songFull = ref({ })
 const songId = ref(null)
+const start = ref(null)
+const end = ref(null)
 const song = ref('')
 const artist = ref('')
 const status = ref()
@@ -15,6 +19,9 @@ const speed = ref(1.0)
 const left = ref(0)
 const speed_added = ref(0.0)
 const volume_added = ref(0.0)
+let wsRegions = null
+let originalOptions = {}
+let crossfaderOptions = {}
 
 onBeforeMount(() => {
   status.value = props.statuses['Sin Carga']
@@ -22,11 +29,59 @@ onBeforeMount(() => {
 })
 
 onMounted(() => {
-  player = WaveSurfer.create({
-    height: 200,
+  originalOptions = {
     normalize: true,
     container: '#' + playerId.value,
-    cursorColor: '#ffffff'
+    cursorColor: '#ffffff',
+    height: 'auto',
+    fillParent: true,
+    backend: 'MediaElement'
+  }
+
+  crossfaderOptions = {
+    normalize: true,
+    container: '#' + playerId.value,
+    cursorColor: '#ff0000',
+    height: 'auto',
+    fillParent: true,
+    backend: 'MediaElement'
+  }
+
+  player = WaveSurfer.create(originalOptions)
+
+  wsRegions = player.registerPlugin(RegionsPlugin.create())
+
+  player.on('decode', (d) => {
+    if (start.value && start.value !== 0) {
+      player.setTime(start.value)
+      wsRegions.addRegion({
+        id: 'inicio',
+        start: 0,
+        end: start.value,
+        color: 'rgba(114,0,0,0.64)',
+        drag: false,
+        resize: false
+      })
+    }
+
+    if (end.value) {
+      wsRegions.addRegion({
+        id: 'final',
+        start: end.value,
+        end: d,
+        color: 'rgba(114,0,0,0.64)',
+        drag: false,
+        resize: false
+      })
+    } else {
+      end.value = d
+    }
+
+    left.value = end.value
+  })
+
+  wsRegions.on('region-clicked', (region, e) => {
+    e.stopPropagation() // prevent triggering a click on the waveform
   })
 
   if (props.position === 'top') {
@@ -40,15 +95,19 @@ onMounted(() => {
   }
 
   player.on('load', () => {
+    wsRegions.clearRegions()
     player.toggleInteraction(false)
     status.value = props.statuses.Cargando
+    player.seekTo(0)
   })
 
   player.on('ready', (d) => {
+    player.setOptions(originalOptions)
     player.toggleInteraction(false)
     emit('loaded')
     duration.value = d
     status.value = props.statuses.Listo
+    setInitialSpeed(speed_added.value)
   })
 
   player.on('play', () => {
@@ -61,15 +120,15 @@ onMounted(() => {
   })
 
   player.on('finish', () => {
-    //Get this value from db
     player.setPlaybackRate(1.0)
     speed_added.value = 0
 
     player.toggleInteraction(false)
     artist.value = ''
     song.value = ''
-    player.empty()
     player.stop()
+    player.empty()
+    wsRegions.clearRegions()
     status.value = props.statuses['Sin Carga']
     emit('stopped')
   })
@@ -87,31 +146,60 @@ onMounted(() => {
   })
 })
 
+function next() {
+  /*const pos = duration.value
+  player.seekTo(pos / duration.value)*/
+  left.value = 0
+  artist.value = ''
+  song.value = ''
+  start.value = null
+  end.value = null
+  player.stop()
+  player.empty()
+  wsRegions.clearRegions()
+  status.value = props.statuses['Sin Carga']
+  emit('stopped')
+  emit('fading')
+}
+
 function calculateVolume(ct) {
-  left.value = duration.value - ct
+  const crossfader_time = 4
+  left.value = end.value - ct
 
-  if (left.value > 8) {
-    if (status.value !== props.statuses.Placa && status.value !== props.statuses.Nivelando) {
-      player.setVolume(1.0)
-    }
+  if (status.value === props.statuses.Cambiando && ct > end.value) {
+    left.value = 0
+    artist.value = ''
+    song.value = ''
+    start.value = null
+    end.value = null
+    player.stop()
+    player.empty()
+    wsRegions.clearRegions()
+    status.value = props.statuses['Sin Carga']
+    emit('stopped')
   } else {
-    if (status.value === props.statuses.Reproduciendo) {
-      player.toggleInteraction(false)
-      status.value = props.statuses.Cambiando
+    if (left.value > crossfader_time) {
+      if (status.value !== props.statuses.Placa && status.value !== props.statuses.Nivelando) {
+        player.setVolume(1.0)
+      }
+    } else {
+      if (status.value === props.statuses.Reproduciendo) {
+        player.toggleInteraction(false)
+        status.value = props.statuses.Cambiando
 
-      setTimeout(function () {
+        player.setOptions(crossfaderOptions)
         emit('fading')
-      }, 2500)
+      }
+      player.setVolume(left.value / crossfader_time)
     }
-    player.setVolume(left.value / 8)
   }
 }
 
-function tempFade(duration = 4000) {
+function tempFade(duration = 3000) {
   player.toggleInteraction(false)
   let vol = player.getVolume()
 
-  if (vol > 0.4) {
+  if (vol > 0.6) {
     player.setVolume(vol - 0.1)
     setTimeout(tempFade, 100)
   } else {
@@ -142,14 +230,24 @@ function load(url) {
 }
 
 function setSong(s) {
+  // Create your own media element
   //Get this value from db
+  songFull.value = s
   player.setPlaybackRate(1.0)
-  speed_added.value = 0
+  start.value = s.start
+  end.value = s.end
   songId.value = s.id
   song.value = s.name
+  speed.value = 1
+  speed_added.value = s.speed
   artist.value = s.Artists.map((i) => i.name).join(', ')
   player.setVolume(1)
   player.load('http://localhost:3000/static/' + s.folder + '/' + s.ytid + '.mp3')
+
+  let audio = new Audio()
+  audio.crossOrigin = 'anonymous'
+  audio.src = 'http://localhost:3000/static/' + s.folder + '/' + s.ytid + '.mp3'
+  player.load(audio)
 }
 
 function play() {
@@ -173,24 +271,28 @@ function getStatusName(status) {
     }
   }
 }
+function setInitialSpeed(val) {
+  const newSpeed = speed.value + val / 100
+  speed.value = parseFloat(newSpeed)
+  player.setPlaybackRate(speed.value)
+}
 
 function setSpeed(val) {
   speed_added.value = speed_added.value + val
   const newSpeed = speed.value + val / 100
   speed.value = parseFloat(newSpeed)
   player.setPlaybackRate(speed.value)
+  emit('speed')
 }
-
 function setVolume(val) {
   volume_added.value = volume_added.value + val
   const newVolume = volume.value + val / 20
-  console.log(newVolume)
 
   volume.value = parseFloat(newVolume)
   player.setVolume(volume.value)
 }
 
-const emit = defineEmits(['fading', 'stopped', 'loaded'])
+const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed'])
 
 const props = defineProps({
   position: String,
@@ -205,24 +307,30 @@ defineExpose({
   songId,
   status,
   left,
+  songFull,
   tempFade,
   load,
   play,
   pause,
   stop,
-  setSong
+  setSong,
+  next,
+  speed_added
 })
 </script>
 
 <template>
-  <div :class="{ 'flex-col-reverse': props.position === 'top' }" class="player p-6 flex flex-col">
-    <div
-      :class="{ 'items-end': props.position === 'top', 'items-start': props.position === 'bottom' }"
-      class="flex justify-between space-x-3"
-    >
+  <div
+    :class="{
+      'flex-col-reverse': props.position === 'top'
+    }"
+    class="justify-end player p-6 flex flex-col flex-1 max-h-[550px]"
+  >
+    <div class="flex justify-between space-x-3">
       <div class="flex space-x-3">
         <div
           :class="{
+            'pulsate-bck': status === props.statuses.Reproduciendo,
             'bg-pink-500': props.position === 'bottom',
             'bg-yellow-500': props.position === 'top'
           }"
@@ -232,8 +340,9 @@ defineExpose({
           <span class="select-none" v-if="props.position === 'bottom'">B</span>
         </div>
         <div>
-          <h2 class="text-white text-xl select-none">{{ artist || 'Sin artista' }}</h2>
-          <h1 class="text-white text-2xl select-none">{{ song || 'Sin canción' }}</h1>
+          <h2 class="text-white text-xl select-none max-w-[420px] truncate">{{ artist || 'Sin artista' }}</h2>
+          <h1 class="text-white text-2xl select-none max-w-[420px] truncate">{{ song || 'Sin canción'
+            }}</h1>
           <div class="text-sm text-gray-500 select-none">
             <span>Status: {{ getStatusName(status) }}</span>
             <span
@@ -274,7 +383,7 @@ defineExpose({
           </div>
         </div-->
 
-        <div class="flex flex-col items-center">
+        <div v-if="status !== props.statuses['Sin Carga']" class="flex flex-col items-center">
           <span class="text-sm mb-0.5 select-none">Velocidad</span>
           <div class="flex items-center space-x-1">
             <Icon
@@ -308,7 +417,7 @@ defineExpose({
       v-show="status !== props.statuses['Sin Carga']"
       :id="playerId"
       :class="{ 'mb-3': props.position === 'top', 'mt-3': props.position === 'bottom' }"
-      class="wavesurfer"
+      class="wavesurfer flex-1"
     ></div>
   </div>
 </template>
