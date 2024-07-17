@@ -6,8 +6,5 @@ export default {
         sans: ['Helixa']
       }
     },
-  },
-  plugins: [
-    require('@tailwindcss/forms'),
-  ]
+  }
 }

@@ -1,5 +1,119 @@
+<template>
+  <div>
+
+    <div v-if="isError" class="px-2 py-1 bg-red-300 text-red-700 mb-4">
+      {{ errorMessage }}.
+    </div>
+    <form class="space-y-3 mx-auto" @submit.prevent="saveSong">
+      <div>
+        <label class="text-sm text-gray-500 block">Artista</label>
+        <div :key="total" v-for="total in totalArtists">
+          <div class="space-y-2">
+            <a-select
+              v-model:value="selectedArtists"
+              show-search
+              placeholder="Seleccione..."
+              style="width: 100%"
+              :options="localArtists.map(item => ({ label: item.name, value: item.id }))"
+              :filter-option="filterOption"
+            />
+          </div>
+        </div>
+        
+
+        <div class="mt-2">
+          <button
+            type="button"
+            class="text-sm py-1 px-2 text-gray-800 bg-gray-400"
+            @click="addArtist"
+          >
+            Agregar artista {{ totalArtists + 1 }}
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-sm text-gray-500 block">Compositor</label>
+        <div class="space-y-2">
+          <a-select
+            v-model:value="selectedComposers"
+            show-search
+            placeholder="Seleccione..."
+            style="width: 100%"
+            :options="artists.map(item => ({ label: item.name, value: item.id }))"
+            :filter-option="filterOption"
+          />
+        </div>
+
+        <div class="mt-2">
+          <button
+            type="button"
+            class="text-sm py-1 px-2 text-gray-800 bg-gray-400"
+            @click="addArtist"
+          >
+            Agregar compositor {{ totalArtists + 1 }}
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-sm text-gray-500 block">URL de Apple Music / Youtube</label>
+        <input
+          id="url"
+          v-model="url"
+          type="text"
+          class="w-full block"
+          placeholder="URL"
+        />
+      </div>
+
+      <div>
+        <label class="text-sm text-gray-500 block">Título</label>
+        <input
+          id="song"
+          v-model="song"
+          type="text"
+          class="w-full block"
+          placeholder="Título de la canción"
+        />
+      </div>
+
+      <div>
+        <label class="text-sm text-gray-500 block">Etiquetas</label>
+
+        <div v-for="tag in tags" :key="tag.id" class="relative flex items-center mb-1">
+          <div class="mr-2 flex items-center">
+            <input
+              :id="`tag${tag.id}`"
+              v-model="songTags"
+              type="checkbox"
+              :value="tag.id"
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="min-w-0 flex-1 leading-6">
+            <label :for="`tag${tag.id}`" class="select-none font-medium text-gray-900">{{
+              tag.name
+            }}</label>
+          </div>
+        </div>
+      </div>
+
+      <button
+        :disabled="isSaving"
+        type="submit"
+        class="p-2 border border-gray-800 bg-gray-800 text-white flex items-center space-x-1 font-bold"
+      >
+        <Icon v-if="isSaving" class="w-5 h-5 animate-spin" icon="gg:spinner-two-alt" />
+        <Icon v-else class="w-5 h-5" icon="tdesign:save" />
+        <span>Descargar</span>
+      </button>
+    </form>
+  </div>
+</template>
+
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import axios from 'axios'
 import { Icon } from '@iconify/vue'
 
@@ -11,11 +125,14 @@ const songDurationOriginal = ref('')
 const song = ref('')
 const artistIds = ref([])
 const totalArtists = ref(1)
+const selectedArtists = ref([])
+const selectedComposers = ref([])
 const songTags = ref([])
 const isSaving = ref(false)
 const isError = ref(false)
 const errorMessage = ref('')
 const emit = defineEmits(['downloaded'])
+const localArtists = ref([])
 
 const props = defineProps({
   tags: {
@@ -25,6 +142,12 @@ const props = defineProps({
   artists: {
     type: Array,
     required: true
+  }
+})
+
+watch(() => props.artists, (n, o) => {
+  if (n && n.length > 0) {
+    localArtists.value = [...n]
   }
 })
 
@@ -93,89 +216,8 @@ function saveSong() {
 function addArtist() {
   totalArtists.value += 1
 }
+
+const filterOption = (input, option) => {
+  return option.value.toLowerCase().indexOf(input.toLowerCase()) >= 0;
+};
 </script>
-
-<template>
-  <div>
-
-    <div v-if="isError" class="px-2 py-1 bg-red-300 text-red-700 mb-4">
-      {{ errorMessage }}.
-    </div>
-    <form class="space-y-3 mx-auto" @submit.prevent="saveSong">
-      <div>
-        <label class="text-sm text-gray-500 block">Artista</label>
-        <div class="space-y-2">
-          <select :key="index" v-for="index in totalArtists" class="w-full block artist">
-            <option value="" selected>-- Vacío --</option>
-            <option v-for="artist in artists" :key="artist.id" :value="artist.id">
-              {{ artist.name }}
-            </option>
-          </select>
-        </div>
-
-        <div class="mt-2">
-          <button
-            type="button"
-            class="text-sm py-1 px-2 text-gray-800 bg-gray-400"
-            @click="addArtist"
-          >
-            Agregar artista {{ totalArtists + 1 }}
-          </button>
-        </div>
-      </div>
-
-      <div>
-        <label class="text-sm text-gray-500 block">URL de Apple Music / Youtube</label>
-        <input
-          id="url"
-          v-model="url"
-          type="text"
-          class="w-full block"
-          placeholder="URL"
-        />
-      </div>
-
-      <div>
-        <label class="text-sm text-gray-500 block">Título</label>
-        <input
-          id="song"
-          v-model="song"
-          type="text"
-          class="w-full block"
-          placeholder="Título de la canción"
-        />
-      </div>
-
-      <div>
-        <label class="text-sm text-gray-500 block">Etiquetas</label>
-
-        <div v-for="tag in tags" :key="tag.id" class="relative flex items-center mb-1">
-          <div class="mr-2 flex items-center">
-            <input
-              :id="`tag${tag.id}`"
-              v-model="songTags"
-              type="checkbox"
-              :value="tag.id"
-              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-            />
-          </div>
-          <div class="min-w-0 flex-1 leading-6">
-            <label :for="`tag${tag.id}`" class="select-none font-medium text-gray-900">{{
-              tag.name
-            }}</label>
-          </div>
-        </div>
-      </div>
-
-      <button
-        :disabled="isSaving"
-        type="submit"
-        class="p-2 border border-gray-800 bg-gray-800 text-white flex items-center space-x-1 font-bold"
-      >
-        <Icon v-if="isSaving" class="w-5 h-5 animate-spin" icon="gg:spinner-two-alt" />
-        <Icon v-else class="w-5 h-5" icon="tdesign:save" />
-        <span>Descargar</span>
-      </button>
-    </form>
-  </div>
-</template>
