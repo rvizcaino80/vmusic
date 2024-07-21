@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="overflow-y-auto">
 
     <div v-if="isError" class="px-2 py-1 bg-red-300 text-red-700 mb-4">
       {{ errorMessage }}.
@@ -7,19 +7,24 @@
     <form class="space-y-3 mx-auto" @submit.prevent="saveSong">
       <div>
         <label class="text-sm text-gray-500 block">Artista</label>
+        <!--select :key="index" v-for="index in totalArtists" class="w-full block artist">
+          <option value="" selected>-- Vacío --</option>
+          <option v-for="artist in artists" :key="artist.id" :value="artist.id">
+            {{ artist.name }}
+          </option>
+        </select-->
         <div :key="total" v-for="total in totalArtists">
-          <div class="space-y-2">
-            <a-select
-              v-model:value="selectedArtists"
-              show-search
-              placeholder="Seleccione..."
-              style="width: 100%"
-              :options="localArtists.map(item => ({ label: item.name, value: item.id }))"
-              :filter-option="filterOption"
-            />
-          </div>
+          <a-select
+            :allow-clear="true"
+            class="mb-1"
+            v-model:value="selectedArtists[total]"
+            show-search
+            placeholder="Seleccione..."
+            style="width: 100%"
+            :options="localArtists.map(item => ({ label: item.name, value: item.id }))"
+            :filter-option="filterOption"
+          />
         </div>
-        
 
         <div class="mt-2">
           <button
@@ -34,13 +39,15 @@
 
       <div>
         <label class="text-sm text-gray-500 block">Compositor</label>
-        <div class="space-y-2">
+        <div :key="total" v-for="total in totalComposers">
           <a-select
-            v-model:value="selectedComposers"
+            :allow-clear="true"
+            class="mb-1"
+            v-model:value="selectedComposers[total]"
             show-search
             placeholder="Seleccione..."
             style="width: 100%"
-            :options="artists.map(item => ({ label: item.name, value: item.id }))"
+            :options="localArtists.map(item => ({ label: item.name, value: item.id }))"
             :filter-option="filterOption"
           />
         </div>
@@ -49,54 +56,26 @@
           <button
             type="button"
             class="text-sm py-1 px-2 text-gray-800 bg-gray-400"
-            @click="addArtist"
+            @click="addComposer"
           >
-            Agregar compositor {{ totalArtists + 1 }}
+            Agregar compositor {{ totalComposers + 1 }}
           </button>
         </div>
       </div>
 
       <div>
         <label class="text-sm text-gray-500 block">URL de Apple Music / Youtube</label>
-        <input
-          id="url"
-          v-model="url"
-          type="text"
-          class="w-full block"
-          placeholder="URL"
-        />
+        <a-input class="w-full" v-model:value.lazy="url" autofocus placeholder="URL" />
       </div>
 
       <div>
         <label class="text-sm text-gray-500 block">Título</label>
-        <input
-          id="song"
-          v-model="song"
-          type="text"
-          class="w-full block"
-          placeholder="Título de la canción"
-        />
+        <a-input class="w-full" v-model:value.lazy="song" autofocus placeholder="Título de la canción" />
       </div>
 
       <div>
         <label class="text-sm text-gray-500 block">Etiquetas</label>
-
-        <div v-for="tag in tags" :key="tag.id" class="relative flex items-center mb-1">
-          <div class="mr-2 flex items-center">
-            <input
-              :id="`tag${tag.id}`"
-              v-model="songTags"
-              type="checkbox"
-              :value="tag.id"
-              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-            />
-          </div>
-          <div class="min-w-0 flex-1 leading-6">
-            <label :for="`tag${tag.id}`" class="select-none font-medium text-gray-900">{{
-              tag.name
-            }}</label>
-          </div>
-        </div>
+        <a-checkbox-group v-model:value="selectedTags" name="checkboxgroup" :options="tags.map(item => ({ label: item.name, value: item.id }))" />
       </div>
 
       <button
@@ -123,11 +102,11 @@ const songId = ref('')
 const songDuration = ref(0)
 const songDurationOriginal = ref('')
 const song = ref('')
-const artistIds = ref([])
 const totalArtists = ref(1)
+const totalComposers = ref(1)
+const selectedTags = ref([])
 const selectedArtists = ref([])
 const selectedComposers = ref([])
-const songTags = ref([])
 const isSaving = ref(false)
 const isError = ref(false)
 const errorMessage = ref('')
@@ -151,25 +130,16 @@ watch(() => props.artists, (n, o) => {
   }
 })
 
-setTimeout(function () {
-  document.getElementById('url').focus()
-}, 200)
-
 function saveSong() {
   isError.value = false
   errorMessage.value = ''
-  artistIds.value = []
 
-  const elements = document.querySelectorAll('.artist')
-  elements.forEach((e) => {
-    if (parseInt(e.value)) {
-      artistIds.value.push(parseInt(e.value))
-    }
-  })
+  let artistIds = selectedArtists.value.filter(item => item)
+  let composerIds = selectedComposers.value.filter(item => item)
 
   if (
-    songTags.value.length <= 0 ||
-    artistIds.value.length <= 0 ||
+    selectedTags.value.length <= 0 ||
+    artistIds.length <= 0 ||
     url.value.length <= 0 ||
     song.value.length <= 0
   ) {
@@ -189,10 +159,11 @@ function saveSong() {
           .post('http://localhost:3000/songs/save', {
             ytid: songId.value,
             song: song.value,
-            artists: artistIds.value,
+            artists: artistIds,
+            composers: composerIds,
             duration: songDuration.value,
             durationOriginal: songDurationOriginal.value,
-            songTags: songTags.value
+            songTags: selectedTags.value
           })
           .then(function (response) {
             emit('downloaded')
@@ -217,7 +188,11 @@ function addArtist() {
   totalArtists.value += 1
 }
 
+function addComposer() {
+  totalComposers.value += 1
+}
+
 const filterOption = (input, option) => {
-  return option.value.toLowerCase().indexOf(input.toLowerCase()) >= 0;
+  return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0;
 };
 </script>

@@ -11,6 +11,7 @@ const songId = ref(null)
 const start = ref(null)
 const end = ref(null)
 const song = ref('')
+const composer = ref('')
 const artist = ref('')
 const status = ref()
 const playerId = ref('')
@@ -125,6 +126,7 @@ onMounted(() => {
 
     player.toggleInteraction(false)
     artist.value = ''
+    composer.value = ''
     song.value = ''
     player.stop()
     player.empty()
@@ -151,6 +153,7 @@ function next() {
   player.seekTo(pos / duration.value)*/
   left.value = 0
   artist.value = ''
+  composer.value = ''
   song.value = ''
   start.value = null
   end.value = null
@@ -241,6 +244,7 @@ function setSong(s) {
   speed.value = 1
   speed_added.value = s.speed
   artist.value = s.Artists.map((i) => i.name).join(', ')
+  composer.value = s.Composers.map((i) => i.name).join(', ')
   player.setVolume(1)
   player.load('http://localhost:3000/static/' + s.folder + '/' + s.ytid + '.mp3')
 
@@ -340,7 +344,7 @@ defineExpose({
           <span class="select-none" v-if="props.position === 'bottom'">B</span>
         </div>
         <div>
-          <h2 class="text-white text-xl select-none max-w-[420px] truncate">{{ artist || 'Sin artista' }}</h2>
+          <h2 class="text-white text-xl select-none max-w-[420px] truncate"><span v-if="artist">{{ artist }}</span> <span v-if="artist && composer">({{ composer }})</span><span v-if="!artist">Sin artista</span></h2>
           <h1 class="text-white text-2xl select-none max-w-[420px] truncate">{{ song || 'Sin canción'
             }}</h1>
           <div class="text-sm text-gray-500 select-none">

@@ -1,5 +1,43 @@
+<template>
+  <!--div class="flex items-center justify-between">
+    <label class="block text-sm text-gray-600">Artista</label>
+
+    <input
+      v-model="filterQuery"
+      placeholder="Filtrar artista"
+      class="text-xs p-1 min-w-[170px]"
+      type="text"
+    />
+  </div-->
+
+  <div>
+      <a-checkbox-group @change="selectionChanged" v-model:value="selected" name="checkboxgroup" :options="filteredList.map(item => ({ label: item.name, value: item.id }))" />
+  </div>
+
+  <!--div class="divide-y divide-gray-400">
+    <div v-for="item in filteredList" :key="item.id" class="relative flex items-center">
+      <div class="mr-3 flex items-center ml-1">
+  
+        <input
+          @click.meta="selectOne(item)"
+          :id="`${name}${item.id}`"
+          v-model="selected"
+          :value="item.id"
+          :name="`${name}${item.id}`"
+          type="checkbox"
+          class="h-4 w-4 focus:outline-0 focus:outline-transparent focus:shadow-none focus:drop-shadow-none rounded border-gray-300 text-indigo-600 ring-0 active:ring-0 focus:ring-0 focus:outline-none">
+      </div>
+      <div class="min-w-0 flex-1 text-sm">
+        <label :for="`${name}${item.id}`" class="block select-none font-medium text-gray-900">{{
+            item.name
+          }}</label>
+      </div>
+    </div>
+  </div-->
+</template>
+
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 
 const selected = ref([])
@@ -27,34 +65,21 @@ watch(
     let sorted = newValue.sort((a, b) => a.name.localeCompare(b.name))
 
     filteredList.value = sorted
-    selectAll()
-})
-
-watch(selected, (newValue, oldValue) => {
-  emit('changed', selected.value)
-})
-
-watch(filterQuery, (newValue, oldValue) => {
-  if (newValue.length > 0) {
-    selected.value = []
-    filteredList.value = props.list.filter((item) => {
-      return removeAccents(item.name.toLowerCase()).includes(removeAccents(newValue.toLowerCase()))
-    })
-  } else {
     selected.value = props.list.map((item) => item.id)
-  }
 })
 
-function selectOne(e) {
-  selected.value = [e.id]
+function selectionChanged() {
+  emit('changed', selected.value)
 }
 
 function selectAll() {
   selected.value = props.list.map((item) => item.id)
+  emit('changed', selected.value)
 }
 
 function selectNone() {
   selected.value = []
+  emit('changed', selected.value)
 }
 
 defineExpose({
@@ -63,35 +88,17 @@ defineExpose({
 })
 </script>
 
-<template>
-  <!--div class="flex items-center justify-between">
-    <label class="block text-sm text-gray-600">Artista</label>
+<style>
+.ant-checkbox-group {
+  display: flex;
+  flex-direction: column;
 
-    <input
-      v-model="filterQuery"
-      placeholder="Filtrar artista"
-      class="text-xs p-1 min-w-[170px]"
-      type="text"
-    />
-  </div-->
+  label {
+    border-bottom: 1px solid #aaa;
+  }
 
-  <div class="divide-y divide-gray-400">
-    <div v-for="item in filteredList" :key="item.id" class="relative flex items-center">
-      <div class="mr-3 flex items-center ml-1">
-        <input
-          @click.meta="selectOne(item)"
-          :id="`${name}${item.id}`"
-          v-model="selected"
-          :value="item.id"
-          :name="`${name}${item.id}`"
-          type="checkbox"
-          class="h-4 w-4 focus:outline-0 focus:outline-transparent focus:shadow-none focus:drop-shadow-none rounded border-gray-300 text-indigo-600 ring-0 active:ring-0 focus:ring-0 focus:outline-none">
-      </div>
-      <div class="min-w-0 flex-1 text-sm">
-        <label :for="`${name}${item.id}`" class="block select-none font-medium text-gray-900">{{
-            item.name
-          }}</label>
-      </div>
-    </div>
-  </div>
-</template>
+  label:last-child{
+    border: none;
+  }
+}
+</style>

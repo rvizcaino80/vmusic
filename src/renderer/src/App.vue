@@ -167,13 +167,8 @@
             </button>
           </div>
 
-          <!--input
-            v-model="filterQuery"
-            placeholder="Filtrar por título o artista"
-            class="text-sm min-w-[170px]"
-            type="text"
-          /-->
           <a-input
+            :disabled="isLoadingLibrary"
             v-model:value="filterQuery"
             placeholder="Filtrar por título o artista"
             style="width: 300px"
@@ -183,9 +178,11 @@
 
         <div class="flex-1 overflow-y-auto">
           <a-table 
+            class="ant-table-striped"
+            :row-class-name="(_record, index) => (index % 2 === 1 ? 'table-striped' : null)"
             :showSorterTooltip="false"
             :loading="isLoadingLibrary"
-            :pagination="{ hideOnSinglePage: true, total: filterSongs.length, 'show-total': (total) => `${selectedSongs.length} seleccionadas / ${total} canciones`, defaultPageSize: 16, pageSize: pageSizeRef, showSizeChanger: false }"
+            :pagination="{ hideOnSinglePage: true, total: filterSongs.length, 'show-total': (total) => `${selectedSongs.length} seleccionadas / ${total} canciones`, defaultPageSize: 24, pageSize: pageSizeRef, showSizeChanger: false }"
             :row-selection="{ selectedRowKeys: selectedSongs, onChange: onSelectChange, onSelectAll: onSelectAll }"
             sticky
             size="small"
@@ -562,7 +559,7 @@ const selectedSongs = ref([])
 const filterQuery = ref('')
 const deletedSongs = ref([])
 const isLoadingLibrary = ref(true)
-const pageSizeRef = ref(16)
+const pageSizeRef = ref(24)
 
 // Tags
 const tags = ref([])
@@ -590,13 +587,20 @@ const onSelectChange = selectedRowKeys => {
 
 const onSelectAll = (selected, selectedRows, changeRows) => {
   if (selected) {
-    pageSizeRef.value = 2000
+    if (filteredSongs.value.length > 24) {
+
+    } else {
+      //pageSizeRef.value = 2000
+    }
+
     setTimeout(() => {
-      selectedSongs.value = filteredSongs.value.map(item => item.id)
-    }, 0)
+        selectedSongs.value = filteredSongs.value.map(item => item.id)
+      }, 0)
   } else {
-    selectedSongs.value = []
-    pageSizeRef.value = 16
+    setTimeout(() => {
+        selectedSongs.value = []
+      }, 0)
+    pageSizeRef.value = 24
   }
 }
 
@@ -632,15 +636,6 @@ function onSearch(searchValue) {
     )
   })
 }
-
-watch(selectedArtists, (newValue, oldValue) => {
-  //filterSongsByArtist()
-})
-
-/*watch(selectedTags, (newValue, oldValue) => {
-  console.log('rv', oldValue)
-  //filterSongs()
-})*/
 
 const state = reactive({
   selectedRowKeys: []
@@ -732,6 +727,7 @@ function reset() {
 }
 
 async function setOption(option) {
+  reset()
   currentSelectedOption.value = option
 
   if (currentSelectedOption.value === options.library) {
@@ -840,6 +836,7 @@ async function filterSongsByArtist() {
   localSongs.forEach(item => {
     item.key = item.id
     item.artistsJoined = item.Artists.map(artist => artist.name).join(', ')
+    item.composersJoined = item.Composers.map(composer => composer.name).join(', ')
   })
 
   filteredSongs.value = localSongs
@@ -917,7 +914,7 @@ const shuffle = (array) => {
 }
 
 function addToPlaylist(action, play = false) {
-  pageSizeRef.value = 16
+  pageSizeRef.value = 24
 
   if (action === 0) {
     playlist.value = selectedSongs.value.concat(playlist.value)
@@ -1302,5 +1299,13 @@ function selectNoneTags() {
 
 table tr td.ant-table-cell {
   padding: 2px 0 !important;
+}
+
+.ant-table-striped .table-striped td {
+  background-color: #fafafa;
+}
+
+.ant-table-pagination.ant-pagination {
+  margin: 5px 0 0 0 !important;
 }
 </style>
