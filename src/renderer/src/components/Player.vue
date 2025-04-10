@@ -1,8 +1,111 @@
+<template>
+  <div
+    :class="{
+      'flex-col-reverse': props.position === 'top'
+    }"
+    class="justify-end player p-6 flex flex-col flex-1 max-h-[550px]"
+  >
+    <div class="flex justify-between space-x-3">
+      <div class="flex space-x-3">
+        <div
+          v-if="songImage"
+          :class="{
+            'pulsate-bck': status === props.statuses.Reproduciendo,
+          }"
+          class="flex h-[80px] w-[80px] items-center justify-center"
+        >
+          <img :src="songImage">
+        </div>
+        <div
+          v-else
+          :class="{
+            'pulsate-bck': status === props.statuses.Reproduciendo,
+            'bg-pink-500': props.position === 'bottom',
+            'bg-yellow-500': props.position === 'top'
+          }"
+          class="flex text-[70px] text-white text-bold text-center h-[80px] w-[80px] items-center justify-center"
+        >
+          <span
+            v-if="props.position === 'top'"
+            class="select-none"
+          >A</span>
+          <span
+            v-if="props.position === 'bottom'"
+            class="select-none"
+          >B</span>
+        </div>
+        <div>
+          <h2 class="text-white text-xl select-none max-w-[420px] truncate">
+            <span v-if="artist">{{ artist }}</span> <span v-if="artist && composer">({{ composer }})</span><span v-if="!artist">Sin artista</span>
+          </h2>
+          <h1 class="text-white text-2xl select-none max-w-[420px] truncate">
+            {{ song || 'Sin canción'
+            }}
+          </h1>
+          <div class="text-sm text-gray-500 select-none">
+            <span>Status: {{ getStatusName(status) }}</span>
+            <span
+              v-if="
+                status === props.statuses.Nivelando ||
+                  status === props.statuses.Placa ||
+                  status === props.statuses.Cambiando
+              "
+            >
+              ({{ Math.round(volume * 100) }})</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col items-center text-gray-500">
+        <div
+          v-if="status !== props.statuses['Sin Carga']"
+          class="flex flex-col items-center"
+        >
+          <span class="text-sm mb-0.5 select-none">Velocidad</span>
+          <div class="flex items-center space-x-1">
+            <Icon
+              class="cursor-pointer w-6 h-6 text-white"
+              icon="teenyicons:left-solid"
+              @click="setSpeed(-1)"
+            />
+            <span
+              v-if="speed_added > 0"
+              class="text-lime-500 font-bold text-xl select-none"
+            >+</span>
+            <span
+              :class="{
+                'text-lime-500': speed_added > 0,
+                'text-red-500': speed_added < 0,
+                'text-white': speed_added === 0
+              }"
+              class="font-bold text-xl select-none"
+            >
+              {{ speed_added }}
+            </span>
+            <Icon
+              class="cursor-pointer w-6 h-6 text-white"
+              icon="teenyicons:right-solid"
+              @click="setSpeed(1)"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      v-show="status !== props.statuses['Sin Carga']"
+      :id="playerId"
+      :class="{ 'mb-3': props.position === 'top', 'mt-3': props.position === 'bottom' }"
+      class="wavesurfer flex-1"
+    />
+  </div>
+</template>
+
 <script setup>
-import { computed, onBeforeMount, onMounted, ref } from 'vue'
+import { onBeforeMount, onMounted, ref } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
+import * as cheerio from 'cheerio'
 
 let player = null
 const duration = ref(0.0)
@@ -20,23 +123,29 @@ const speed = ref(1.0)
 const left = ref(0)
 const speed_added = ref(0.0)
 const volume_added = ref(0.0)
+const songImage = ref('')
 let wsRegions = null
 let originalOptions = {}
 let crossfaderOptions = {}
+const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
 
 onBeforeMount(() => {
   status.value = props.statuses['Sin Carga']
-  playerId.value = 'w' + Math.random().toString(36).substring(2, 7)
+  playerId.value = 'w' + Math.random().toString(36)
+    .substring(2, 7)
 })
 
 onMounted(() => {
+  init()
+})
+
+function init() {
   originalOptions = {
     normalize: true,
     container: '#' + playerId.value,
     cursorColor: '#ffffff',
     height: 'auto',
-    fillParent: true,
-    backend: 'MediaElement'
+    fillParent: true
   }
 
   crossfaderOptions = {
@@ -44,8 +153,7 @@ onMounted(() => {
     container: '#' + playerId.value,
     cursorColor: '#ff0000',
     height: 'auto',
-    fillParent: true,
-    backend: 'MediaElement'
+    fillParent: true
   }
 
   player = WaveSurfer.create(originalOptions)
@@ -96,6 +204,8 @@ onMounted(() => {
   }
 
   player.on('load', () => {
+    console.log('loaded', songFull.value)
+    songImage.value = ''
     wsRegions.clearRegions()
     player.toggleInteraction(false)
     status.value = props.statuses.Cargando
@@ -103,6 +213,26 @@ onMounted(() => {
   })
 
   player.on('ready', (d) => {
+    console.log('ready', songFull.value)
+
+    if (songFull.value.isAppleMusic) {
+      const url = `https://music.apple.com/co/song/taste/${songFull.value.ytid}`
+      fetch(url).then((response) => {
+        response.text().then((html) => {
+          const $ = cheerio.load(html)
+          const songInfo = JSON.parse($('script').first()
+            .text())
+          songImage.value = songInfo.image.replace('1200', '200')
+        })
+      })
+        .catch((e) => {
+          console.log(e)
+          songImage.value = ''
+        })
+    } else {
+      songImage.value = ''
+    }
+
     player.setOptions(originalOptions)
     player.toggleInteraction(false)
     emit('loaded')
@@ -121,6 +251,7 @@ onMounted(() => {
   })
 
   player.on('finish', () => {
+    songImage.value = ''
     player.setPlaybackRate(1.0)
     speed_added.value = 0
 
@@ -129,7 +260,9 @@ onMounted(() => {
     composer.value = ''
     song.value = ''
     player.stop()
-    player.empty()
+    player.destroy()
+    init()
+
     wsRegions.clearRegions()
     status.value = props.statuses['Sin Carga']
     emit('stopped')
@@ -137,28 +270,25 @@ onMounted(() => {
 
   player.on('timeupdate', (currentTime) => {
     if (
-      status.value === props.statuses.Reproduciendo ||
-      status.value === props.statuses.Cambiando ||
-      status.value === props.statuses.Placa ||
-      status.value === props.statuses.Nivelando
+      status.value === props.statuses.Reproduciendo || status.value === props.statuses.Cambiando || status.value === props.statuses.Placa || status.value === props.statuses.Nivelando
     ) {
       volume.value = player.getVolume()
       calculateVolume(currentTime)
     }
   })
-})
+}
 
 function next() {
-  /*const pos = duration.value
-  player.seekTo(pos / duration.value)*/
   left.value = 0
   artist.value = ''
   composer.value = ''
+  songImage.value = ''
   song.value = ''
   start.value = null
   end.value = null
   player.stop()
-  player.empty()
+  player.destroy()
+  init()
   wsRegions.clearRegions()
   status.value = props.statuses['Sin Carga']
   emit('stopped')
@@ -166,7 +296,7 @@ function next() {
 }
 
 function calculateVolume(ct) {
-  const crossfader_time = 4
+  const crossfader_time = savedSettings.crossfaderTime
   left.value = end.value - ct
 
   if (status.value === props.statuses.Cambiando && ct > end.value) {
@@ -176,7 +306,8 @@ function calculateVolume(ct) {
     start.value = null
     end.value = null
     player.stop()
-    player.empty()
+    player.destroy()
+    init()
     wsRegions.clearRegions()
     status.value = props.statuses['Sin Carga']
     emit('stopped')
@@ -206,7 +337,7 @@ function tempFade(duration = 3000) {
     player.setVolume(vol - 0.1)
     setTimeout(tempFade, 100)
   } else {
-    setTimeout(function () {
+    setTimeout(function() {
       status.value = props.statuses.Nivelando
       volToNormal()
     }, duration)
@@ -229,29 +360,27 @@ function volToNormal() {
 }
 
 function load(url) {
-  player.load(url)
+  // player.load(url)
 }
 
 function setSong(s) {
-  // Create your own media element
-  //Get this value from db
+  /*
+   *  Create your own media element
+   * Get this value from db
+   */
   songFull.value = s
-  player.setPlaybackRate(1.0)
   start.value = s.start
   end.value = s.end
   songId.value = s.id
   song.value = s.name
+  songImage.value = ''
   speed.value = 1
   speed_added.value = s.speed
   artist.value = s.Artists.map((i) => i.name).join(', ')
   composer.value = s.Composers.map((i) => i.name).join(', ')
+  player.setPlaybackRate(1.0)
   player.setVolume(1)
   player.load('http://localhost:3000/static/' + s.folder + '/' + s.ytid + '.mp3')
-
-  let audio = new Audio()
-  audio.crossOrigin = 'anonymous'
-  audio.src = 'http://localhost:3000/static/' + s.folder + '/' + s.ytid + '.mp3'
-  player.load(audio)
 }
 
 function play() {
@@ -322,106 +451,3 @@ defineExpose({
   speed_added
 })
 </script>
-
-<template>
-  <div
-    :class="{
-      'flex-col-reverse': props.position === 'top'
-    }"
-    class="justify-end player p-6 flex flex-col flex-1 max-h-[550px]"
-  >
-    <div class="flex justify-between space-x-3">
-      <div class="flex space-x-3">
-        <div
-          :class="{
-            'pulsate-bck': status === props.statuses.Reproduciendo,
-            'bg-pink-500': props.position === 'bottom',
-            'bg-yellow-500': props.position === 'top'
-          }"
-          class="flex text-[70px] text-white text-bold text-center h-[80px] w-[80px] items-center justify-center"
-        >
-          <span class="select-none" v-if="props.position === 'top'">A</span>
-          <span class="select-none" v-if="props.position === 'bottom'">B</span>
-        </div>
-        <div>
-          <h2 class="text-white text-xl select-none max-w-[420px] truncate"><span v-if="artist">{{ artist }}</span> <span v-if="artist && composer">({{ composer }})</span><span v-if="!artist">Sin artista</span></h2>
-          <h1 class="text-white text-2xl select-none max-w-[420px] truncate">{{ song || 'Sin canción'
-            }}</h1>
-          <div class="text-sm text-gray-500 select-none">
-            <span>Status: {{ getStatusName(status) }}</span>
-            <span
-              v-if="
-                status === props.statuses.Nivelando ||
-                status === props.statuses.Placa ||
-                status === props.statuses.Cambiando
-              "
-            >
-              ({{ Math.round(volume * 100) }})</span
-            >
-          </div>
-        </div>
-      </div>
-
-      <div class="flex flex-col items-center text-gray-500">
-        <!--div class="flex flex-col items-center mb-2">
-          <span class="text-xs leading-none mb-0.5 select-none">Volumen</span>
-          <div class="flex items-center space-x-1">
-            <Icon
-              class="cursor-pointer w-4 h-4 text-white"
-              icon="teenyicons:left-solid"
-              @click="setVolume(-1)"
-            />
-            <span
-              v-if="volume_added > 0"
-              class="text-white font-bold text-sm leading-none select-none"
-              >+</span
-            >
-            <span class="text-white font-bold text-sm leading-none select-none">
-              {{ volume_added }}
-            </span>
-            <Icon
-              class="cursor-pointer w-4 h-4 text-white"
-              icon="teenyicons:right-solid"
-              @click="setVolume(1)"
-            />
-          </div>
-        </div-->
-
-        <div v-if="status !== props.statuses['Sin Carga']" class="flex flex-col items-center">
-          <span class="text-sm mb-0.5 select-none">Velocidad</span>
-          <div class="flex items-center space-x-1">
-            <Icon
-              class="cursor-pointer w-6 h-6 text-white"
-              icon="teenyicons:left-solid"
-              @click="setSpeed(-1)"
-            />
-            <span v-if="speed_added > 0" class="text-lime-500 font-bold text-xl select-none"
-              >+</span
-            >
-            <span
-              :class="{
-                'text-lime-500': speed_added > 0,
-                'text-red-500': speed_added < 0,
-                'text-white': speed_added === 0
-              }"
-              class="font-bold text-xl select-none"
-            >
-              {{ speed_added }}
-            </span>
-            <Icon
-              class="cursor-pointer w-6 h-6 text-white"
-              icon="teenyicons:right-solid"
-              @click="setSpeed(1)"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-    <div
-      v-show="status !== props.statuses['Sin Carga']"
-      :id="playerId"
-      :class="{ 'mb-3': props.position === 'top', 'mt-3': props.position === 'bottom' }"
-      class="wavesurfer flex-1"
-    ></div>
-  </div>
-</template>

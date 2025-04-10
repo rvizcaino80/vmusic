@@ -1,26 +1,37 @@
 <template>
-  <div>
-    <form class="mb-6 space-x-2 flex items-center" @submit.prevent="saveTag">
-      <input
-        autofocus
+  <div class="flex flex-col space-y-6 min-h-[0]">
+    <a-divider>Etiquetas</a-divider>
+
+    <form
+      class="mb-6 space-x-2 flex items-center"
+      @submit.prevent="saveTag"
+    >
+      <a-input
         id="tagName"
-        v-model="tagName"
+        v-model:value="tagName"
+        autofocus
         type="text"
         class="flex-1"
         placeholder="Nombre de etiqueta"
       />
-      <button type="submit" class="p-2 border border-gray-800 bg-gray-800 text-white font-bold">
+      <a-button
+        type="primary"
+        html-type="submit"
+      >
         Agregar
-      </button>
+      </a-button>
     </form>
 
-
-    <div
-      v-for="tag in tags"
-      :key="tag.id"
-      class="inline-block bg-gray-600 text-white rounded-full px-3 py-1 mb-2 mr-2"
-    >
-      {{ tag.name }}
+    <div class="flex items-center flex-wrap">
+      <a-input
+        v-for="tag in tags"
+        :id="`a${tag.id}`"
+        :key="tag.id"
+        class="block border-transparent focus:ring-0 focus:bg-white focus:border-ring-600 bg-transparent w-full text-black px-2 py-0.5 leading-tight text-base"
+        :value="tag.name"
+        @keyup.enter="updateTag(tag.id)"
+        @blur="updateTag(tag.id)"
+      />
     </div>
   </div>
 </template>
@@ -30,7 +41,7 @@ import { onMounted, ref } from 'vue'
 import axios from 'axios'
 import slugify from '@sindresorhus/slugify'
 
-//const props = defineProps({ tags: Array })
+// const props = defineProps({ tags: Array })
 const emit = defineEmits(['added'])
 
 const tags = ref([])
@@ -45,14 +56,14 @@ onMounted(() => {
 function getTags() {
   axios
     .get('http://localhost:3000/tags')
-    .then(function (response) {
-      tags.value = response.data.sort((a, b) => a.name.localeCompare(b.name))
+    .then(function(response) {
+      tags.value = response.data.sort((a, b) => a.name.localeCompare(b.name)).filter((t) => t.id !== 9998)
     })
-    .catch(function (error) {
+    .catch(function(error) {
       // handle error
       console.log(error)
     })
-    .finally(function () {
+    .finally(function() {
       // always executed
     })
 }
@@ -62,16 +73,35 @@ function saveTag() {
     .post('http://localhost:3000/tags/save', {
       name: slugify(tagName.value)
     })
-    .then(function (response) {
+    .then(function(response) {
       getTags()
       tagError.value = ''
       tagName.value = ''
     })
-    .catch(function (error) {
+    .catch(function(error) {
       tagError.value = error.response.data.message
     })
-    .finally(function () {
+    .finally(function() {
       // always executed
+    })
+}
+
+function updateTag(id) {
+  const name = document.getElementById(`a${id}`).value
+  document.getElementById(`a${id}`).blur()
+  axios
+    .post('http://localhost:3000/tags/' + id, {
+      name: slugify(name)
+    })
+    .then(function(response) {
+
+    })
+    .catch(function(error) {
+      tagError.value = error.response.data.message
+    })
+    .finally(function() {
+      tags.value = []
+      getTags()
     })
 }
 </script>

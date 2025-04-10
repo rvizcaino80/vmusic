@@ -2,17 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+*,
+::before,
+::after {
+  border-width: 0;
+  border-style: solid;
+  border-color: theme('borderColor.DEFAULT', currentColor);
+}
+
+/* Override base SVG style to work with Ant Design if using external icon sets */
+svg {
+  vertical-align: initial;
+}
+
 @layer base {
   @font-face {
     font-family: Helixa;
     font-weight: 400;
-    src: url(../fonts/Inter-Regular.woff2) format("woff2");
+    src: url('../fonts/Inter-Regular.woff2') format("woff2");
   }
 
   @font-face {
     font-family: Helixa;
     font-weight: 700;
-    src: url(../fonts/Inter-SemiBold.woff2) format("woff2");
+    src: url('../fonts/Inter-SemiBold.woff2') format("woff2");
   }
 }
 
@@ -178,4 +191,8 @@ iframe {
     -webkit-transform: scale3d(1, 1, 1);
     transform: scale3d(1, 1, 1);
   }
+}
+
+.ant-divider{
+  margin-top: 0 !important;
 }

@@ -1,17 +1,25 @@
 <template>
   <div class="flex flex-col space-y-6 min-h-[0]">
-    <form class="space-x-2 flex items-center" @submit.prevent="saveArtist">
-      <input
-        v-model="artistName"
-        autofocus
+    <a-divider>Artistas</a-divider>
+
+    <form
+      class="space-x-2 flex items-center"
+      @submit.prevent="saveArtist"
+    >
+      <a-input
         id="artistName"
+        v-model:value="artistName"
+        autofocus
         type="text"
         class="flex-1"
         placeholder="Nombre de artista"
       />
-      <button type="submit" class="p-2 border border-gray-800 bg-gray-800 text-white font-bold">
+      <a-button
+        type="primary"
+        html-type="submit"
+      >
         Agregar
-      </button>
+      </a-button>
     </form>
 
     <div class="overflow-y-auto">
@@ -20,7 +28,7 @@
         :key="artist.id"
         class="border-bottom border-gray-700 flex-1 space-x-2 pr-3 flex items-center justify-between"
       >
-        <input
+        <a-input
           :id="`a${artist.id}`"
           :key="artist.id"
           type="text"
@@ -29,12 +37,14 @@
           @keyup.enter="updateArtist(artist.id)"
           @blur="updateArtist(artist.id)"
         />
-        <button
+
+        <a-button
           v-if="artist.Songs.length <= 0"
-          class=" px-2 py-1 bg-gray-800 text-white text-xs"
-          @click="del(artist.id)">
+          size="small"
+          @click="del(artist.id)"
+        >
           Eliminar
-        </button>
+        </a-button>
       </div>
     </div>
   </div>
@@ -44,7 +54,7 @@
 import { onMounted, ref } from 'vue'
 import axios from 'axios'
 
-//const props = defineProps({ artists: Array })
+// const props = defineProps({ artists: Array })
 const emit = defineEmits(['added'])
 
 const artists = ref([])
@@ -60,14 +70,14 @@ onMounted(() => {
 function getArtists() {
   axios
     .get('http://localhost:3000/artists')
-    .then(function (response) {
+    .then(function(response) {
       artists.value = response.data.sort((a, b) => a.name.localeCompare(b.name))
     })
-    .catch(function (error) {
+    .catch(function(error) {
       // handle error
       console.log(error)
     })
-    .finally(function () {
+    .finally(function() {
       // always executed
     })
 }
@@ -75,14 +85,14 @@ function getArtists() {
 function del(id) {
   axios
     .post('http://localhost:3000/artists/delete/' + id)
-    .then(function (response) {
+    .then(function(response) {
       artists.value = response.data
     })
-    .catch(function (error) {
+    .catch(function(error) {
       // handle error
       console.log(error)
     })
-    .finally(function () {
+    .finally(function() {
       // always executed
     })
 }
@@ -92,15 +102,15 @@ function saveArtist() {
     .post('http://localhost:3000/artists', {
       name: artistName.value
     })
-    .then(function (response) {
+    .then(function(response) {
       getArtists()
       artistError.value = ''
       artistName.value = ''
     })
-    .catch(function (error) {
+    .catch(function(error) {
       artistError.value = error.response.data.message
     })
-    .finally(function () {
+    .finally(function() {
       // always executed
     })
 }
@@ -112,13 +122,13 @@ function updateArtist(id) {
     .post('http://localhost:3000/artists/' + id, {
       name: name
     })
-    .then(function (response) {
+    .then(function(response) {
 
     })
-    .catch(function (error) {
+    .catch(function(error) {
       artistError.value = error.response.data.message
     })
-    .finally(function () {
+    .finally(function() {
       // always executed
     })
 }
