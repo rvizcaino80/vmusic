@@ -14,12 +14,6 @@
       >
         {{ item.name }}
       </a-checkbox>
-      <span
-        v-if="altPressed && soloHintId === item.id"
-        class="text-xs font-bold text-red-600 select-none"
-      >
-        SOLO
-      </span>
     </div>
   </div>
 </template>
