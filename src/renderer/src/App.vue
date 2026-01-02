@@ -350,7 +350,7 @@
               <i-mdi-file-export-outline
                 class="w-4 h-4"
               />
-              {{ isExportingM3U ? 'Exportando...' : 'Exportar M3U' }}
+              {{ isExportingM3U ? 'Exportando...' : 'Exportar' }}
             </a-button>
             <a-dropdown>
               <a-button class="flex items-center space-x-1 pl-2.5">
@@ -705,7 +705,7 @@
             <i-mdi-file-music-outline
               class="w-4 h-4"
             />
-            <span>{{ isImportingM3U ? 'Cargando...' : 'Cargar M3U' }}</span>
+            <span>{{ isImportingM3U ? 'Cargando...' : 'Cargar' }}</span>
           </button>
           <button
             :disabled="playlistDetails.length <= 1"
