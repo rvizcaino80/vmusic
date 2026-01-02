@@ -1,19 +1,36 @@
 <template>
   <div>
-    <a-checkbox-group
-      v-model:value="selected"
-      name="checkboxgroup"
-      :options="filteredList.map(item => ({ label: item.name, value: item.id }))"
-      @change="selectionChanged"
-    />
+    <div
+      v-for="item in filteredList"
+      :key="item.id"
+      class="multiselect-row flex items-center justify-between"
+      @mouseenter="onRowEnter(item.id)"
+      @mouseleave="onRowLeave"
+    >
+      <a-checkbox
+        :checked="selected.includes(item.id)"
+        :value="item.id"
+        @change="onCheckboxChange(item.id, $event.target.checked)"
+      >
+        {{ item.name }}
+      </a-checkbox>
+      <span
+        v-if="altPressed && soloHintId === item.id"
+        class="text-xs font-bold text-red-600 select-none"
+      >
+        SOLO
+      </span>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 const selected = ref([])
 const filteredList = ref([])
+const altPressed = ref(false)
+const soloHintId = ref(null)
 
 const props = defineProps({
   name: {
@@ -52,6 +69,52 @@ function selectionChanged() {
   emit('changed', selected.value)
 }
 
+function onCheckboxChange(id, checked) {
+  if (altPressed.value) {
+    selectOnly(id)
+    soloHintId.value = id
+
+    return
+  }
+
+  if (checked) {
+    if (!selected.value.includes(id)) {
+      selected.value = [...selected.value, id]
+    }
+  } else {
+    selected.value = selected.value.filter((value) => value !== id)
+  }
+  selectionChanged()
+}
+
+function selectOnly(id) {
+  selected.value = [id]
+  selectionChanged()
+}
+
+function onRowEnter(id) {
+  if (altPressed.value) {
+    soloHintId.value = id
+  }
+}
+
+function onRowLeave() {
+  soloHintId.value = null
+}
+
+function handleKeyDown(event) {
+  if (event.key === 'Alt') {
+    altPressed.value = true
+  }
+}
+
+function handleKeyUp(event) {
+  if (event.key === 'Alt') {
+    altPressed.value = false
+    soloHintId.value = null
+  }
+}
+
 function selectAll() {
   selected.value = props.list.map((item) => item.id)
   emit('changed', selected.value)
@@ -62,6 +125,16 @@ function selectNone() {
   emit('changed', selected.value)
 }
 
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown)
+  window.addEventListener('keyup', handleKeyUp)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown)
+  window.removeEventListener('keyup', handleKeyUp)
+})
+
 defineExpose({
   selectAll,
   selectNone
@@ -69,16 +142,16 @@ defineExpose({
 </script>
 
 <style>
-.ant-checkbox-group {
-  display: flex;
-  flex-direction: column;
+.ant-checkbox-wrapper {
+  flex: 1;
+}
 
-  label {
-    border-bottom: 1px solid #c4c4c4;
-  }
+.multiselect-row {
+  border-bottom: 1px solid #c4c4c4;
+  padding: 4px 0;
+}
 
-  label:last-child{
-    border: none;
-  }
+.multiselect-row:last-child{
+  border: none;
 }
 </style>
