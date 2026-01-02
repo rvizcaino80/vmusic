@@ -602,6 +602,7 @@
           <tr
             v-for="s in playlistDetails"
             :key="s.entryId"
+            :data-entry-id="s.entryId"
             @click="selectRow($event, s.entryId)"
           >
             <td
@@ -623,9 +624,9 @@
       <div class="flex items-center justify-between">
         <div class="play-next-status text-xs text-white">
           <span v-if="playlistDetails.length <= 0">No hay más canciones</span>
-          <span v-else-if="playlistDetails.length > 1">{{ playlistDetails.length }} canciones restantes</span>
+          <span v-else-if="playlistDetails.length > 1">{{ playlistDetails.length }} canciones</span>
           <span v-else>1 canción restante</span>.
-          <span v-if="timeLeft[0] > 0">La reproducción terminará a las {{ timeLeft[1] }}</span>
+          <span v-if="timeLeft[0] > 0">Hasta las {{ timeLeft[1] }}</span>
           <span
             v-if="timeLeft[2] > 0"
             class="text-lime-500"
@@ -634,6 +635,35 @@
         </div>
 
         <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-2 mr-4">
+            <input
+              v-model="playlistSearchQuery"
+              type="text"
+              class="bg-gray-600 text-white text-xs px-2 py-1 w-40 outline-none"
+              placeholder="Buscar en lista"
+              @input="onPlaylistSearchInput"
+            >
+            <span class="text-white text-xs whitespace-nowrap">
+              {{ playlistSearchResults.length > 0 ? playlistSearchIndex + 1 : 0 }}/{{ playlistSearchResults.length }}
+            </span>
+            <div class="flex items-center space-x-1">
+              <button
+                :disabled="playlistSearchResults.length <= 1"
+                class="text-white bg-gray-500 disabled:opacity-40 text-xs px-1"
+                @click="prevPlaylistResult"
+              >
+                ←
+              </button>
+              <button
+                :disabled="playlistSearchResults.length <= 1"
+                class="text-white bg-gray-500 disabled:opacity-40 text-xs px-1"
+                @click="nextPlaylistResult"
+              >
+                →
+              </button>
+            </div>
+          </div>
+
           <input
             ref="m3uInput"
             type="file"
@@ -831,6 +861,9 @@ const isImportingM3U = ref(false)
 const isExportingM3U = ref(false)
 const importSongsCacheLoaded = ref(false)
 const importSongsCache = ref([])
+const playlistSearchQuery = ref('')
+const playlistSearchResults = ref([])
+const playlistSearchIndex = ref(0)
 
 // Players
 const player1 = ref(null)
@@ -985,6 +1018,15 @@ watch(autopause, (newValue) => {
     } else if (player2.value.status === playerStatuses.Reproduciendo) {
       player1.value.status = playerStatuses.Pausado
     }
+  }
+})
+
+watch(playlistDetails, () => {
+  if (playlistSearchQuery.value.trim().length > 0) {
+    updatePlaylistSearch()
+  } else {
+    playlistSearchResults.value = []
+    playlistSearchIndex.value = 0
   }
 })
 
@@ -1806,11 +1848,70 @@ function getRandomInt(max) {
 
 function selectRow(e, id) {
   if (e.metaKey) {
-    selectedRows.value.push(id)
+    if (!selectedRows.value.includes(id)) {
+      selectedRows.value.push(id)
+    }
   } else {
     selectedRows.value = []
     selectedRows.value.push(id)
   }
+}
+
+function onPlaylistSearchInput() {
+  playlistSearchIndex.value = 0
+  updatePlaylistSearch()
+}
+
+function updatePlaylistSearch() {
+  const query = removeAccents(playlistSearchQuery.value.trim().toLowerCase())
+
+  if (!query) {
+    playlistSearchResults.value = []
+    playlistSearchIndex.value = 0
+
+    return
+  }
+
+  const matches = playlistDetails.value
+    .map((song, index) => ({
+      entryId: song.entryId,
+      index,
+      haystack: removeAccents(`${song.name} ${song.Artists.map((i) => i.name).join(' ')}`).toLowerCase()
+    }))
+    .filter((item) => item.haystack.includes(query))
+
+  playlistSearchResults.value = matches
+
+  if (matches.length > 0) {
+    focusPlaylistResult(0)
+  }
+}
+
+function focusPlaylistResult(targetIndex) {
+  if (playlistSearchResults.value.length === 0) return
+
+  const normalizedIndex = (targetIndex + playlistSearchResults.value.length) % playlistSearchResults.value.length
+  playlistSearchIndex.value = normalizedIndex
+
+  const result = playlistSearchResults.value[normalizedIndex]
+  selectedRows.value = [result.entryId]
+
+  nextTick(() => {
+    const row = document.querySelector(`tr[data-entry-id="${result.entryId}"]`)
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  })
+}
+
+function nextPlaylistResult() {
+  if (playlistSearchResults.value.length === 0) return
+  focusPlaylistResult(playlistSearchIndex.value + 1)
+}
+
+function prevPlaylistResult() {
+  if (playlistSearchResults.value.length === 0) return
+  focusPlaylistResult(playlistSearchIndex.value - 1)
 }
 
 async function artistsUpdated(id) {
