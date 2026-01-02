@@ -601,18 +601,18 @@
         <table class="dark border-collapse w-full text-sm">
           <tr
             v-for="s in playlistDetails"
-            :key="s.id"
-            @click="selectRow($event, s.id)"
+            :key="s.entryId"
+            @click="selectRow($event, s.entryId)"
           >
             <td
               class="cursor-pointer"
-              :class="{ 'bg-pink-500': selectedRows.includes(s.id) }"
+              :class="{ 'bg-pink-500': selectedRows.includes(s.entryId) }"
             >
               {{ s.name }}
             </td>
             <td
               class="cursor-pointer"
-              :class="{ 'bg-pink-500': selectedRows.includes(s.id) }"
+              :class="{ 'bg-pink-500': selectedRows.includes(s.entryId) }"
             >
               {{ s.Artists.map((i) => i.name).join(', ') }}
             </td>
@@ -848,6 +848,13 @@ const libraryState = ref({
 })
 
 const downloadSelectedArtist = ref(null)
+const generateEntryId = () => `${Date.now()}-${Math.random().toString(16)
+  .slice(2)}`
+const createPlaylistEntry = (song) => ({
+  ...song,
+  entryId: generateEntryId(),
+  played: false
+})
 
 const filteredSongs2 = computed(() => {
   const normalizedQuery = removeAccents((filterQuery.value || '').toLowerCase())
@@ -1019,11 +1026,18 @@ const timeLeft = computed(() => {
 })
 
 function remove(array, element) {
-  const index = array.findIndex((item) => item.id === element)
-  if (index !== -1) {
-    array.splice(index, 1)
-    selectedRows.value = []
+  const index = array.findIndex((item) => item.entryId === element)
+  if (index === -1) return
+
+  const entry = array[index]
+  array.splice(index, 1)
+
+  const playlistIndex = playlist.value.findIndex((songId) => songId === entry.id)
+  if (playlistIndex !== -1) {
+    playlist.value.splice(playlistIndex, 1)
   }
+
+  selectedRows.value = []
 }
 
 function removeAll(array) {
@@ -1033,6 +1047,7 @@ function removeAll(array) {
 }
 
 function move(array, index, delta) {
+  if (index < 0) return
   let newIndex = index + delta
   if (newIndex < 0 || newIndex == array.length) return
   let indexes = [index, newIndex].sort((a, b) => a - b)
@@ -1040,20 +1055,20 @@ function move(array, index, delta) {
 }
 
 function moveFirst(array, element) {
-  const found = array.find((item) => item.id === element)
+  const index = array.findIndex((item) => item.entryId === element)
+  if (index === -1) return
 
-  const index = array.findIndex((item) => item.id === element)
-  array.splice(index, 1)
+  const [found] = array.splice(index, 1)
   array.unshift(found)
 }
 
 function moveUp(array, element) {
-  const index = array.findIndex((item) => item.id === element)
+  const index = array.findIndex((item) => item.entryId === element)
   move(array, index, -1)
 }
 
 function moveDown(array, element) {
-  const index = array.findIndex((item) => item.id === element)
+  const index = array.findIndex((item) => item.entryId === element)
   move(array, index, 1)
 }
 
@@ -1491,7 +1506,7 @@ async function importM3UContent(content) {
       playlist.value.push(song.id)
     })
 
-    const temp = matched.map((song) => ({ ...song, played: false }))
+    const temp = matched.map((song) => createPlaylistEntry(song))
     temp.forEach((song) => {
       playlistDetails.value.push(song)
     })
@@ -1615,20 +1630,18 @@ function addToPlaylist(action, play = false) {
         temp.push(response.data.filter((s) => s.id === item)[0])
       })
 
-      temp.forEach((item) => {
-        item.played = false
-      })
+      const entries = temp.map((item) => createPlaylistEntry(item))
 
       if (action === 0) {
-        playlistDetails.value = temp.concat(playlistDetails.value)
+        playlistDetails.value = entries.concat(playlistDetails.value)
       } else if (action === 1) {
-        playlistDetails.value = temp.concat(playlistDetails.value)
+        playlistDetails.value = entries.concat(playlistDetails.value)
       } else if (action === 2) {
-        temp.forEach((song) => {
+        entries.forEach((song) => {
           playlistDetails.value.push(song)
         })
       } else if (action === 3) {
-        temp.forEach((song) => {
+        entries.forEach((song) => {
           playlistDetails.value.push(song)
         })
       }
@@ -1684,18 +1697,21 @@ function loadPlayers(play = false) {
 }
 
 function loadDeck(deck) {
-  const index = playlistDetails.value.findIndex((item) => item.id === selectedRows.value[0])
-  const found = playlistDetails.value.find((item) => item.id === selectedRows.value[0])
-  playlistDetails.value.splice(index, 1)
+  const index = playlistDetails.value.findIndex((item) => item.entryId === selectedRows.value[0])
+  if (index === -1) return
+
+  const [found] = playlistDetails.value.splice(index, 1)
 
   if (deck === 'A') {
     if (player1.value.status === playerStatuses.Listo || player1.value.status === playerStatuses.Pausado) {
-      playlistDetails.value.splice(index, 0, player1.value.songFull)
+      const songToInsert = player1.value.songFull?.entryId ? player1.value.songFull : createPlaylistEntry(player1.value.songFull)
+      playlistDetails.value.splice(index, 0, songToInsert)
       player1.value.setSong(found)
     }
   } else {
     if (player2.value.status === playerStatuses.Listo || player2.value.status === playerStatuses.Pausado) {
-      playlistDetails.value.splice(index, 0, player2.value.songFull)
+      const songToInsert = player2.value.songFull?.entryId ? player2.value.songFull : createPlaylistEntry(player2.value.songFull)
+      playlistDetails.value.splice(index, 0, songToInsert)
       player2.value.setSong(found)
     }
   }
