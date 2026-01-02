@@ -352,6 +352,28 @@
               />
               {{ isExportingM3U ? 'Exportando...' : 'Exportar M3U' }}
             </a-button>
+            <a-dropdown>
+              <a-button class="flex items-center space-x-1 pl-2.5">
+                <span>{{ m3uSourceLabel }}</span>
+                <i-mdi-menu-down class="w-4 h-4" />
+              </a-button>
+              <template #overlay>
+                <a-menu
+                  :selected-keys="[m3uExportSourceFilter]"
+                  @click="onM3uSourceSelect"
+                >
+                  <a-menu-item key="any">
+                    Cualquier fuente
+                  </a-menu-item>
+                  <a-menu-item key="apple">
+                    Apple Music
+                  </a-menu-item>
+                  <a-menu-item key="youtube">
+                    Youtube
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
           </div>
 
           <a-input
@@ -867,6 +889,17 @@ const importSongsCache = ref([])
 const playlistSearchQuery = ref('')
 const playlistSearchResults = ref([])
 const playlistSearchIndex = ref(0)
+const m3uExportSourceFilter = ref('any')
+const m3uSourceLabel = computed(() => {
+  switch (m3uExportSourceFilter.value) {
+  case 'apple':
+    return 'Apple Music'
+  case 'youtube':
+    return 'Youtube'
+  default:
+    return 'Cualquier fuente'
+  }
+})
 
 // Players
 const player1 = ref(null)
@@ -895,11 +928,19 @@ const createPlaylistEntry = (song) => ({
 const filteredSongs2 = computed(() => {
   const normalizedQuery = removeAccents((filterQuery.value || '').toLowerCase())
 
-  if (!normalizedQuery) {
-    return songs.value
+  let filtered = songs.value
+
+  if (m3uExportSourceFilter.value === 'apple') {
+    filtered = filtered.filter((item) => Boolean(item.isAppleMusic))
+  } else if (m3uExportSourceFilter.value === 'youtube') {
+    filtered = filtered.filter((item) => !Boolean(item.isAppleMusic))
   }
 
-  return songs.value.filter((item) => {
+  if (!normalizedQuery) {
+    return filtered
+  }
+
+  return filtered.filter((item) => {
     const normalizedName = removeAccents(item.name.toLowerCase())
     const normalizedArtists = removeAccents(item.Artists.map((a) => a.name)
       .join('')
@@ -1671,7 +1712,20 @@ async function exportM3U() {
       console.log(err)
     }
 
-    const songsForExport = detailedSongs.length > 0 ? detailedSongs : filteredSongs2.value
+    let songsForExport = detailedSongs.length > 0 ? detailedSongs : filteredSongs2.value
+
+    if (m3uExportSourceFilter.value === 'apple') {
+      songsForExport = songsForExport.filter((song) => Boolean(song.isAppleMusic))
+    } else if (m3uExportSourceFilter.value === 'youtube') {
+      songsForExport = songsForExport.filter((song) => !Boolean(song.isAppleMusic))
+    }
+
+    if (!songsForExport.length) {
+      alert('No hay canciones que coincidan con la fuente seleccionada.')
+
+      return
+    }
+
     const content = buildM3UContent(songsForExport)
     const blob = new Blob([content], { type: 'audio/x-mpegurl' })
     const url = URL.createObjectURL(blob)
@@ -2080,6 +2134,12 @@ function selectNoneTags() {
 function onTableChange(pagination, filters, sorter, { action, currentDataSource }) {
   libraryState.value.page = pagination.current
   saveLibraryView(pagination.current, sorter)
+}
+
+function onM3uSourceSelect({ key }) {
+  m3uExportSourceFilter.value = key
+  libraryState.value.page = 1
+  saveLibraryView()
 }
 </script>
 
