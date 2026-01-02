@@ -369,7 +369,7 @@
             class="ant-table-striped"
             :animate-rows="false"
             :row-key="record => record.id"
-            :row-class-name="(_record, index) => (index % 2 === 1 ? 'table-striped' : null)"
+            :row-class-name="(_record, index) => (deletedSongs.includes(_record.id) ? 'table-deleted' : index % 2 === 1 ? 'table-striped' : null)"
             :show-sorter-tooltip="false"
             :loading="isLoadingLibrary"
             :pagination="{ current: libraryState.page, hideOnSinglePage: false, total: filteredSongs2.length, 'show-total': (total) => `${selectedSongs.length} seleccionadas / ${total} canciones`, defaultPageSize: 24, pageSize: pageSizeRef, showSizeChanger: false }"
@@ -635,7 +635,10 @@
         </div>
 
         <div class="flex items-center space-x-2">
-          <div class="flex items-center space-x-2 mr-4">
+          <div
+            v-if="playlistDetails.length > 3"
+            class="flex items-center space-x-2 mr-4"
+          >
             <input
               v-model="playlistSearchQuery"
               type="text"
@@ -942,13 +945,15 @@ const columns = computed(() => {
   ]
 
   // Update column order
-  if (libraryState.value.hasOwnProperty('sort') && Object.keys(libraryState.value.sort).length > 0) {
-    for (const col of cols) {
+  const sortConfig = libraryState.value && libraryState.value.sort
+  if (sortConfig && sortConfig.column) {
+    cols.forEach((col) => {
       delete col.sortOrder
-    }
-    const foundCol = cols.find((item) => item.dataIndex.trim() === libraryState.value.sort.column.trim())
+    })
+
+    const foundCol = cols.find((item) => item.dataIndex && item.dataIndex.trim() === sortConfig.column.trim())
     if (foundCol) {
-      foundCol['sortOrder'] = libraryState.value.sort.order
+      foundCol.sortOrder = sortConfig.order
     }
   }
 
@@ -1165,6 +1170,9 @@ async function setOption(option, extraArtists = [], recent = false) {
     if (localStorage.getItem('vmusic_library_state')) {
       libraryState.value = JSON.parse(localStorage.getItem('vmusic_library_state'))
     }
+    if (!libraryState.value.page) {
+      libraryState.value.page = 1
+    }
 
     const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
 
@@ -1311,6 +1319,12 @@ async function filterSongs() {
   // tags.value = data.tags.sort((a, b) => a.name.localeCompare(b.name))
 
 
+  const pageSize = pageSizeRef.value || 24
+  const totalPages = Math.max(1, Math.ceil((filteredSongs2.value.length || 1) / pageSize))
+  if (!libraryState.value.page || libraryState.value.page > totalPages) {
+    libraryState.value.page = totalPages
+  }
+
   saveLibraryView()
   isLoadingLibrary.value = false
 }
@@ -1369,18 +1383,32 @@ const closeContextMenu = () => {
 }
 
 function deleteSong() {
+  if (selectedSongs.value.length === 0) return
+  const songIdToDelete = selectedSongs.value[0]
+
   axios
     .post('http://localhost:3000/songs/delete', {
-      id: selectedSongs.value[0]
+      id: songIdToDelete
     })
     .then(function(response) {
       filteredSongs.value = filteredSongs.value.filter((song) => song.id !== response.data[0])
       deletedSongs.value.push(response.data[0])
+      markSongAsDeleted(songIdToDelete)
     })
     .catch(function(error) {})
     .finally(function() {
       selectedSongs.value = []
     })
+}
+
+function markSongAsDeleted(id) {
+  const rows = document.querySelectorAll('.ant-table-row')
+  rows.forEach((row) => {
+    const key = row.getAttribute('data-row-key')
+    if (Number(key) === id) {
+      row.classList.add('bg-red-200')
+    }
+  })
 }
 
 const shuffle = (array) => {
@@ -2050,8 +2078,7 @@ function selectNoneTags() {
 }
 
 function onTableChange(pagination, filters, sorter, { action, currentDataSource }) {
-  console.log(sorter)
-
+  libraryState.value.page = pagination.current
   saveLibraryView(pagination.current, sorter)
 }
 </script>
@@ -2084,6 +2111,10 @@ table tr td.ant-table-cell {
 
 .ant-table-striped .table-striped td {
   background-color: #fafafa;
+}
+
+.ant-table-striped .table-deleted td {
+  background-color: #fecaca !important;
 }
 
 .ant-table-pagination.ant-pagination {
