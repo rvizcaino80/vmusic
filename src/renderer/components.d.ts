@@ -9,6 +9,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     AAlert: typeof import('ant-design-vue/es')['Alert']
     AButton: typeof import('ant-design-vue/es')['Button']
+    ACheckbox: typeof import('ant-design-vue/es')['Checkbox']
     ACheckboxGroup: typeof import('ant-design-vue/es')['CheckboxGroup']
     ADivider: typeof import('ant-design-vue/es')['Divider']
     AForm: typeof import('ant-design-vue/es')['Form']
@@ -19,6 +20,7 @@ declare module 'vue' {
     ASelect: typeof import('ant-design-vue/es')['Select']
     ASlider: typeof import('ant-design-vue/es')['Slider']
     ATable: typeof import('ant-design-vue/es')['Table']
+    ATypographyLink: typeof import('ant-design-vue/es')['TypographyLink']
     ContextMenu: typeof import('./src/components/ContextMenu.vue')['default']
     Download: typeof import('./src/components/Download.vue')['default']
     Edit: typeof import('./src/components/Edit.vue')['default']
@@ -45,6 +47,7 @@ declare module 'vue' {
     IMdiTags: typeof import('~icons/mdi/tags')['default']
     IMingcuteYoutubeFill: typeof import('~icons/mingcute/youtube-fill')['default']
     IRiCheckboxLine: typeof import('~icons/ri/checkbox-line')['default']
+    ISimpleIconsAudiomack: typeof import('~icons/simple-icons/audiomack')['default']
     ITeenyiconsDownSolid: typeof import('~icons/teenyicons/down-solid')['default']
     ITeenyiconsUpSolid: typeof import('~icons/teenyicons/up-solid')['default']
     Multiselect: typeof import('./src/components/Multiselect.vue')['default']

@@ -7,18 +7,6 @@
     @click.right="closeContextMenu"
   />
 
-  <audio
-    id="placa"
-    class="hidden"
-    controls
-  >
-    <source
-      preload="auto"
-      src="/placa.mp3"
-      type="audio/mp3"
-    >
-  </audio>
-
   <div
     v-if="currentSelectedOption"
     class="backdrop bg-black bg-opacity-70 z-50 fixed w-full h-full"
@@ -354,6 +342,16 @@
               />
               Eliminar
             </a-button>
+            <a-button
+              :disabled="isExportingM3U || filteredSongs2.length === 0"
+              class="flex items-center space-x-1 pl-2.5"
+              @click="exportM3U"
+            >
+              <i-mdi-file-export-outline
+                class="w-4 h-4"
+              />
+              {{ isExportingM3U ? 'Exportando...' : 'Exportar M3U' }}
+            </a-button>
           </div>
 
           <a-input
@@ -387,14 +385,18 @@
                 No hay canciones que mostrar.
               </div>
             </template>
-            <template #bodyCell="{text, record, index, column}">
+            <template #bodyCell="{text, record, column}">
               <template v-if="column.dataIndex === 'name'">
                 <div class="flex items-center space-x-2">
                   <span>{{ text }}</span>
                   <span
                     v-if="record.Tags.some(tag => tag.id === 9998)"
-                    class="px-[10px] py-[1px] rounded-full bg-yellow-200 text-yellow-600 text-xs"
+                    class="px-[10px] py-[1px] rounded-full bg-yellow-200 text-yellow-00 text-xs"
                   >Reciente</span>
+                  <i-simple-icons-audiomack
+                    v-if="record.timestamp >= 1745522439843"
+                    class="text-blue-500"
+                  />
                 </div>
               </template>
               <template v-else-if="column.dataIndex === 'source'">
@@ -457,12 +459,10 @@
               (player1 &&
                 (player1.status === playerStatuses.Reproduciendo ||
                   player1.status === playerStatuses.Cambiando ||
-                  player1.status === playerStatuses.Placa ||
                   player1.status === playerStatuses.Nivelando)) ||
                 (player2 &&
                   (player2.status === playerStatuses.Reproduciendo ||
                     player2.status === playerStatuses.Cambiando ||
-                    player2.status === playerStatuses.Placa ||
                     player2.status === playerStatuses.Nivelando))
             "
             :disabled="
@@ -510,6 +510,16 @@
               class="w-6 h-6 text-white"
             />
           </button>
+
+          <div class="flex items-center">
+            <a-checkbox
+              v-if="player1 && player2 && (player1.status === playerStatuses.Reproduciendo || player2.status === playerStatuses.Reproduciendo)"
+              v-model:checked="autopause"
+              class="text-white"
+            >
+              Autopausa
+            </a-checkbox>
+          </div>
         </div>
 
         <div class="flex items-center space-x-3">
@@ -624,6 +634,24 @@
         </div>
 
         <div class="flex items-center space-x-2">
+          <input
+            ref="m3uInput"
+            type="file"
+            accept=".m3u"
+            class="hidden"
+            @change="onM3UFileChange"
+          >
+          <button
+            :disabled="isImportingM3U"
+            type="button"
+            class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
+            @click="openM3UPicker"
+          >
+            <i-mdi-file-music-outline
+              class="w-4 h-4"
+            />
+            <span>{{ isImportingM3U ? 'Cargando...' : 'Cargar M3U' }}</span>
+          </button>
           <button
             :disabled="playlistDetails.length <= 1"
             type="button"
@@ -738,7 +766,6 @@
 <script setup>
 import axios from 'axios'
 import { onMounted, computed, ref, watch, reactive, nextTick } from 'vue'
-import hotkeys from 'hotkeys-js'
 import { version } from '../../../package.json'
 import dayjs from 'dayjs'
 
@@ -771,7 +798,6 @@ const playerStatuses = {
   Pausado: 50,
   Cambiando: 60,
   Detenido: 70,
-  Placa: 80,
   Nivelando: 90
 }
 
@@ -788,6 +814,7 @@ const selectedSongs = ref([])
 const filterQuery = ref('')
 const deletedSongs = ref([])
 const isLoadingLibrary = ref(true)
+const autopause = ref(false)
 
 // Tags
 const tags = ref([])
@@ -799,6 +826,11 @@ const playlist = ref([])
 const playlistDetails = ref([])
 const currentMode = ref(0)
 const selectedRows = ref([])
+const m3uInput = ref(null)
+const isImportingM3U = ref(false)
+const isExportingM3U = ref(false)
+const importSongsCacheLoaded = ref(false)
+const importSongsCache = ref([])
 
 // Players
 const player1 = ref(null)
@@ -818,26 +850,22 @@ const libraryState = ref({
 const downloadSelectedArtist = ref(null)
 
 const filteredSongs2 = computed(() => {
-  let filtered = songs.value
+  const normalizedQuery = removeAccents((filterQuery.value || '').toLowerCase())
 
-  if (filterQuery.value && filterQuery.value?.length > 0) {
-    filtered = filtered.filter((item) => {
-      return (
-        removeAccents(item.name.toLowerCase()).includes(removeAccents(filterQuery.value.toLowerCase())) || removeAccents(item.Artists.map((a) => a.name)
-          .join('')
-          .toLowerCase()).includes(removeAccents(filterQuery.value.toLowerCase()))
-      )
-    })
+  if (!normalizedQuery) {
+    return songs.value
   }
 
+  return songs.value.filter((item) => {
+    const normalizedName = removeAccents(item.name.toLowerCase())
+    const normalizedArtists = removeAccents(item.Artists.map((a) => a.name)
+      .join('')
+      .toLowerCase())
 
-  filtered.forEach((item) => {
-    item.key = item.id
-    item.artistsJoined = item.Artists.map((artist) => artist.name).join(', ')
-    item.composersJoined = item.Composers.map((composer) => composer.name).join(', ')
+    return (
+      normalizedName.includes(normalizedQuery) || normalizedArtists.includes(normalizedQuery)
+    )
   })
-
-  return filtered
 })
 
 const columns = computed(() => {
@@ -862,7 +890,7 @@ const columns = computed(() => {
       width: 100,
       align: 'right',
       sorter: {
-        compare: (a, b) => a.duration < b.duration
+        compare: (a, b) => (a.duration || 0) - (b.duration || 0)
       }
     },
     {
@@ -879,18 +907,30 @@ const columns = computed(() => {
       delete col.sortOrder
     }
     const foundCol = cols.find((item) => item.dataIndex.trim() === libraryState.value.sort.column.trim())
-    foundCol['sortOrder'] = libraryState.value.sort.order
+    if (foundCol) {
+      foundCol['sortOrder'] = libraryState.value.sort.order
+    }
   }
 
   return cols
 })
 
 const addButtonDisabled = computed(() => {
-  return selectedSongs.value.length <= 0 || player1.value.status === playerStatuses.Cambiando || player2.value.status === playerStatuses.Cambiando
+  const player1Status = player1.value?.status
+  const player2Status = player2.value?.status
+
+  return (
+    selectedSongs.value.length <= 0 || player1Status === playerStatuses.Cambiando || player2Status === playerStatuses.Cambiando
+  )
 })
 
 const addRandomButtonDisabled = computed(() => {
-  return selectedSongs.value.length <= 1 || player1.value.status === playerStatuses.Cambiando || player2.value.status === playerStatuses.Cambiando
+  const player1Status = player1.value?.status
+  const player2Status = player2.value?.status
+
+  return (
+    selectedSongs.value.length <= 1 || player1Status === playerStatuses.Cambiando || player2Status === playerStatuses.Cambiando
+  )
 })
 
 // Define localstorage settings
@@ -929,10 +969,16 @@ onMounted(() => {
       document.getElementById('logo').classList.remove('jello-horizontal')
     }, 1000)
   }, 10000)
-  hotkeys('space', function(event, handler) {
-    event.preventDefault()
-    playPlaca()
-  })
+})
+
+watch(autopause, (newValue) => {
+  if (newValue) {
+    if (player1.value.status === playerStatuses.Reproduciendo) {
+      player2.value.status = playerStatuses.Pausado
+    } else if (player2.value.status === playerStatuses.Reproduciendo) {
+      player1.value.status = playerStatuses.Pausado
+    }
+  }
 })
 
 const removeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -972,25 +1018,12 @@ const timeLeft = computed(() => {
   return [left, b.format('hh:mm A'), dayDiff]
 })
 
-function playPlaca() {
-  const audio = document.querySelector('#placa')
-  audio.volume = 0.6
-
-  if (player1.value.status === playerStatuses.Reproduciendo) {
-    player1.value.status = playerStatuses.Placa
-    player1.value.tempFade()
-  } else if (player2.value.status === playerStatuses.Reproduciendo) {
-    player2.value.status = playerStatuses.Placa
-    player2.value.tempFade()
-  }
-
-  audio.play()
-}
-
 function remove(array, element) {
   const index = array.findIndex((item) => item.id === element)
-  array.splice(index, 1)
-  selectedRows.value = []
+  if (index !== -1) {
+    array.splice(index, 1)
+    selectedRows.value = []
+  }
 }
 
 function removeAll(array) {
@@ -1205,9 +1238,12 @@ async function filterSongs() {
   const response = await fetch('http://localhost:3000/songs/filter', options)
   const data = await response.json()
 
-  // const localSongs = data.songs.sort((a, b) => a.name.localeCompare(b.name))
-
-  songs.value = data
+  songs.value = data.map((item) => ({
+    ...item,
+    key: item.id,
+    artistsJoined: item.Artists.map((artist) => artist.name).join(', '),
+    composersJoined: item.Composers.map((composer) => composer.name).join(', ')
+  }))
 
   if (libraryState.value && libraryState.value.search?.length > 0) {
     filterQuery.value = libraryState.value.search
@@ -1294,6 +1330,262 @@ const shuffle = (array) => {
   return array.sort(() => Math.random() - 0.5)
 }
 
+function openM3UPicker() {
+  if (isImportingM3U.value) {
+    return
+  }
+  if (m3uInput.value) {
+    m3uInput.value.click()
+  }
+}
+
+async function onM3UFileChange(event) {
+  const file = event.target.files && event.target.files[0]
+  if (!file) {
+    return
+  }
+
+  isImportingM3U.value = true
+
+  try {
+    const content = await file.text()
+    await importM3UContent(content)
+  } catch (error) {
+    console.log(error)
+    alert('No se pudo leer el archivo M3U.')
+  } finally {
+    event.target.value = ''
+    isImportingM3U.value = false
+  }
+}
+
+async function loadSongsForImport() {
+  if (importSongsCacheLoaded.value && importSongsCache.value.length > 0) {
+    return importSongsCache.value
+  }
+
+  const resolvedTags = tags.value.length > 0 ? tags.value : await getTags()
+  const resolvedArtists = artists.value.length > 0 ? artists.value : await getArtists(true)
+
+  if (tags.value.length === 0) {
+    tags.value = resolvedTags
+  }
+
+  if (artists.value.length === 0) {
+    artists.value = resolvedArtists
+  }
+
+  const params = {
+    artists: resolvedArtists.map((artist) => artist.id),
+    tags: resolvedTags.map((tag) => tag.id)
+  }
+
+  const options = {
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    method: 'POST',
+    body: JSON.stringify(params)
+  }
+
+  const response = await fetch('http://localhost:3000/songs/filter', options)
+  const data = await response.json()
+  importSongsCache.value = data
+  importSongsCacheLoaded.value = true
+
+  return importSongsCache.value
+}
+
+function parseM3U(content) {
+  const entries = []
+
+  if (!content) {
+    return entries
+  }
+
+  const lines = content.split(/\r?\n/)
+  let lastInfo = null
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    if (!line) continue
+
+    if (line.startsWith('#EXTINF:')) {
+      const info = line.slice(8)
+      const [durationStr, ...rest] = info.split(',')
+      const duration = parseInt(durationStr, 10)
+      lastInfo = {
+        duration: isNaN(duration) ? null : duration,
+        title: rest.join(',').trim()
+      }
+    } else if (!line.startsWith('#')) {
+      entries.push({
+        ...lastInfo,
+        path: line
+      })
+      lastInfo = null
+    }
+  }
+
+  return entries
+}
+
+function getSongPathInfo(path) {
+  if (!path) {
+    return null
+  }
+
+  const normalized = path.replace(/\\/g, '/')
+  const parts = normalized.split('/').filter(Boolean)
+  if (parts.length < 2) {
+    return null
+  }
+
+  const filename = parts.pop()
+  const folder = parts.pop()
+
+  if (!filename || !folder) {
+    return null
+  }
+
+  const ytid = filename.replace(/\.[^/.]+$/, '')
+
+  return { folder, ytid }
+}
+
+async function importM3UContent(content) {
+  const entries = parseM3U(content)
+  if (entries.length === 0) {
+    alert('El archivo M3U no contiene canciones válidas.')
+
+    return
+  }
+
+  const allSongs = await loadSongsForImport()
+  const songMap = new Map()
+
+  allSongs.forEach((song) => {
+    songMap.set(`${song.folder}/${song.ytid}`, song)
+  })
+  const matched = []
+  const missing = []
+
+  entries.forEach((entry) => {
+    const info = getSongPathInfo(entry.path)
+    if (!info) {
+      missing.push(entry.path)
+
+      return
+    }
+
+    const found = songMap.get(`${info.folder}/${info.ytid}`)
+    if (found) {
+      matched.push(found)
+    } else {
+      missing.push(entry.path)
+    }
+  })
+
+  if (matched.length > 0) {
+    matched.forEach((song) => {
+      playlist.value.push(song.id)
+    })
+
+    const temp = matched.map((song) => ({ ...song, played: false }))
+    temp.forEach((song) => {
+      playlistDetails.value.push(song)
+    })
+
+    loadPlayers()
+  }
+
+  if (missing.length > 0) {
+    alert(`No se pudieron cargar ${missing.length} canciones del archivo M3U.`)
+  } else if (matched.length > 0) {
+    alert(`Se agregaron ${matched.length} canciones desde el archivo M3U.`)
+  }
+}
+
+function buildM3UContent(list) {
+  const lines = ['#EXTM3U']
+
+  list.forEach((song) => {
+    const duration = Math.round(song.duration || 0)
+    const artistsJoined = song.Artists?.map((a) => a.name).join(', ') || 'Desconocido'
+    const availableTags = tags.value || []
+    const genre = (song.Tags || [])
+      .map((t) => {
+        if (typeof t === 'number') {
+          return availableTags.find((tag) => tag.id === t)?.name
+        }
+
+        return t?.name
+      })
+      .map((name) => (name || '').trim())
+      .filter((name) => {
+        if (!name) return false
+        const normalized = name.toLowerCase()
+
+        return normalized !== 'reciente' && normalized !== 'agregado-reciente'
+      })
+      .join(', ')
+    const title = `${artistsJoined} - ${song.name}${genre ? ' - ' + genre : ''}`
+    const path = `/media/${song.folder}/${song.ytid}.mp3`
+
+    lines.push(`#EXTINF:${duration},${title}`)
+    lines.push(path)
+  })
+
+  return lines.join('\n')
+}
+
+async function exportM3U() {
+  if (isExportingM3U.value) {
+    return
+  }
+
+  if (!filteredSongs2.value || filteredSongs2.value.length === 0) {
+    alert('No hay canciones para exportar.')
+
+    return
+  }
+
+  isExportingM3U.value = true
+
+  try {
+    if (tags.value.length === 0) {
+      tags.value = await getTags()
+    }
+
+    const ids = filteredSongs2.value.map((s) => s.id)
+    let detailedSongs = []
+
+    try {
+      const response = await axios.post('http://localhost:3000/songs/by-id', { ids })
+      detailedSongs = response.data
+    } catch (err) {
+      console.log(err)
+    }
+
+    const songsForExport = detailedSongs.length > 0 ? detailedSongs : filteredSongs2.value
+    const content = buildM3UContent(songsForExport)
+    const blob = new Blob([content], { type: 'audio/x-mpegurl' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'biblioteca.m3u'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.log(error)
+    alert('No se pudo exportar la biblioteca en M3U.')
+  } finally {
+    isExportingM3U.value = false
+  }
+}
+
 function addToPlaylist(action, play = false) {
   const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
   pageSizeRef.value = savedSettings.rowsPerPage
@@ -1352,20 +1644,23 @@ function addToPlaylist(action, play = false) {
 function loadPlayers(play = false) {
   selectedSongs.value = []
 
+  const player1Status = player1.value?.status
+  const player2Status = player2.value?.status
+
   if (
-    player1.value.status === playerStatuses.Detenido || player1.value.status === playerStatuses['Sin Carga']
+    player1Status === playerStatuses.Detenido || player1Status === playerStatuses['Sin Carga']
   ) {
     let nextSong = getFirstUnplayedSong()
-    if (nextSong) {
+    if (nextSong && player1.value) {
       player1.value.setSong(nextSong)
     }
   }
 
   if (
-    player2.value.status === playerStatuses.Detenido || player2.value.status === playerStatuses['Sin Carga']
+    player2Status === playerStatuses.Detenido || player2Status === playerStatuses['Sin Carga']
   ) {
     let nextSong = getFirstUnplayedSong()
-    if (nextSong) {
+    if (nextSong && player2.value) {
       player2.value.setSong(nextSong)
     }
   }
@@ -1377,12 +1672,12 @@ function loadPlayers(play = false) {
         player1.value.play()
       }
     } else {
-      if (player1.value.status === playerStatuses.Pausado) {
-        player1.value.play()
-      }
-
-      if (player2.value.status === playerStatuses.Pausado) {
-        player2.value.play()
+      if (!autopause.value) {
+        if (player1.value.status === playerStatuses.Pausado) {
+          player1.value.play()
+        } else if (player2.value.status === playerStatuses.Pausado) {
+          player2.value.play()
+        }
       }
     }
   }
@@ -1422,14 +1717,18 @@ function getFirstUnplayedSong() {
 }
 
 function play() {
+  autopause.value = false
+
   if (isFirstPlay.value && player1.value.status === playerStatuses.Listo) {
     isFirstPlay.value = false
     player1.value.play()
   } else {
-    if (player2.value.status === playerStatuses.Pausado) {
-      player2.value.play()
-    } else {
-      player1.value.play()
+    if (!autopause.value) {
+      if (player2.value.status === playerStatuses.Pausado) {
+        player2.value.play()
+      } else {
+        player1.value.play()
+      }
     }
   }
 }
@@ -1446,11 +1745,11 @@ function pause() {
 
 function songFading(p) {
   if (p.position === 'top') {
-    if (player2.value.status === playerStatuses.Listo) {
+    if ((player2.value.status === playerStatuses.Listo) && !autopause.value) {
       player2.value.play()
     }
   } else if (p.position === 'bottom') {
-    if (player1.value.status === playerStatuses.Listo) {
+    if ((player1.value.status === playerStatuses.Listo) && !autopause.value) {
       player1.value.play()
     }
   } else {
@@ -1460,8 +1759,11 @@ function songFading(p) {
 }
 
 function checkPlayers(play = false) {
+  const player1Status = player1.value?.status
+  const player2Status = player2.value?.status
+
   if (
-    player1.value.status === playerStatuses.Detenido || player1.value.status === playerStatuses['Sin Carga'] || player2.value.status === playerStatuses.Detenido || player2.value.status === playerStatuses['Sin Carga']
+    player1Status === playerStatuses.Detenido || player1Status === playerStatuses['Sin Carga'] || player2Status === playerStatuses.Detenido || player2Status === playerStatuses['Sin Carga']
   ) {
     loadPlayers(play)
   }
@@ -1486,53 +1788,6 @@ function getRandomInt(max) {
   return Math.floor(Math.random() * max)
 }
 
-function getTagsForAutoPlaying() {
-  const mode = {
-    1: 100
-  }
-
-  let calculatedTag = Object.keys(mode)[getRandomInt(Object.keys(mode).length - 1)]
-  let found = false
-
-  let tags = []
-
-  if (tagHistory.value.length > 0) {
-    tagHistory.value.forEach((tag) => {
-      if (Object.keys(mode).includes(tag.toString())) {
-        tags.push(tag)
-      }
-    })
-  } else {
-    tags.push(calculatedTag)
-  }
-
-  /*
-   *let songsInLibrary = {}
-   *tags.forEach(t => {
-   *songsInLibrary[t] = getSongsInLibrary(t)
-   *})
-   *console.log('ok', songsInLibrary)
-   */
-
-  const percents = calcularPorcentaje(tags)
-
-  Object.keys(mode).forEach((t) => {
-    if (!found) {
-      const tag = parseInt(t)
-
-      if (!percents[tag]) {
-        found = true
-        calculatedTag = tag
-      } else if (percents[tag] <= mode[tag]) {
-        found = true
-        calculatedTag = tag
-      }
-    }
-  })
-
-  return calculatedTag
-}
-
 function selectRow(e, id) {
   if (e.metaKey) {
     selectedRows.value.push(id)
@@ -1555,9 +1810,36 @@ function settingsSaved() {
   setOption(null)
 }
 
-function updated() {
+async function updated(songId) {
+  const targetId = songId || selectedSongs.value[0]
+  isLoadingLibrary.value = true
+  await filterSongs()
+  await refreshSongInLibrary(targetId)
+  currentSelectedOption.value = options.library
   selectedSongs.value = []
-  setOption(options.library)
+  isLoadingLibrary.value = false
+}
+
+async function refreshSongInLibrary(id) {
+  if (!id) return
+
+  try {
+    const response = await axios.get(`http://localhost:3000/songs/${id}`)
+    const updatedSong = response.data
+    const normalizedSong = {
+      ...updatedSong,
+      key: updatedSong.id,
+      artistsJoined: updatedSong.Artists.map((artist) => artist.name).join(', '),
+      composersJoined: updatedSong.Composers.map((composer) => composer.name).join(', ')
+    }
+
+    const index = songs.value.findIndex((song) => song.id === id)
+    if (index !== -1) {
+      songs.value.splice(index, 1, normalizedSong)
+    }
+  } catch (error) {
+    console.log(error)
+  }
 }
 
 function waveUpdated(markers) {

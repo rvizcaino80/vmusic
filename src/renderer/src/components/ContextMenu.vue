@@ -1,6 +1,11 @@
 <template>
-  <div class="absolute bg-black z-[100]" :style="{ top: y + 'px', left: x + 'px' }">
-    <div class="text-sm text-gray-400 px-3 py-1 border-b border-gray-700">{{ song.name }}</div>
+  <div
+    class="absolute bg-black z-[100]"
+    :style="{ top: y + 'px', left: x + 'px' }"
+  >
+    <div class="text-sm text-gray-400 px-3 py-1 border-b border-gray-700">
+      {{ song.name }}
+    </div>
     <div
       v-for="action in actions"
       :key="action.action"

@@ -33,25 +33,22 @@ const props = defineProps({
 
 const emit = defineEmits(['changed'])
 
-const removeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-
 watch(() => props.list,
-  (newValue, oldValue) => {
-    let sorted = newValue.sort((a, b) => a.name.localeCompare(b.name))
-
+  (newValue = []) => {
+    const sorted = [...newValue].sort((a, b) => a.name.localeCompare(b.name))
     filteredList.value = sorted
-
-    // selected.value = props.list.map((item) => item.id)
-  })
+  },
+  { immediate: true })
 
 watch(() => props.selectedDefault,
-  (newValue, oldValue) => {
-    if (newValue.length > 0) {
-      selected.value = props.selectedDefault
+  (newValue = []) => {
+    if (newValue.length > 0 || selected.value.length === 0) {
+      selected.value = [...newValue]
     }
-  })
+  },
+  { immediate: true })
 
-function selectionChanged(e) {
+function selectionChanged() {
   emit('changed', selected.value)
 }
 

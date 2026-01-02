@@ -204,7 +204,6 @@ function init() {
   }
 
   player.on('load', () => {
-    console.log('loaded', songFull.value)
     songImage.value = ''
     wsRegions.clearRegions()
     player.toggleInteraction(false)
@@ -213,8 +212,6 @@ function init() {
   })
 
   player.on('ready', (d) => {
-    console.log('ready', songFull.value)
-
     if (songFull.value.isAppleMusic) {
       const url = `https://music.apple.com/co/song/taste/${songFull.value.ytid}`
       fetch(url).then((response) => {

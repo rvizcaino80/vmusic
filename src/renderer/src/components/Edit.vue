@@ -5,6 +5,14 @@
       @submit.prevent="saveSong"
     >
       <div>
+        <a-typography-link
+          class="mb-3 block"
+          :href="url"
+          target="_blank"
+        >
+          {{ isAppleMusic ? 'Ver original en Apple Music' : 'Ver original en Youtube' }}
+        </a-typography-link>
+
         <label class="text-sm text-gray-500 block">Artista</label>
         <div
           v-for="total in totalArtists"
@@ -21,7 +29,6 @@
             :filter-option="filterOption"
           />
         </div>
-
 
         <div class="mt-2">
           <button
@@ -110,6 +117,7 @@ import { Icon } from '@iconify/vue'
 
 // Download
 const song = ref('')
+const url = ref('')
 const artistIds = ref([])
 const totalArtists = ref(1)
 const totalComposers = ref(1)
@@ -121,6 +129,7 @@ const selectedTags = ref([])
 const selectedArtists = ref([])
 const selectedComposers = ref([])
 const localArtists = ref([])
+const isAppleMusic = ref(false)
 
 const emit = defineEmits(['updated'])
 
@@ -138,9 +147,11 @@ onMounted(async() => {
   axios
     .get('http://localhost:3000/songs/' + props.id)
     .then(function(response) {
+      url.value = response.data.isAppleMusic ? `https://music.apple.com/co/song/${response.data.ytid}` : `https://www.youtube.com/watch?v=${response.data.ytid}`
       totalArtists.value = response.data.Artists ? response.data.Artists.length : 1
       totalComposers.value = response.data.Composers ? response.data.Composers.length : 1
       song.value = response.data.name
+      isAppleMusic.value = response.data.isAppleMusic
 
       if (totalArtists.value > 0) {
         response.data.Artists.forEach((item, index) => {
@@ -196,11 +207,11 @@ function saveSong() {
       tags: selectedTags.value
     })
     .then(function(response) {
-      emit('updated')
+      emit('updated', props.id)
     })
     .catch(function(error) {})
     .finally(function() {
-      // always executed
+      isSaving.value = false
     })
 }
 

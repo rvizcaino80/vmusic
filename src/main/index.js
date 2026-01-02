@@ -71,13 +71,13 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
-  ipcMain.handle('get-clipboard-text', async (event, ...args) => {
+  ipcMain.handle('get-clipboard-text', async(event, ...args) => {
     const clipboardText = clipboard.readText()
 
     return clipboardText
   })
 
-  ipcMain.handle('empty-clipboard', async (event, ...args) => {
+  ipcMain.handle('empty-clipboard', async(event, ...args) => {
     clipboard.clear()
   })
   createWindow()
@@ -89,7 +89,7 @@ app.whenReady().then(() => {
     powerSaveBlocker.start('prevent-app-suspension')
   })
 
-  app.on('activate', function () {
+  app.on('activate', function() {
     /*
      * On macOS it's common to re-create a window in the app when the
      * dock icon is clicked and there are no other windows open.
