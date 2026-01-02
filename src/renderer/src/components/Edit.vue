@@ -86,6 +86,7 @@
           v-model:value="selectedTags"
           name="checkboxgroup"
           :options="tags.map(item => ({ label: item.name, value: item.id }))"
+          class="flex flex-col space-y-1"
         />
       </div>
 

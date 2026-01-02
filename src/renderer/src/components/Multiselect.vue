@@ -142,7 +142,7 @@ defineExpose({
 
 .multiselect-row {
   border-bottom: 1px solid #c4c4c4;
-  padding: 4px 0;
+  padding: 2px 0;
 }
 
 .multiselect-row:last-child{
