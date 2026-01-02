@@ -686,7 +686,7 @@
             :disabled="playlistDetails.length <= 1"
             type="button"
             class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
-            @click="shuffle(playlistDetails)"
+            @click="shufflePlaylist"
           >
             <i-ic-baseline-shuffle
               class="w-4 h-4"
@@ -1385,6 +1385,25 @@ function deleteSong() {
 
 const shuffle = (array) => {
   return array.sort(() => Math.random() - 0.5)
+}
+
+function shufflePlaylist() {
+  if (playlistDetails.value.length <= 1) return
+
+  const shuffled = [...playlistDetails.value]
+
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+
+  playlistDetails.value = shuffled
+  playlist.value = shuffled.map((item) => item.id)
+
+  if (selectedRows.value.length > 0) {
+    const stillPresent = selectedRows.value.filter((entryId) => shuffled.some((item) => item.entryId === entryId))
+    selectedRows.value = stillPresent
+  }
 }
 
 function openM3UPicker() {
