@@ -352,6 +352,17 @@
               />
               {{ isExportingM3U ? 'Exportando...' : 'Exportar' }}
             </a-button>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <a-input
+              v-model:value="filterQuery"
+              :disabled="isLoadingLibrary"
+              placeholder="Filtrar por título o artista"
+              style="width: 300px"
+              allow-clear
+              @blur="onSearchBlur"
+            />
             <a-dropdown>
               <a-button class="flex items-center space-x-1 pl-2.5">
                 <span>{{ m3uSourceLabel }}</span>
@@ -375,15 +386,6 @@
               </template>
             </a-dropdown>
           </div>
-
-          <a-input
-            v-model:value="filterQuery"
-            :disabled="isLoadingLibrary"
-            placeholder="Filtrar por título o artista"
-            style="width: 300px"
-            allow-clear
-            @blur="onSearchBlur"
-          />
         </div>
 
         <div class="flex-1 overflow-y-auto">
@@ -408,7 +410,20 @@
               </div>
             </template>
             <template #bodyCell="{text, record, column}">
-              <template v-if="column.dataIndex === 'name'">
+              <template v-if="column.dataIndex === 'preview'">
+                <a-button
+                  class="flex items-center justify-center"
+                  size="small"
+                  :type="previewSongId === record.id && previewStatus === 'playing' ? 'primary' : 'default'"
+                  :loading="isPreviewLoading && previewSongId === record.id"
+                  @click.stop="togglePreview(record)"
+                >
+                  <i-mdi-headphones
+                    class="w-4 h-4"
+                  />
+                </a-button>
+              </template>
+              <template v-else-if="column.dataIndex === 'name'">
                 <div class="flex items-center space-x-2">
                   <span>{{ text }}</span>
                   <span
@@ -444,6 +459,7 @@
         ref="player1"
         :statuses="playerStatuses"
         position="top"
+        :output-sink-id="deckSinkId"
         @loaded="checkPlayers(player1)"
         @stopped="checkPlayers(player1)"
         @fading="songFading(player1)"
@@ -466,6 +482,7 @@
         ref="player2"
         :statuses="playerStatuses"
         position="bottom"
+        :output-sink-id="deckSinkId"
         @loaded="checkPlayers(player2)"
         @stopped="checkPlayers(player2)"
         @fading="songFading(player2)"
@@ -855,6 +872,7 @@ const playerStatuses = {
   Detenido: 70,
   Nivelando: 90
 }
+const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
 
 let currentSelectedOption = ref(null)
 
@@ -870,6 +888,16 @@ const filterQuery = ref('')
 const deletedSongs = ref([])
 const isLoadingLibrary = ref(true)
 const autopause = ref(false)
+const previewAudio = ref(null)
+const previewSongId = ref(null)
+const previewStatus = ref('idle')
+const isPreviewLoading = ref(false)
+const previewSinkId = ref(null)
+const previewOutputs = ref([])
+const deckSinkId = ref(null)
+const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
+previewSinkId.value = savedSettingsRef.previewSinkId || null
+deckSinkId.value = savedSettingsRef.deckSinkId || null
 
 // Tags
 const tags = ref([])
@@ -955,6 +983,12 @@ const filteredSongs2 = computed(() => {
 const columns = computed(() => {
   let cols = [
     {
+      title: '',
+      dataIndex: 'preview',
+      width: 90,
+      align: 'center'
+    },
+    {
       title: 'Título',
       dataIndex: 'name',
       sorter: {
@@ -1025,7 +1059,7 @@ if (!localStorage.getItem('vmusic_library_state')) {
 }
 
 if (!localStorage.getItem('vmusic_settings')) {
-  const initialSettings = { rowsPerPage: 24, crossfaderTime: 1, recentlyAddedTime: 24 }
+  const initialSettings = { rowsPerPage: 24, crossfaderTime: 1, recentlyAddedTime: 24, previewSinkId: null, deckSinkId: null }
   localStorage.setItem('vmusic_settings', JSON.stringify(initialSettings))
 }
 
@@ -1112,6 +1146,136 @@ const timeLeft = computed(() => {
 
   return [left, b.format('hh:mm A'), dayDiff]
 })
+
+async function requestOutputDevices() {
+  if (!navigator.mediaDevices?.enumerateDevices) return []
+
+  try {
+    let devices = await navigator.mediaDevices.enumerateDevices()
+    const hasLabels = devices.some((d) => d.label && d.label.length > 0)
+
+    if (!hasLabels && navigator.mediaDevices.getUserMedia) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      devices = await navigator.mediaDevices.enumerateDevices()
+      stream.getTracks().forEach((track) => track.stop())
+    }
+
+    return devices.filter((d) => d.kind === 'audiooutput')
+  } catch (error) {
+    console.warn('No se pudieron obtener dispositivos de salida', error)
+
+    return []
+  }
+}
+
+async function loadPreviewOutputs() {
+  const outputs = await requestOutputDevices()
+  const options = outputs.map((d) => ({
+    label: d.label || 'Salida predeterminada',
+    value: d.deviceId
+  }))
+
+  previewOutputs.value = [
+    { label: 'Predeterminada (sistema)', value: 'default' },
+    ...options
+  ]
+}
+
+async function ensurePreviewPlayer() {
+  if (previewAudio.value) return previewAudio.value
+
+  const audio = new Audio()
+  audio.preload = 'auto'
+  audio.crossOrigin = 'anonymous'
+  audio.addEventListener('ended', () => resetPreviewState())
+  audio.addEventListener('error', () => resetPreviewState())
+
+  previewAudio.value = audio
+  await loadPreviewOutputs()
+
+  return audio
+}
+
+async function preparePreviewOutput() {
+  try {
+    await ensurePreviewPlayer()
+  } catch (error) {
+    console.warn('No se pudo inicializar el reproductor de previsualización', error)
+  }
+}
+
+async function onPreviewDropdown(open) {
+  if (!open) return
+  await loadPreviewOutputs()
+}
+
+async function onPreviewSinkChange(deviceId) {
+  previewSinkId.value = deviceId === 'default' ? null : deviceId
+  if (!previewAudio.value) {
+    await ensurePreviewPlayer()
+  }
+
+  if (previewAudio.value && typeof previewAudio.value.setSinkId === 'function' && previewSinkId.value) {
+    try {
+      await previewAudio.value.setSinkId(previewSinkId.value)
+    } catch (error) {
+      console.warn('No se pudo cambiar la salida de preview', error)
+      alert('No se pudo cambiar la salida de previsualización.')
+    }
+  }
+}
+
+function resetPreviewState() {
+  previewStatus.value = 'idle'
+  isPreviewLoading.value = false
+  previewSongId.value = null
+}
+
+function stopPreview() {
+  if (!previewAudio.value) return
+
+  previewAudio.value.pause()
+  previewAudio.value.currentTime = 0
+  resetPreviewState()
+}
+
+async function togglePreview(song) {
+  const audio = await ensurePreviewPlayer()
+
+  if (previewSongId.value === song.id && previewStatus.value === 'playing') {
+    stopPreview()
+    isPreviewLoading.value = false
+
+    return
+  }
+
+  isPreviewLoading.value = true
+  try {
+    if (previewStatus.value === 'playing') {
+      audio.pause()
+    }
+
+    if (previewSinkId.value && typeof audio.setSinkId === 'function') {
+      try {
+        await audio.setSinkId(previewSinkId.value)
+      } catch (error) {
+        console.warn('No se pudo aplicar la salida de preview seleccionada', error)
+      }
+    }
+
+    previewSongId.value = song.id
+    previewStatus.value = 'loading'
+    audio.src = `http://localhost:3000/static/${song.folder}/${song.ytid}.mp3`
+    await audio.play()
+    previewStatus.value = 'playing'
+  } catch (error) {
+    console.error(error)
+    resetPreviewState()
+    alert('No se pudo reproducir la previsualización en los audífonos.')
+  } finally {
+    isPreviewLoading.value = false
+  }
+}
 
 function remove(array, element) {
   const index = array.findIndex((item) => item.entryId === element)
@@ -1204,6 +1368,7 @@ async function setOption(option, extraArtists = [], recent = false) {
 
   if (currentSelectedOption.value === options.library) {
     isLoadingLibrary.value = true
+    preparePreviewOutput()
 
     // Load library status
     libraryState.value = {}
@@ -2025,6 +2190,16 @@ function downloaded(artistIds) {
 }
 
 function settingsSaved() {
+  const s = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
+  previewSinkId.value = s.previewSinkId || null
+  deckSinkId.value = s.deckSinkId || null
+  preparePreviewOutput()
+  if (player1.value?.setSinkId && deckSinkId.value) {
+    player1.value.setSinkId(deckSinkId.value)
+  }
+  if (player2.value?.setSinkId && deckSinkId.value) {
+    player2.value.setSinkId(deckSinkId.value)
+  }
   setOption(null)
 }
 

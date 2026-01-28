@@ -101,11 +101,26 @@
 </template>
 
 <script setup>
-import { onBeforeMount, onMounted, ref } from 'vue'
+import { onBeforeMount, onMounted, ref, watch } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
+
+const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed'])
+
+const props = defineProps({
+  position: String,
+  statuses: {
+    type: Object,
+    required: true
+  },
+  outputSinkId: {
+    type: String,
+    required: false,
+    default: null
+  }
+})
 
 let player = null
 const duration = ref(0.0)
@@ -212,6 +227,7 @@ function init() {
   })
 
   player.on('ready', (d) => {
+    setSinkId(props.outputSinkId)
     if (songFull.value.isAppleMusic) {
       const url = `https://music.apple.com/co/song/taste/${songFull.value.ytid}`
       fetch(url).then((response) => {
@@ -422,15 +438,19 @@ function setVolume(val) {
   player.setVolume(volume.value)
 }
 
-const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed'])
-
-const props = defineProps({
-  position: String,
-  statuses: {
-    type: Object,
-    required: true
+function setSinkId(sinkId) {
+  if (!sinkId || sinkId === 'default' || !player || typeof player.setSinkId !== 'function') return
+  try {
+    player.setSinkId(sinkId)
+  } catch (error) {
+    console.warn('No se pudo cambiar la salida del deck', error)
   }
-})
+}
+
+watch(() => props.outputSinkId,
+  (val) => {
+    setSinkId(val)
+  })
 
 defineExpose({
   position: props.position,
@@ -445,6 +465,7 @@ defineExpose({
   stop,
   setSong,
   next,
-  speed_added
+  speed_added,
+  setSinkId
 })
 </script>

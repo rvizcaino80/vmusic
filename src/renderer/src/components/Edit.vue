@@ -91,9 +91,9 @@
       </div>
 
       <button
-        :disabled="isSaving"
+        :disabled="isUpdateDisabled"
         type="submit"
-        class="p-2 border border-gray-800 bg-gray-800 text-white flex items-center space-x-1 font-bold"
+        class="p-2 border border-gray-800 bg-gray-800 text-white flex items-center space-x-1 font-bold disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <Icon
           v-if="isSaving"
@@ -112,7 +112,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import axios from 'axios'
 import { Icon } from '@iconify/vue'
 
@@ -131,6 +131,7 @@ const selectedArtists = ref([])
 const selectedComposers = ref([])
 const localArtists = ref([])
 const isAppleMusic = ref(false)
+const isUpdateDisabled = computed(() => isSaving.value || selectedTags.value.length === 0)
 
 const emit = defineEmits(['updated'])
 
@@ -195,6 +196,8 @@ async function getArtists() {
 }
 
 function saveSong() {
+  if (isUpdateDisabled.value) return
+
   isSaving.value = true
 
   let artistIds = selectedArtists.value.filter((item) => item)
