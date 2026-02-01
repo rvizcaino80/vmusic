@@ -66,7 +66,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeMount, onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
 import { Icon } from '@iconify/vue'
 import axios from 'axios'
@@ -142,6 +142,7 @@ onMounted(() => {
 
       player.on('ready', (d) => {
         player.toggleInteraction(true)
+        applySinkId(props.previewSinkId)
       })
 
       player.on('timeupdate', (currentTime) => {
@@ -169,6 +170,11 @@ const props = defineProps({
   id: {
     type: Number,
     required: true
+  },
+  previewSinkId: {
+    type: String,
+    required: false,
+    default: null
   }
 })
 
@@ -210,4 +216,17 @@ function onZoomChange(z) {
     minPxPerSec: z
   })
 }
+
+async function applySinkId(sinkId) {
+  if (!sinkId || sinkId === 'default' || !player || typeof player.setSinkId !== 'function') return
+  try {
+    await player.setSinkId(sinkId)
+  } catch (error) {
+    console.warn('No se pudo cambiar la salida de la onda', error)
+  }
+}
+
+watch(() => props.previewSinkId, (val) => {
+  applySinkId(val)
+})
 </script>

@@ -23,6 +23,18 @@
         />
       </a-form-item>
 
+      <a-form-item
+        v-if="showMetadataField"
+        label="URL de metadata (Spotify / MusicBrainz / Discogs)"
+      >
+        <a-input
+          v-model:value="metadataUrl"
+          class="w-full"
+          placeholder="Pega el enlace de Spotify, MusicBrainz o Discogs"
+          @change="onMetadataURLChange"
+        />
+      </a-form-item>
+
       <a-form-item label="Título">
         <a-input
           v-model:value.lazy="song"
@@ -127,7 +139,7 @@
 </template>
 
 <script setup>
-import { nextTick, ref, watch, defineEmits, onMounted } from 'vue'
+import { computed, nextTick, ref, watch, defineEmits, onMounted } from 'vue'
 import axios from 'axios'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
@@ -144,6 +156,8 @@ const totalComposers = ref(1)
 const selectedTags = ref([])
 const selectedArtists = ref([])
 const selectedComposers = ref([])
+const metadataUrl = ref('')
+const isAppleLink = ref(false)
 const isSaving = ref(false)
 const isError = ref(false)
 const errorMessage = ref('')
@@ -151,6 +165,9 @@ const emit = defineEmits(['downloaded', 'artists-updated'])
 const localArtists = ref([])
 const notFoundArtist = ref(null)
 const formDisabled = ref(true)
+
+// Mostrar campo extra para cualquier fuente que no sea Apple Music
+const showMetadataField = computed(() => url.value && !isAppleLink.value)
 
 const props = defineProps({
   tags: {
@@ -202,10 +219,15 @@ function saveSong() {
   let artistIds = selectedArtists.value.filter((item) => item)
   let composerIds = selectedComposers.value.filter((item) => item)
 
+  const isValidSource = url.value.includes('music.apple') || url.value.includes('youtube.com') || url.value.includes('youtu.be')
+
   if (
     selectedTags.value.length <= 0 || artistIds.length <= 0 || url.value.length <= 0 || song.value.length <= 0
   ) {
     errorMessage.value = 'La información está incompleta'
+    isError.value = true
+  } else if (!isValidSource) {
+    errorMessage.value = 'La URL principal debe ser de Apple Music o YouTube'
     isError.value = true
   } else {
     isSaving.value = true
@@ -215,7 +237,11 @@ function saveSong() {
         url: url.value
       })
       .then(function(response) {
-        songId.value = response.data
+        songId.value = response.data?.ytid || response.data
+
+        if (!songId.value) {
+          throw new Error('No se recibió el identificador (ytid) de la descarga')
+        }
 
         axios
           .post('http://localhost:3000/songs/save', {
@@ -238,7 +264,7 @@ function saveSong() {
       .catch(function(error) {
         isSaving.value = false
         isError.value = true
-        errorMessage.value = error.response.data.message
+        errorMessage.value = error.response?.data?.message || error.message || 'Error al descargar'
       })
       .finally(function() {
         // always executed
@@ -261,8 +287,10 @@ async function onURLChange(e) {
   notFoundArtist.value = null
   selectedArtists.value[1] = null
   totalArtists.value = 1
+  metadataUrl.value = ''
+  isAppleLink.value = e.target.value.includes('music.apple')
 
-  if (e.target.value.includes('music.apple')) {
+  if (isAppleLink.value) {
     const response = await fetch(e.target.value)
     const html = await response.text()
     const $ = cheerio.load(html)
@@ -286,9 +314,87 @@ async function onURLChange(e) {
     } else {
       notFoundArtist.value = tempArtist
     }
+  } else {
+    formDisabled.value = false
   }
 
   formDisabled.value = false
+}
+
+async function onMetadataURLChange(e) {
+  isError.value = false
+  errorMessage.value = ''
+  const value = e.target.value.trim()
+  metadataUrl.value = value
+
+  if (!value) return
+
+  try {
+    if (value.includes('musicbrainz.org')) {
+      const response = await fetch(value)
+      const html = await response.text()
+      const $ = cheerio.load(html)
+
+      const title = $('div.recordingheader h1 bdi').first()
+        .text() || $('h1 bdi').first()
+        .text()
+      const artist = $('div.recordingheader p.subheader bdi').first()
+        .text() || $('dd.artist bdi').first()
+        .text()
+
+      await fillSongAndArtist(title, artist)
+    } else if (value.includes('discogs.com')) {
+      const releaseId = value.match(/release\/(\d+)/)?.[1]
+
+      if (releaseId) {
+        const apiResponse = await fetch(`https://api.discogs.com/releases/${releaseId}`, {
+          headers: {
+            'User-Agent': 'v-music-downloader/1.0'
+          }
+        })
+
+        if (!apiResponse.ok) throw new Error('No se pudo obtener la información de Discogs')
+
+        const data = await apiResponse.json()
+        const title = data.title
+        const artist = data.artists?.[0]?.name
+
+        await fillSongAndArtist(title, artist)
+      }
+    } else if (value.includes('open.spotify.com')) {
+      const response = await fetch(value)
+      const html = await response.text()
+      const $ = cheerio.load(html)
+
+      const title = $('meta[property=\"og:title\"]').attr('content')
+      const artist = $('meta[name=\"music:musician_description\"]').attr('content') || $('meta[property=\"music:musician\"]').attr('content') || $('meta[property=\"og:description\"]').attr('content')
+        ?.split(' · ')?.[0]
+
+      await fillSongAndArtist(title, artist)
+    }
+  } catch (err) {
+    isError.value = true
+    errorMessage.value = 'No se pudo extraer la información del enlace adicional'
+  }
+}
+
+async function fillSongAndArtist(title, artistName) {
+  if (title) {
+    const formattedTitle = title.charAt(0).toUpperCase() + title.slice(1)
+    await nextTick()
+    song.value = formattedTitle
+  }
+
+  if (artistName) {
+    const match = props.artists.filter((a) => a.name.trim().toLowerCase() === artistName.trim().toLowerCase())
+
+    if (match.length > 0) {
+      await nextTick()
+      selectedArtists.value[1] = match[0].id
+    } else {
+      notFoundArtist.value = artistName
+    }
+  }
 }
 
 const filterOption = (input, option) => {

@@ -54,6 +54,7 @@
       <Wave
         v-if="currentSelectedOption && currentSelectedOption === options.wave"
         :id="selectedSongs.length > 0 ? selectedSongs[0] : 0"
+        :preview-sink-id="previewSinkId"
         @wave-updated="waveUpdated"
       />
       <div
