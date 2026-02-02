@@ -40,6 +40,7 @@ declare module 'vue' {
     IMaterialSymbolsSkipNext: typeof import('~icons/material-symbols/skip-next')['default']
     IMdiPlay: typeof import('~icons/mdi/play')['default']
     IMdiPlus: typeof import('~icons/mdi/plus')['default']
+    IMdiAlert: typeof import('~icons/mdi/alert')['default']
     IMdiRemoveBold: typeof import('~icons/mdi/remove-bold')['default']
     IMdiSettings: typeof import('~icons/mdi/settings')['default']
     IMdiShuffle: typeof import('~icons/mdi/shuffle')['default']

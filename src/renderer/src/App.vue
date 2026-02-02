@@ -658,7 +658,7 @@
       <div class="bg-gray-900 flex-1 overflow-y-auto basis-0">
         <table class="dark border-collapse w-full text-sm">
           <tr
-            v-for="s in playlistDetails"
+            v-for="(s, index) in playlistDetails"
             :key="s.entryId"
             :data-entry-id="s.entryId"
             @click="selectRow($event, s.entryId)"
@@ -674,6 +674,16 @@
               :class="{ 'bg-pink-500': selectedRows.includes(s.entryId) }"
             >
               {{ s.Artists.map((i) => i.name).join(', ') }}
+            </td>
+            <td
+              class="text-center w-[32px]"
+              :class="{ 'bg-pink-500': selectedRows.includes(s.entryId) }"
+            >
+              <i-mdi-alert
+                v-if="hasRecentArtistMatch(s, index)"
+                class="w-4 h-4 text-yellow-500 mx-auto"
+                title="Artista se reprodujo recientemente"
+              />
             </td>
           </tr>
         </table>
@@ -2218,6 +2228,15 @@ function nextPlaylistResult() {
 function prevPlaylistResult() {
   if (playlistSearchResults.value.length === 0) return
   focusPlaylistResult(playlistSearchIndex.value - 1)
+}
+
+function hasRecentArtistMatch(song, index) {
+  if (!song || index <= 0) return false
+  const prev = playlistDetails.value[index - 1]
+  if (!prev || !Array.isArray(song.Artists) || !Array.isArray(prev.Artists)) return false
+  const prevIds = new Set(prev.Artists.map((artist) => artist.id))
+
+  return song.Artists.some((artist) => prevIds.has(artist.id))
 }
 
 async function artistsUpdated(id) {
