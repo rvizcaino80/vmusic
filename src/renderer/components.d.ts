@@ -39,7 +39,6 @@ declare module 'vue' {
     IMaterialSymbolsPause: typeof import('~icons/material-symbols/pause')['default']
     IMaterialSymbolsSkipNext: typeof import('~icons/material-symbols/skip-next')['default']
     IMdiPlay: typeof import('~icons/mdi/play')['default']
-    IMdiArrowRight: typeof import('~icons/mdi/arrow-right')['default']
     IMdiPlus: typeof import('~icons/mdi/plus')['default']
     IMdiRemoveBold: typeof import('~icons/mdi/remove-bold')['default']
     IMdiSettings: typeof import('~icons/mdi/settings')['default']

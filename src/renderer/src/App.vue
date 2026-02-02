@@ -444,12 +444,14 @@
                     :key="artist.id"
                     class="flex items-center space-x-1 text-[13px]"
                   >
-                    <span>{{ artist.name }}</span>
-                    <i-mdi-arrow-right
-                      class="w-4 h-4 cursor-pointer text-gray-600 hover:text-black"
+                    <button
+                      type="button"
+                      class="text-left hover:underline cursor-pointer"
                       title="Ver canciones de este artista"
                       @click.stop="quickFilterByArtist(artist.id)"
-                    />
+                    >
+                      {{ artist.name }}
+                    </button>
                   </div>
                 </div>
               </template>
@@ -1392,6 +1394,7 @@ function saveLibraryView(currentPage = null, sorter = null) {
 }
 
 async function setOption(option, extraArtists = [], recent = false) {
+  stopPreview()
   reset()
   currentSelectedOption.value = option
 
@@ -1458,6 +1461,7 @@ async function setOption(option, extraArtists = [], recent = false) {
 
 function hideMenu(evt) {
   if (evt.target.classList.contains('backdrop')) {
+    stopPreview()
     currentSelectedOption.value = null
     reset()
   }
@@ -2324,6 +2328,8 @@ function quickFilterByArtist(artistId) {
   libraryState.value.page = 1
   selectedArtists.value = [artistId]
   selectedTags.value = tags.value.map((tag) => tag.id)
+  filterQuery.value = ''
+  m3uExportSourceFilter.value = 'any'
   filterSongs()
   saveLibraryView()
 }
