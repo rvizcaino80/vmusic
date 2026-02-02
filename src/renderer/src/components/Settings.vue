@@ -50,6 +50,19 @@
       </a-form-item>
 
       <a-form-item
+        label="Velocidad base"
+        name="baseSpeed"
+        :rules="[{ required: true, type: 'number', message: 'Ingrese un número válido!' }]"
+      >
+        <a-input-number
+          id="inputNumber"
+          v-model:value="formState.baseSpeed"
+          :min="-20"
+          :max="20"
+        />
+      </a-form-item>
+
+      <a-form-item
         label="Salida Preview"
         name="previewSinkId"
       >
@@ -95,12 +108,18 @@ import { reactive, ref, onMounted } from 'vue'
 export default {
   emits: ['saved'],
   setup(props, context) {
-    const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings')) || { rowsPerPage: 24, crossfaderTime: 1, recentlyAddedTime: 24 }
+    const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings')) || {
+      rowsPerPage: 24,
+      crossfaderTime: 1,
+      recentlyAddedTime: 24,
+      baseSpeed: 0
+    }
 
     const formState = reactive({
       rowsPerPage: savedSettings.rowsPerPage,
       crossfaderTime: savedSettings.crossfaderTime,
       recentlyAddedTime: savedSettings.recentlyAddedTime,
+      baseSpeed: typeof savedSettings.baseSpeed === 'number' ? savedSettings.baseSpeed : 0,
       previewSinkId: savedSettings.previewSinkId || null,
       deckSinkId: savedSettings.deckSinkId || null
     })
@@ -145,6 +164,7 @@ export default {
         rowsPerPage: formState.rowsPerPage,
         crossfaderTime: formState.crossfaderTime,
         recentlyAddedTime: formState.recentlyAddedTime,
+        baseSpeed: formState.baseSpeed,
         previewSinkId: formState.previewSinkId === 'default' ? null : formState.previewSinkId || null,
         deckSinkId: formState.deckSinkId === 'default' ? null : formState.deckSinkId || null
       }

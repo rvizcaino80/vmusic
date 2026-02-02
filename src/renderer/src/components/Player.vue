@@ -62,31 +62,34 @@
           class="flex flex-col items-center"
         >
           <span class="text-sm mb-0.5 select-none">Velocidad</span>
-          <div class="flex items-center space-x-1">
-            <Icon
-              class="cursor-pointer w-6 h-6 text-white"
-              icon="teenyicons:left-solid"
-              @click="setSpeed(-1)"
-            />
-            <span
-              v-if="speed_added > 0"
-              class="text-lime-500 font-bold text-xl select-none"
-            >+</span>
-            <span
-              :class="{
-                'text-lime-500': speed_added > 0,
-                'text-red-500': speed_added < 0,
-                'text-white': speed_added === 0
-              }"
-              class="font-bold text-xl select-none"
-            >
-              {{ speed_added }}
-            </span>
-            <Icon
-              class="cursor-pointer w-6 h-6 text-white"
-              icon="teenyicons:right-solid"
-              @click="setSpeed(1)"
-            />
+          <div class="flex flex-col items-center space-y-0.5">
+            <div class="flex items-center space-x-1">
+              <Icon
+                class="cursor-pointer w-6 h-6 text-white"
+                icon="teenyicons:left-solid"
+                @click="setSpeed(-1)"
+              />
+              <span
+                v-if="speed_added > 0"
+                class="text-lime-500 font-bold text-xl select-none"
+              >+</span>
+              <span
+                :class="{
+                  'text-lime-500': speed_added > 0,
+                  'text-red-500': speed_added < 0,
+                  'text-white': speed_added === 0
+                }"
+                class="font-bold text-xl select-none"
+              >
+                {{ speed_added }}
+              </span>
+              <Icon
+                class="cursor-pointer w-6 h-6 text-white"
+                icon="teenyicons:right-solid"
+                @click="setSpeed(1)"
+              />
+            </div>
+            <span class="text-xs text-gray-400 select-none">Base: {{ baseSpeedLabel }}</span>
           </div>
         </div>
       </div>
@@ -101,7 +104,7 @@
 </template>
 
 <script setup>
-import { onBeforeMount, onMounted, ref, watch } from 'vue'
+import { onBeforeMount, onMounted, ref, watch, computed } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
@@ -139,10 +142,18 @@ const left = ref(0)
 const speed_added = ref(0.0)
 const volume_added = ref(0.0)
 const songImage = ref('')
+const baseSpeed = ref(0)
 let wsRegions = null
 let originalOptions = {}
 let crossfaderOptions = {}
 const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
+
+const baseSpeedLabel = computed(() => {
+  const value = baseSpeed.value || 0
+  const sign = value > 0 ? '+' : ''
+
+  return `${sign}${value}`
+})
 
 onBeforeMount(() => {
   status.value = props.statuses['Sin Carga']
@@ -151,6 +162,7 @@ onBeforeMount(() => {
 })
 
 onMounted(() => {
+  updateBaseSpeed()
   init()
 })
 
@@ -418,17 +430,26 @@ function getStatusName(status) {
   }
 }
 function setInitialSpeed(val) {
-  const newSpeed = speed.value + val / 100
-  speed.value = parseFloat(newSpeed)
-  player.setPlaybackRate(speed.value)
+  updateBaseSpeed()
+  speed_added.value = val || 0
+  applySpeed()
 }
 
 function setSpeed(val) {
   speed_added.value = speed_added.value + val
-  const newSpeed = speed.value + val / 100
-  speed.value = parseFloat(newSpeed)
-  player.setPlaybackRate(speed.value)
+  applySpeed()
   emit('speed')
+}
+
+function applySpeed() {
+  const total = 1 + (speed_added.value + baseSpeed.value) / 100
+  speed.value = parseFloat(total)
+  player.setPlaybackRate(speed.value)
+}
+
+function updateBaseSpeed() {
+  const s = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
+  baseSpeed.value = typeof s.baseSpeed === 'number' ? s.baseSpeed : 0
 }
 function setVolume(val) {
   volume_added.value = volume_added.value + val
@@ -466,6 +487,11 @@ defineExpose({
   setSong,
   next,
   speed_added,
+  baseSpeed,
+  refreshBaseSpeed: () => {
+    updateBaseSpeed()
+    applySpeed()
+  },
   setSinkId
 })
 </script>

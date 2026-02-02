@@ -1078,7 +1078,14 @@ if (!localStorage.getItem('vmusic_library_state')) {
 }
 
 if (!localStorage.getItem('vmusic_settings')) {
-  const initialSettings = { rowsPerPage: 24, crossfaderTime: 1, recentlyAddedTime: 24, previewSinkId: null, deckSinkId: null }
+  const initialSettings = {
+    rowsPerPage: 24,
+    crossfaderTime: 1,
+    recentlyAddedTime: 24,
+    previewSinkId: null,
+    deckSinkId: null,
+    baseSpeed: 0
+  }
   localStorage.setItem('vmusic_settings', JSON.stringify(initialSettings))
 }
 
@@ -2232,6 +2239,12 @@ function settingsSaved() {
   }
   if (player2.value?.setSinkId && deckSinkId.value) {
     player2.value.setSinkId(deckSinkId.value)
+  }
+  if (player1.value?.refreshBaseSpeed) {
+    player1.value.refreshBaseSpeed()
+  }
+  if (player2.value?.refreshBaseSpeed) {
+    player2.value.refreshBaseSpeed()
   }
   setOption(null)
 }
