@@ -63,21 +63,7 @@
       </a-form-item>
 
       <a-form-item
-        label="Salida Preview"
-        name="previewSinkId"
-      >
-        <a-select
-          v-model:value="formState.previewSinkId"
-          :options="audioOutputs"
-          :loading="isLoadingOutputs"
-          :allow-clear="true"
-          placeholder="Predeterminada / Audífonos"
-          @dropdown-visible-change="onOutputsDropdown"
-        />
-      </a-form-item>
-
-      <a-form-item
-        label="Salida Decks (A/B)"
+        label="Dispositivo Principal"
         name="deckSinkId"
       >
         <a-select
@@ -86,6 +72,20 @@
           :loading="isLoadingOutputs"
           :allow-clear="true"
           placeholder="Predeterminada"
+          @dropdown-visible-change="onOutputsDropdown"
+        />
+      </a-form-item>
+
+      <a-form-item
+        label="Dispositivo Secundario"
+        name="previewSinkId"
+      >
+        <a-select
+          v-model:value="formState.previewSinkId"
+          :options="audioOutputs"
+          :loading="isLoadingOutputs"
+          :allow-clear="true"
+          placeholder="Predeterminada / Audífonos"
           @dropdown-visible-change="onOutputsDropdown"
         />
       </a-form-item>
