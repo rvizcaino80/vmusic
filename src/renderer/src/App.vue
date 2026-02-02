@@ -437,6 +437,22 @@
                   />
                 </div>
               </template>
+              <template v-else-if="column.dataIndex === 'artistsJoined'">
+                <div class="flex flex-wrap gap-x-3 gap-y-1">
+                  <div
+                    v-for="artist in record.Artists"
+                    :key="artist.id"
+                    class="flex items-center space-x-1 text-[13px]"
+                  >
+                    <span>{{ artist.name }}</span>
+                    <i-mdi-arrow-right
+                      class="w-4 h-4 cursor-pointer text-gray-600 hover:text-black"
+                      title="Ver canciones de este artista"
+                      @click.stop="quickFilterByArtist(artist.id)"
+                    />
+                  </div>
+                </div>
+              </template>
               <template v-else-if="column.dataIndex === 'source'">
                 <i-ic-baseline-apple
                   v-if="record.isAppleMusic"
@@ -2287,6 +2303,15 @@ function artistsChanged(data) {
 function tagsChanged(data) {
   libraryState.value.page = 1
   selectedTags.value = data
+  filterSongs()
+  saveLibraryView()
+}
+
+function quickFilterByArtist(artistId) {
+  // Select only the chosen artist and keep all tags enabled
+  libraryState.value.page = 1
+  selectedArtists.value = [artistId]
+  selectedTags.value = tags.value.map((tag) => tag.id)
   filterSongs()
   saveLibraryView()
 }
