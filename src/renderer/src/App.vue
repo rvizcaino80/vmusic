@@ -1283,6 +1283,18 @@ async function togglePreview(song) {
     previewSongId.value = song.id
     previewStatus.value = 'loading'
     audio.src = `http://localhost:3000/static/${song.folder}/${song.ytid}.mp3`
+    const startAt = typeof song.start === 'number' ? song.start : 0
+    if (startAt > 0) {
+      const seekToStart = () => {
+        const maxStart = Number.isFinite(audio.duration) ? Math.max(0, audio.duration - 0.01) : startAt
+        audio.currentTime = Math.min(startAt, maxStart)
+      }
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        seekToStart()
+      } else {
+        audio.addEventListener('loadedmetadata', seekToStart, { once: true })
+      }
+    }
     await audio.play()
     previewStatus.value = 'playing'
   } catch (error) {
