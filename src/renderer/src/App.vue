@@ -804,10 +804,16 @@
           class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
           @click="setOption(options.download)"
         >
-          <div>
+          <div class="relative">
             <i-ic-sharp-download
               class="w-8 h-8"
             />
+            <span
+              v-if="downloadTasksCount > 0"
+              class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[16px] text-center"
+            >
+              {{ downloadTasksCount }}
+            </span>
           </div>
         </div>
       </div>
@@ -866,7 +872,7 @@
 
 <script setup>
 import axios from 'axios'
-import { onMounted, computed, ref, watch, reactive, nextTick } from 'vue'
+import { onMounted, onUnmounted, computed, ref, watch, reactive, nextTick } from 'vue'
 import { version } from '../../../package.json'
 import dayjs from 'dayjs'
 
@@ -927,6 +933,8 @@ const deckSinkId = ref(null)
 const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
 previewSinkId.value = savedSettingsRef.previewSinkId || null
 deckSinkId.value = savedSettingsRef.deckSinkId || null
+const downloadTasksCount = ref(0)
+const DOWNLOAD_TASKS_STORAGE_KEY = 'vmusic_download_tasks'
 
 // Tags
 const tags = ref([])
@@ -1125,6 +1133,38 @@ onMounted(() => {
       document.getElementById('logo').classList.remove('jello-horizontal')
     }, 1000)
   }, 10000)
+})
+
+let downloadCountInterval = null
+function refreshDownloadCount() {
+  const stored = localStorage.getItem(DOWNLOAD_TASKS_STORAGE_KEY)
+  if (!stored) {
+    downloadTasksCount.value = 0
+
+    return
+  }
+  try {
+    const parsed = JSON.parse(stored)
+    if (Array.isArray(parsed)) {
+      downloadTasksCount.value = parsed.filter((task) => task.status !== 'done' && task.status !== 'error').length
+    } else {
+      downloadTasksCount.value = 0
+    }
+  } catch (error) {
+    downloadTasksCount.value = 0
+  }
+}
+
+onMounted(() => {
+  refreshDownloadCount()
+  downloadCountInterval = setInterval(refreshDownloadCount, 1000)
+})
+
+onUnmounted(() => {
+  if (downloadCountInterval) {
+    clearInterval(downloadCountInterval)
+    downloadCountInterval = null
+  }
 })
 
 watch(autopause, (newValue) => {
@@ -2244,8 +2284,11 @@ async function artistsUpdated(id) {
   downloadSelectedArtist.value = id
 }
 
-function downloaded(artistIds) {
-  setOption(options.library, artistIds, true)
+async function downloaded(artistIds) {
+  // Keep the download panel open; just refresh artists/tags cache.
+  tags.value = await getTags()
+  artists.value = await getArtists(true)
+  downloadSelectedArtist.value = Array.isArray(artistIds) ? artistIds[0] : null
 }
 
 function settingsSaved() {

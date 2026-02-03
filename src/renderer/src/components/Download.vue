@@ -1,5 +1,26 @@
 <template>
   <div class="overflow-y-auto">
+    <div
+      v-if="inProgressDownloads.length > 0"
+      class="mb-4"
+    >
+      <a-divider>Descargas en curso</a-divider>
+      <div class="space-y-2">
+        <div
+          v-for="task in inProgressDownloads"
+          :key="task.id"
+          class="flex items-center justify-between bg-gray-100 px-3 py-2 text-sm"
+        >
+          <div class="truncate">
+            {{ task.title || task.url }}
+          </div>
+          <div class="text-gray-600">
+            {{ task.statusLabel }}
+          </div>
+        </div>
+      </div>
+    </div>
+
     <a-divider>Descargar</a-divider>
     <div
       v-if="isError"
@@ -121,11 +142,11 @@
       </a-form-item>
 
       <a-button
-        :loading="isSaving"
         type="primary"
         html-type="submit"
         size="large"
         class="flex items-center space-x-1"
+        :disabled="selectedTags.length === 0"
       >
         <Icon
           v-if="!isSaving"
@@ -143,7 +164,6 @@ import { computed, nextTick, ref, watch, defineEmits, onMounted } from 'vue'
 import axios from 'axios'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
-import slugify from '@sindresorhus/slugify'
 
 // Download
 const url = ref('')
@@ -158,13 +178,34 @@ const selectedArtists = ref([])
 const selectedComposers = ref([])
 const metadataUrl = ref('')
 const isAppleLink = ref(false)
-const isSaving = ref(false)
 const isError = ref(false)
 const errorMessage = ref('')
 const emit = defineEmits(['downloaded', 'artists-updated'])
 const localArtists = ref([])
 const notFoundArtist = ref(null)
 const formDisabled = ref(true)
+const downloadTasks = ref([])
+const inProgressDownloads = computed(() => downloadTasks.value.filter((task) => task.status !== 'done' && task.status !== 'error'))
+const isSaving = computed(() => inProgressDownloads.value.length > 0)
+const TASKS_STORAGE_KEY = 'vmusic_download_tasks'
+
+function syncTasksToStorage() {
+  localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(downloadTasks.value))
+}
+
+function resetForm() {
+  url.value = ''
+  song.value = ''
+  metadataUrl.value = ''
+  selectedTags.value = []
+  selectedArtists.value = []
+  selectedComposers.value = []
+  totalArtists.value = 1
+  totalComposers.value = 1
+  notFoundArtist.value = null
+  isAppleLink.value = false
+  formDisabled.value = false
+}
 
 // Mostrar campo extra para cualquier fuente que no sea Apple Music
 const showMetadataField = computed(() => url.value && !isAppleLink.value)
@@ -190,12 +231,13 @@ watch(() => props.artists, (n, o) => {
     localArtists.value = [...n]
 
     window.electron2.getClipboardText().then((text) => {
-      if (text.includes('music.apple')) {
-        url.value = text
-        const urlObject = {}
-        urlObject['target'] = {}
-        urlObject['target']['value'] = url.value
+      const trimmed = (text || '').trim()
+      const isApple = trimmed.includes('music.apple')
+      const isYoutube = trimmed.includes('youtube.com') || trimmed.includes('youtu.be')
 
+      if (isApple || isYoutube) {
+        url.value = text
+        const urlObject = { target: { value: url.value } }
         onURLChange(urlObject)
       } else {
         formDisabled.value = false
@@ -216,13 +258,18 @@ function saveSong() {
   isError.value = false
   errorMessage.value = ''
 
-  let artistIds = selectedArtists.value.filter((item) => item)
-  let composerIds = selectedComposers.value.filter((item) => item)
+  const artistIds = selectedArtists.value.filter((item) => item)
+  const composerIds = selectedComposers.value.filter((item) => item)
+  const trimmedUrl = url.value.trim()
+  const trimmedSong = song.value.trim()
 
-  const isValidSource = url.value.includes('music.apple') || url.value.includes('youtube.com') || url.value.includes('youtu.be')
+  const isValidSource = trimmedUrl.includes('music.apple') || trimmedUrl.includes('youtube.com') || trimmedUrl.includes('youtu.be')
+  const normalizedTags = selectedTags.value
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter((item) => item.length > 0)
 
   if (
-    selectedTags.value.length <= 0 || artistIds.length <= 0 || url.value.length <= 0 || song.value.length <= 0
+    normalizedTags.length <= 0 || artistIds.length <= 0 || trimmedUrl.length <= 0 || trimmedSong.length <= 0
   ) {
     errorMessage.value = 'La información está incompleta'
     isError.value = true
@@ -230,44 +277,67 @@ function saveSong() {
     errorMessage.value = 'La URL principal debe ser de Apple Music o YouTube'
     isError.value = true
   } else {
-    isSaving.value = true
+    const taskId = `${Date.now()}-${Math.random().toString(16)
+      .slice(2)}`
+    const task = {
+      id: taskId,
+      url: trimmedUrl,
+      title: trimmedSong,
+      status: 'downloading',
+      statusLabel: 'Descargando...'
+    }
+    downloadTasks.value = [task, ...downloadTasks.value]
+    syncTasksToStorage()
+    resetForm()
+
+    const payload = {
+      url: trimmedUrl,
+      song: trimmedSong,
+      artists: artistIds,
+      composers: composerIds,
+      duration: songDuration.value,
+      durationOriginal: songDurationOriginal.value,
+      songTags: normalizedTags
+    }
 
     axios
-      .post('http://localhost:3000/download', {
-        url: url.value
-      })
+      .post('http://localhost:3000/download', { url: payload.url })
       .then(function(response) {
-        songId.value = response.data?.ytid || response.data
-
-        if (!songId.value) {
+        const ytid = response.data?.ytid || response.data
+        if (!ytid) {
           throw new Error('No se recibió el identificador (ytid) de la descarga')
         }
+        payload.ytid = ytid
+        task.status = 'saving'
+        task.statusLabel = 'Guardando...'
+        syncTasksToStorage()
 
-        axios
-          .post('http://localhost:3000/songs/save', {
-            ytid: songId.value,
-            song: song.value,
-            artists: artistIds,
-            composers: composerIds,
-            duration: songDuration.value,
-            durationOriginal: songDurationOriginal.value,
-            songTags: selectedTags.value.map((item) => slugify(item))
-          })
-          .then(function(response) {
-            emit('downloaded', artistIds)
-          })
-          .catch(function(error) {})
-          .finally(function() {
-            // always executed
-          })
+        return axios.post('http://localhost:3000/songs/save', {
+          ytid: payload.ytid,
+          song: payload.song,
+          artists: payload.artists,
+          composers: payload.composers,
+          duration: payload.duration,
+          durationOriginal: payload.durationOriginal,
+          songTags: payload.songTags
+        })
+      })
+      .then(function() {
+        emit('downloaded', artistIds)
+        task.status = 'done'
+        syncTasksToStorage()
       })
       .catch(function(error) {
-        isSaving.value = false
+        task.status = 'error'
         isError.value = true
         errorMessage.value = error.response?.data?.message || error.message || 'Error al descargar'
+        syncTasksToStorage()
       })
       .finally(function() {
-        // always executed
+        if (task.status === 'done' || task.status === 'error') {
+          downloadTasks.value = downloadTasks.value.filter((item) => item.id !== task.id)
+          syncTasksToStorage()
+        }
       })
   }
 }
@@ -289,6 +359,13 @@ async function onURLChange(e) {
   totalArtists.value = 1
   metadataUrl.value = ''
   isAppleLink.value = e.target.value.includes('music.apple')
+
+  const isValidSource = e.target.value.includes('music.apple') || e.target.value.includes('youtube.com') || e.target.value.includes('youtu.be')
+  if (!isValidSource) {
+    formDisabled.value = false
+
+    return
+  }
 
   if (isAppleLink.value) {
     const response = await fetch(e.target.value)
@@ -417,4 +494,18 @@ function addNewArtist(name) {
       // always executed
     })
 }
+
+onMounted(() => {
+  const stored = localStorage.getItem(TASKS_STORAGE_KEY)
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed)) {
+        downloadTasks.value = parsed
+      }
+    } catch (error) {
+      // ignore invalid cache
+    }
+  }
+})
 </script>
