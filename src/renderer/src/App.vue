@@ -128,7 +128,7 @@
                 size="small"
                 type="primary"
                 class="flex items-center space-x-1 pl-1.5"
-                @click="selectAllTags"
+                @click="selectAllTags($event)"
               >
                 <i-ri-checkbox-line
                   class="w-4 h-4"
@@ -344,6 +344,7 @@
               Eliminar
             </a-button>
             <a-button
+              v-if="false"
               :disabled="isExportingM3U || filteredSongs2.length === 0"
               class="flex items-center space-x-1 pl-2.5"
               @click="exportM3U"
@@ -413,11 +414,15 @@
             <template #bodyCell="{text, record, column}">
               <template v-if="column.dataIndex === 'preview'">
                 <a-button
-                  class="flex items-center justify-center"
+                  class="flex items-center justify-center w-8 h-8 p-0"
                   size="small"
                   :type="previewSongId === record.id && previewStatus === 'playing' ? 'primary' : 'default'"
                   :loading="isPreviewLoading && previewSongId === record.id"
-                  @click.stop="togglePreview(record)"
+                  @mousedown.stop.prevent="startPreview(record)"
+                  @mouseup.stop="stopPreview()"
+                  @mouseleave.stop="stopPreview()"
+                  @touchstart.stop.prevent="startPreview(record)"
+                  @touchend.stop="stopPreview()"
                 >
                   <i-mdi-headphones
                     class="w-4 h-4"
@@ -479,6 +484,9 @@
         :statuses="playerStatuses"
         position="top"
         :output-sink-id="deckSinkId"
+        @artist-click="openLibraryForArtist"
+        @preview-start="previewStartFromPlayer"
+        @preview-stop="stopPreview"
         @loaded="checkPlayers(player1)"
         @stopped="checkPlayers(player1)"
         @fading="songFading(player1)"
@@ -502,6 +510,9 @@
         :statuses="playerStatuses"
         position="bottom"
         :output-sink-id="deckSinkId"
+        @artist-click="openLibraryForArtist"
+        @preview-start="previewStartFromPlayer"
+        @preview-stop="stopPreview"
         @loaded="checkPlayers(player2)"
         @stopped="checkPlayers(player2)"
         @fading="songFading(player2)"
@@ -736,6 +747,7 @@
           </div>
 
           <input
+            v-if="false"
             ref="m3uInput"
             type="file"
             accept=".m3u"
@@ -743,6 +755,7 @@
             @change="onM3UFileChange"
           >
           <button
+            v-if="false"
             :disabled="isImportingM3U"
             type="button"
             class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
@@ -933,6 +946,7 @@ const deckSinkId = ref(null)
 const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
 previewSinkId.value = savedSettingsRef.previewSinkId || null
 deckSinkId.value = savedSettingsRef.deckSinkId || null
+const excludedTags = ref(savedSettingsRef.excludeTags || [])
 const downloadTasksCount = ref(0)
 const DOWNLOAD_TASKS_STORAGE_KEY = 'vmusic_download_tasks'
 
@@ -1315,15 +1329,8 @@ function stopPreview() {
   resetPreviewState()
 }
 
-async function togglePreview(song) {
+async function startPreview(song) {
   const audio = await ensurePreviewPlayer()
-
-  if (previewSongId.value === song.id && previewStatus.value === 'playing') {
-    stopPreview()
-    isPreviewLoading.value = false
-
-    return
-  }
 
   isPreviewLoading.value = true
   try {
@@ -1492,7 +1499,9 @@ async function setOption(option, extraArtists = [], recent = false) {
         selectedArtists.value = libraryState.value.artists
         selectedTags.value = libraryState.value.tags
       } else {
-        selectedTags.value = tags.value.map((item) => item.id)
+        selectedTags.value = tags.value
+          .filter((item) => !excludedTags.value.includes(item.id))
+          .map((item) => item.id)
         selectedArtists.value = artists.value.map((a) => (a.id))
       }
     }
@@ -2295,6 +2304,7 @@ function settingsSaved() {
   const s = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
   previewSinkId.value = s.previewSinkId || null
   deckSinkId.value = s.deckSinkId || null
+  excludedTags.value = s.excludeTags || []
   preparePreviewOutput()
   if (player1.value?.setSinkId && deckSinkId.value) {
     player1.value.setSinkId(deckSinkId.value)
@@ -2307,6 +2317,15 @@ function settingsSaved() {
   }
   if (player2.value?.refreshBaseSpeed) {
     player2.value.refreshBaseSpeed()
+  }
+  if (currentSelectedOption.value === options.library) {
+    const allowed = selectedTags.value.filter((id) => !excludedTags.value.includes(id))
+    selectedTags.value = allowed
+    if (tagMultiSelect.value?.setSelected) {
+      tagMultiSelect.value.setSelected(allowed)
+    }
+    filterSongs()
+    saveLibraryView()
   }
   setOption(null)
 }
@@ -2399,7 +2418,7 @@ function tagsChanged(data) {
 }
 
 function quickFilterByArtist(artistId) {
-  // Select only the chosen artist and keep all tags enabled
+  // Select only the chosen artist and force all tags (including excluded ones)
   libraryState.value.page = 1
   selectedArtists.value = [artistId]
   selectedTags.value = tags.value.map((tag) => tag.id)
@@ -2417,12 +2436,35 @@ function selectNoneArtists() {
   artistMultiSelect.value.selectNone()
 }
 
-function selectAllTags() {
-  tagMultiSelect.value.selectAll()
+function selectAllTags(evt) {
+  const ignoreExclusions = evt?.altKey
+  const allowed = tags.value
+    .filter((t) => ignoreExclusions ? true : !excludedTags.value.includes(t.id))
+    .map((t) => t.id)
+  selectedTags.value = allowed
+  if (tagMultiSelect.value?.setSelected) {
+    tagMultiSelect.value.setSelected(allowed)
+  } else {
+    tagMultiSelect.value.selectAll()
+  }
+  libraryState.value.page = 1
+  filterSongs()
+  saveLibraryView()
 }
 
 function selectNoneTags() {
   tagMultiSelect.value.selectNone()
+}
+
+async function openLibraryForArtist(artistId) {
+  await setOption(options.library)
+  quickFilterByArtist(artistId)
+}
+
+async function previewStartFromPlayer({ song, status }) {
+  // Permitir preview solo si el deck correspondiente no está reproduciendo
+  if (status === playerStatuses.Reproduciendo) return
+  await startPreview(song)
 }
 
 function onTableChange(pagination, filters, sorter, { action, currentDataSource }) {

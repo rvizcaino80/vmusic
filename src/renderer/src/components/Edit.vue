@@ -81,12 +81,31 @@
       </div>
 
       <div>
+        <label class="text-sm text-gray-500 block">URL de metadata (Spotify / MusicBrainz / Discogs)</label>
+        <a-input
+          v-model:value="metadataUrl"
+          class="w-full"
+          placeholder="Pega el enlace de Spotify, MusicBrainz o Discogs"
+        />
+      </div>
+
+      <div>
         <label class="text-sm text-gray-500 block">Etiquetas</label>
         <a-checkbox-group
           v-model:value="selectedTags"
           name="checkboxgroup"
           :options="tags.map(item => ({ label: item.name, value: item.id }))"
           class="flex flex-col space-y-1"
+        />
+      </div>
+
+      <div>
+        <label class="text-sm text-gray-500 block">Nota (solo local)</label>
+        <a-textarea
+          v-model:value="noteText"
+          :rows="3"
+          placeholder="Escribe una nota para esta canción"
+          allow-clear
         />
       </div>
 
@@ -115,10 +134,12 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import axios from 'axios'
 import { Icon } from '@iconify/vue'
+import * as cheerio from 'cheerio'
 
 // Download
 const song = ref('')
 const url = ref('')
+const ytid = ref('')
 const artistIds = ref([])
 const totalArtists = ref(1)
 const totalComposers = ref(1)
@@ -131,9 +152,14 @@ const selectedArtists = ref([])
 const selectedComposers = ref([])
 const localArtists = ref([])
 const isAppleMusic = ref(false)
+const metadataUrl = ref('')
+const coverUrl = ref('')
+const noteText = ref('')
 const isUpdateDisabled = computed(() => isSaving.value || selectedTags.value.length === 0)
 
 const emit = defineEmits(['updated'])
+const COVER_MAP_STORAGE_KEY = 'vmusic_cover_map'
+const NOTES_STORAGE_KEY = 'vmusic_song_notes'
 
 const props = defineProps({
   id: {
@@ -150,6 +176,7 @@ onMounted(async() => {
     .get('http://localhost:3000/songs/' + props.id)
     .then(function(response) {
       url.value = response.data.isAppleMusic ? `https://music.apple.com/co/song/${response.data.ytid}` : `https://www.youtube.com/watch?v=${response.data.ytid}`
+      ytid.value = response.data.ytid
       totalArtists.value = response.data.Artists ? response.data.Artists.length : 1
       totalComposers.value = response.data.Composers ? response.data.Composers.length : 1
       song.value = response.data.name
@@ -172,6 +199,7 @@ onMounted(async() => {
       }
 
       selectedTags.value = response.data.Tags.map((item) => (item.id))
+      loadNote()
     })
     .catch(function(error) {
       console.log(error)
@@ -199,26 +227,79 @@ function saveSong() {
   if (isUpdateDisabled.value) return
 
   isSaving.value = true
+  const note = noteText.value
 
   let artistIds = selectedArtists.value.filter((item) => item)
   let composerIds = selectedComposers.value.filter((item) => item)
 
-  axios
-    .post('http://localhost:3000/songs/update/' + props.id, {
-      name: song.value,
-      artists: artistIds,
-      composers: composerIds,
-      tags: selectedTags.value
-    })
-    .then(function(response) {
-      emit('updated', props.id)
-    })
-    .catch(function(error) {})
-    .finally(function() {
-      isSaving.value = false
-    })
+  const metadataPromise = metadataUrl.value.trim().length > 0 ? extractCoverFromMetadata(metadataUrl.value.trim()) : Promise.resolve(null)
+
+  metadataPromise.then((cover) => {
+    coverUrl.value = cover || ''
+    if (ytid.value && coverUrl.value) {
+      try {
+        const stored = localStorage.getItem(COVER_MAP_STORAGE_KEY)
+        const parsed = stored ? JSON.parse(stored) : {}
+        parsed[ytid.value] = coverUrl.value
+        localStorage.setItem(COVER_MAP_STORAGE_KEY, JSON.stringify(parsed))
+      } catch (error) {
+        // ignore storage issues
+      }
+    }
+  }).finally(() => {
+    axios
+      .post('http://localhost:3000/songs/update/' + props.id, {
+        name: song.value,
+        artists: artistIds,
+        composers: composerIds,
+        tags: selectedTags.value
+      })
+      .then(function(response) {
+        saveNoteLocally(ytid.value, note)
+        emit('updated', props.id)
+      })
+      .catch(function(error) {})
+      .finally(function() {
+        isSaving.value = false
+      })
+  })
 }
 
+async function extractCoverFromMetadata(value) {
+  try {
+    if (value.includes('musicbrainz.org')) {
+      const response = await fetch(value)
+      const html = await response.text()
+      const $ = cheerio.load(html)
+
+      return $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content') || null
+    }
+    if (value.includes('discogs.com')) {
+      const releaseId = value.match(/release\/(\d+)/)?.[1]
+      if (!releaseId) return null
+      const apiResponse = await fetch(`https://api.discogs.com/releases/${releaseId}`, {
+        headers: {
+          'User-Agent': 'v-music-downloader/1.0'
+        }
+      })
+      if (!apiResponse.ok) return null
+      const data = await apiResponse.json()
+
+      return data.images?.[0]?.uri || data.images?.[0]?.resource_url || null
+    }
+    if (value.includes('open.spotify.com')) {
+      const response = await fetch(value)
+      const html = await response.text()
+      const $ = cheerio.load(html)
+
+      return $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content') || null
+    }
+  } catch (error) {
+    return null
+  }
+
+  return null
+}
 function addArtist() {
   totalArtists.value += 1
 }
@@ -229,5 +310,32 @@ function addComposer() {
 
 const filterOption = (input, option) => {
   return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+}
+
+function saveNoteLocally(ytidValue, note) {
+  if (!ytidValue) return
+  try {
+    const stored = localStorage.getItem(NOTES_STORAGE_KEY)
+    const parsed = stored ? JSON.parse(stored) : {}
+    if (note && note.trim().length > 0) {
+      parsed[ytidValue] = note.trim()
+    } else {
+      delete parsed[ytidValue]
+    }
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(parsed))
+  } catch (error) {
+    // ignore
+  }
+}
+
+function loadNote() {
+  if (!ytid.value) return
+  try {
+    const stored = localStorage.getItem(NOTES_STORAGE_KEY)
+    const parsed = stored ? JSON.parse(stored) : {}
+    noteText.value = parsed[ytid.value] || ''
+  } catch (error) {
+    noteText.value = ''
+  }
 }
 </script>

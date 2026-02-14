@@ -90,6 +90,19 @@
         />
       </a-form-item>
 
+      <a-form-item
+        label="Excluir etiquetas"
+        name="excludeTags"
+      >
+        <a-select
+          v-model:value="formState.excludeTags"
+          mode="multiple"
+          :options="tagOptions"
+          :loading="isLoadingTags"
+          placeholder="Selecciona etiquetas a excluir de 'Todos'"
+        />
+      </a-form-item>
+
       <a-form-item :wrapper-col="{ offset: 8, span: 16 }">
         <a-button
           type="primary"
@@ -112,7 +125,8 @@ export default {
       rowsPerPage: 24,
       crossfaderTime: 1,
       recentlyAddedTime: 24,
-      baseSpeed: 0
+      baseSpeed: 0,
+      excludeTags: []
     }
 
     const formState = reactive({
@@ -121,11 +135,14 @@ export default {
       recentlyAddedTime: savedSettings.recentlyAddedTime,
       baseSpeed: typeof savedSettings.baseSpeed === 'number' ? savedSettings.baseSpeed : 0,
       previewSinkId: savedSettings.previewSinkId || null,
-      deckSinkId: savedSettings.deckSinkId || null
+      deckSinkId: savedSettings.deckSinkId || null,
+      excludeTags: savedSettings.excludeTags || []
     })
 
+    const tagOptions = ref([])
     const audioOutputs = ref([])
     const isLoadingOutputs = ref(false)
+    const isLoadingTags = ref(false)
 
     const enumerateOutputs = async() => {
       if (!navigator.mediaDevices?.enumerateDevices) return []
@@ -151,12 +168,27 @@ export default {
       }
     }
 
+    const loadTags = async() => {
+      try {
+        isLoadingTags.value = true
+        const response = await fetch('http://localhost:3000/tags')
+        const data = await response.json()
+        tagOptions.value = data.sort((a, b) => a.name.localeCompare(b.name))
+          .map((t) => ({ label: t.name, value: t.id }))
+      } catch (error) {
+        console.warn('No se pudieron cargar las etiquetas', error)
+      } finally {
+        isLoadingTags.value = false
+      }
+    }
+
     const onOutputsDropdown = (open) => {
       if (open) enumerateOutputs()
     }
 
     onMounted(() => {
       enumerateOutputs()
+      loadTags()
     })
 
     const onFinish = (values) => {
@@ -166,7 +198,8 @@ export default {
         recentlyAddedTime: formState.recentlyAddedTime,
         baseSpeed: formState.baseSpeed,
         previewSinkId: formState.previewSinkId === 'default' ? null : formState.previewSinkId || null,
-        deckSinkId: formState.deckSinkId === 'default' ? null : formState.deckSinkId || null
+        deckSinkId: formState.deckSinkId === 'default' ? null : formState.deckSinkId || null,
+        excludeTags: formState.excludeTags || []
       }
       localStorage.setItem('vmusic_settings', JSON.stringify(s))
       context.emit('saved')
@@ -179,8 +212,10 @@ export default {
     return {
       savedSettings,
       formState,
+      tagOptions,
       audioOutputs,
       isLoadingOutputs,
+      isLoadingTags,
       onFinish,
       onOutputsDropdown,
       onFinishFailed

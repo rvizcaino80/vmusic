@@ -36,12 +36,44 @@
         </div>
         <div>
           <h2 class="text-white text-xl select-none max-w-[420px] truncate">
-            <span v-if="artist">{{ artist }}</span> <span v-if="artist && composer">({{ composer }})</span><span v-if="!artist">Sin artista</span>
+            <template v-if="artistsList.length">
+              <template
+                v-for="(a, idx) in artistsList"
+                :key="a.id"
+              >
+                <button
+                  type="button"
+                  class="hover:underline"
+                  title="Ver canciones de este artista"
+                  @click.stop="emitArtistClick(a.id)"
+                >
+                  {{ a.name }}
+                </button>
+                <span v-if="idx < artistsList.length - 1">, </span>
+              </template>
+            </template>
+            <span v-else>Sin artista</span>
+            <span v-if="artist && composer"> ({{ composer }})</span>
           </h2>
-          <h1 class="text-white text-2xl select-none max-w-[420px] truncate">
-            {{ song || 'Sin canción'
-            }}
-          </h1>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-white text-2xl select-none max-w-[380px] truncate">
+              {{ song || 'Sin canción'
+              }}
+            </h1>
+            <button
+              v-if="canPreview"
+              type="button"
+              class="text-white hover:text-yellow-200"
+              title="Previsualizar en audífonos"
+              @mousedown.stop.prevent="emitPreviewStart"
+              @mouseup.stop="emitPreviewStop"
+              @mouseleave.stop="emitPreviewStop"
+              @touchstart.stop.prevent="emitPreviewStart"
+              @touchend.stop="emitPreviewStop"
+            >
+              <i-mdi-headphones class="w-6 h-6" />
+            </button>
+          </div>
           <div class="text-sm text-gray-500 select-none">
             <span>Status: {{ getStatusName(status) }}</span>
             <span
@@ -110,7 +142,7 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
 
-const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed'])
+const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'preview-start', 'preview-stop'])
 
 const props = defineProps({
   position: String,
@@ -132,8 +164,10 @@ const songId = ref(null)
 const start = ref(null)
 const end = ref(null)
 const song = ref('')
+const artistsList = ref([])
 const composer = ref('')
 const artist = ref('')
+const primaryArtistId = ref(null)
 const status = ref()
 const playerId = ref('')
 const volume = ref(1.0)
@@ -154,6 +188,8 @@ const baseSpeedLabel = computed(() => {
 
   return `${sign}${value}`
 })
+
+const canPreview = computed(() => status.value !== props.statuses.Reproduciendo && Boolean(songFull.value?.id))
 
 onBeforeMount(() => {
   status.value = props.statuses['Sin Carga']
@@ -253,9 +289,11 @@ function init() {
         .catch((e) => {
           console.log(e)
           songImage.value = ''
+          loadCoverFromMap()
         })
     } else {
       songImage.value = ''
+      loadCoverFromMap()
     }
 
     player.setOptions(originalOptions)
@@ -401,7 +439,9 @@ function setSong(s) {
   songImage.value = ''
   speed.value = 1
   speed_added.value = s.speed
-  artist.value = s.Artists.map((i) => i.name).join(', ')
+  artistsList.value = s.Artists || []
+  artist.value = artistsList.value.map((i) => i.name).join(', ')
+  primaryArtistId.value = artistsList.value?.[0]?.id || null
   composer.value = s.Composers.map((i) => i.name).join(', ')
   player.setPlaybackRate(1.0)
   player.setVolume(1)
@@ -447,6 +487,23 @@ function applySpeed() {
   player.setPlaybackRate(speed.value)
 }
 
+function emitPreviewStart() {
+  if (canPreview.value) {
+    emit('preview-start', { song: songFull.value, status: status.value })
+  }
+}
+
+function emitPreviewStop() {
+  emit('preview-stop')
+}
+
+function emitArtistClick(id) {
+  const targetId = id || primaryArtistId.value
+  if (targetId) {
+    emit('artist-click', targetId)
+  }
+}
+
 function updateBaseSpeed() {
   const s = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
   baseSpeed.value = typeof s.baseSpeed === 'number' ? s.baseSpeed : 0
@@ -465,6 +522,20 @@ function setSinkId(sinkId) {
     player.setSinkId(sinkId)
   } catch (error) {
     console.warn('No se pudo cambiar la salida del deck', error)
+  }
+}
+
+function loadCoverFromMap() {
+  try {
+    const stored = localStorage.getItem('vmusic_cover_map')
+    if (!stored || !songFull.value?.ytid) return
+    const parsed = JSON.parse(stored)
+    const cover = parsed[songFull.value.ytid]
+    if (cover) {
+      songImage.value = cover
+    }
+  } catch (error) {
+    // ignore
   }
 }
 

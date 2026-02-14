@@ -114,6 +114,11 @@ function selectAll() {
   emit('changed', selected.value)
 }
 
+function setSelected(ids = []) {
+  selected.value = [...ids]
+  selectionChanged()
+}
+
 function selectNone() {
   selected.value = []
   emit('changed', selected.value)
@@ -131,6 +136,7 @@ onUnmounted(() => {
 
 defineExpose({
   selectAll,
+  setSelected,
   selectNone
 })
 </script>

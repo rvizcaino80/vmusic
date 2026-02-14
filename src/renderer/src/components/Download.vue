@@ -56,6 +56,17 @@
         />
       </a-form-item>
 
+      <div
+        v-if="coverUrl"
+        class="mt-2"
+      >
+        <img
+          :src="coverUrl"
+          alt="Portada"
+          class="w-48 h-48 object-cover rounded border border-gray-300"
+        >
+      </div>
+
       <a-form-item label="Título">
         <a-input
           v-model:value.lazy="song"
@@ -141,6 +152,15 @@
         />
       </a-form-item>
 
+      <a-form-item label="Nota (solo local)">
+        <a-textarea
+          v-model:value="noteText"
+          :rows="3"
+          placeholder="Escribe una nota para esta canción"
+          allow-clear
+        />
+      </a-form-item>
+
       <a-button
         type="primary"
         html-type="submit"
@@ -177,9 +197,11 @@ const selectedTags = ref([])
 const selectedArtists = ref([])
 const selectedComposers = ref([])
 const metadataUrl = ref('')
+const coverUrl = ref('')
 const isAppleLink = ref(false)
 const isError = ref(false)
 const errorMessage = ref('')
+const noteText = ref('')
 const emit = defineEmits(['downloaded', 'artists-updated'])
 const localArtists = ref([])
 const notFoundArtist = ref(null)
@@ -188,15 +210,35 @@ const downloadTasks = ref([])
 const inProgressDownloads = computed(() => downloadTasks.value.filter((task) => task.status !== 'done' && task.status !== 'error'))
 const isSaving = computed(() => inProgressDownloads.value.length > 0)
 const TASKS_STORAGE_KEY = 'vmusic_download_tasks'
+const COVER_MAP_STORAGE_KEY = 'vmusic_cover_map'
+const NOTES_STORAGE_KEY = 'vmusic_song_notes'
 
 function syncTasksToStorage() {
   localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(downloadTasks.value))
+}
+
+function saveNoteLocally(ytid, note) {
+  if (!ytid) return
+  try {
+    const stored = localStorage.getItem(NOTES_STORAGE_KEY)
+    const parsed = stored ? JSON.parse(stored) : {}
+    if (note && note.trim().length > 0) {
+      parsed[ytid] = note.trim()
+    } else {
+      delete parsed[ytid]
+    }
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(parsed))
+  } catch (error) {
+    // ignore storage errors
+  }
 }
 
 function resetForm() {
   url.value = ''
   song.value = ''
   metadataUrl.value = ''
+  coverUrl.value = ''
+  noteText.value = ''
   selectedTags.value = []
   selectedArtists.value = []
   selectedComposers.value = []
@@ -257,6 +299,7 @@ function saveSong() {
   window.electron2.emptyClipboard()
   isError.value = false
   errorMessage.value = ''
+  const noteForSong = noteText.value
 
   const artistIds = selectedArtists.value.filter((item) => item)
   const composerIds = selectedComposers.value.filter((item) => item)
@@ -286,6 +329,8 @@ function saveSong() {
       status: 'downloading',
       statusLabel: 'Descargando...'
     }
+    const coverFromMeta = coverUrl.value || ''
+
     downloadTasks.value = [task, ...downloadTasks.value]
     syncTasksToStorage()
     resetForm()
@@ -297,7 +342,8 @@ function saveSong() {
       composers: composerIds,
       duration: songDuration.value,
       durationOriginal: songDurationOriginal.value,
-      songTags: normalizedTags
+      songTags: normalizedTags,
+      coverUrl: coverFromMeta
     }
 
     axios
@@ -308,6 +354,7 @@ function saveSong() {
           throw new Error('No se recibió el identificador (ytid) de la descarga')
         }
         payload.ytid = ytid
+        saveNoteLocally(ytid, noteForSong)
         task.status = 'saving'
         task.statusLabel = 'Guardando...'
         syncTasksToStorage()
@@ -325,6 +372,16 @@ function saveSong() {
       .then(function() {
         emit('downloaded', artistIds)
         task.status = 'done'
+        if (payload.ytid && payload.coverUrl) {
+          try {
+            const stored = localStorage.getItem(COVER_MAP_STORAGE_KEY)
+            const parsed = stored ? JSON.parse(stored) : {}
+            parsed[payload.ytid] = payload.coverUrl
+            localStorage.setItem(COVER_MAP_STORAGE_KEY, JSON.stringify(parsed))
+          } catch (error) {
+            // ignore storage issues
+          }
+        }
         syncTasksToStorage()
       })
       .catch(function(error) {
@@ -358,6 +415,7 @@ async function onURLChange(e) {
   selectedArtists.value[1] = null
   totalArtists.value = 1
   metadataUrl.value = ''
+  coverUrl.value = ''
   isAppleLink.value = e.target.value.includes('music.apple')
 
   const isValidSource = e.target.value.includes('music.apple') || e.target.value.includes('youtube.com') || e.target.value.includes('youtu.be')
@@ -377,6 +435,7 @@ async function onURLChange(e) {
     const title = songInfo.name.charAt(0).toUpperCase() + songInfo.name.slice(1).toLowerCase()
     await nextTick()
     song.value = title
+    coverUrl.value = songInfo.image ? songInfo.image.replace('1200', '200') : ''
 
     let tempArtist = null
     if (songInfo.audio.byArtist.length > 0) {
@@ -403,6 +462,7 @@ async function onMetadataURLChange(e) {
   errorMessage.value = ''
   const value = e.target.value.trim()
   metadataUrl.value = value
+  coverUrl.value = ''
 
   if (!value) return
 
@@ -419,6 +479,8 @@ async function onMetadataURLChange(e) {
         .text() || $('dd.artist bdi').first()
         .text()
 
+      const image = $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content')
+      coverUrl.value = image || ''
       await fillSongAndArtist(title, artist)
     } else if (value.includes('discogs.com')) {
       const releaseId = value.match(/release\/(\d+)/)?.[1]
@@ -435,6 +497,7 @@ async function onMetadataURLChange(e) {
         const data = await apiResponse.json()
         const title = data.title
         const artist = data.artists?.[0]?.name
+        coverUrl.value = data.images?.[0]?.uri || data.images?.[0]?.resource_url || ''
 
         await fillSongAndArtist(title, artist)
       }
@@ -446,6 +509,8 @@ async function onMetadataURLChange(e) {
       const title = $('meta[property=\"og:title\"]').attr('content')
       const artist = $('meta[name=\"music:musician_description\"]').attr('content') || $('meta[property=\"music:musician\"]').attr('content') || $('meta[property=\"og:description\"]').attr('content')
         ?.split(' · ')?.[0]
+      const image = $('meta[property=\"og:image\"]').attr('content') || $('meta[name=\"twitter:image\"]').attr('content')
+      coverUrl.value = image || ''
 
       await fillSongAndArtist(title, artist)
     }
