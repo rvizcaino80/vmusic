@@ -183,7 +183,7 @@
               :disabled="addButtonDisabled"
               type="primary"
               class="flex items-center space-x-1 pl-2.5"
-              @click="addToPlaylist(0)"
+              @click="addToPlaylist(0, false, { ignoreMarks: $event.altKey })"
             >
               <i-mdi-plus
                 class="w-5 h-5"
@@ -237,7 +237,7 @@
                 :disabled="selectedSongs.length <= 0"
                 type="primary"
                 class="flex items-center space-x-1 pl-2.5"
-                @click="addToPlaylist(1)"
+                @click="addToPlaylist(1, false, { ignoreMarks: $event.altKey })"
               >
                 <i-ic-baseline-move-up
                   class="w-5 h-5"
@@ -262,7 +262,7 @@
                 :disabled="selectedSongs.length <= 0"
                 type="primary"
                 class="flex items-center space-x-1 pl-2.5"
-                @click="addToPlaylist(2)"
+                @click="addToPlaylist(2, false, { ignoreMarks: $event.altKey })"
               >
                 <i-ic-baseline-move-down
                   class="w-5 h-5"
@@ -998,11 +998,20 @@ const libraryState = ref({
 const downloadSelectedArtist = ref(null)
 const generateEntryId = () => `${Date.now()}-${Math.random().toString(16)
   .slice(2)}`
-const createPlaylistEntry = (song) => ({
-  ...song,
-  entryId: generateEntryId(),
-  played: false
-})
+const createPlaylistEntry = (song, options = {}) => {
+  const entry = {
+    ...song,
+    entryId: generateEntryId(),
+    played: false
+  }
+
+  if (options.ignoreMarks) {
+    entry.start = null
+    entry.end = null
+  }
+
+  return entry
+}
 
 const filteredSongs2 = computed(() => {
   const normalizedQuery = removeAccents((filterQuery.value || '').toLowerCase())
@@ -2008,7 +2017,8 @@ async function exportM3U() {
   }
 }
 
-function addToPlaylist(action, play = false) {
+function addToPlaylist(action, play = false, options = {}) {
+  const { ignoreMarks = false } = options
   const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
   pageSizeRef.value = savedSettings.rowsPerPage
 
@@ -2037,7 +2047,7 @@ function addToPlaylist(action, play = false) {
         temp.push(response.data.filter((s) => s.id === item)[0])
       })
 
-      const entries = temp.map((item) => createPlaylistEntry(item))
+      const entries = temp.map((item) => createPlaylistEntry(item, { ignoreMarks }))
 
       if (action === 0) {
         playlistDetails.value = entries.concat(playlistDetails.value)
