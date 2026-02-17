@@ -1049,7 +1049,6 @@ const createPlaylistEntry = (song, options = {}) => {
 
   if (options.ignoreMarks) {
     entry.start = null
-    entry.end = null
   }
 
   return entry
