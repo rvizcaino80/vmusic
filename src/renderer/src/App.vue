@@ -470,6 +470,33 @@
                   class="mx-auto w-5 h-5"
                 />
               </template>
+              <template v-else-if="column.dataIndex === 'decks'">
+                <div class="flex items-center justify-center space-x-2">
+                  <button
+                    :disabled="isDeckManualLoadDisabled('A')"
+                    type="button"
+                    class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
+                    @click.stop="loadLibrarySongToDeck(record, 'A')"
+                  >
+                    <i-ic-baseline-download
+                      class="w-6 h-6 text-[#EAB308FF]"
+                    />
+                    <span class="inline-block bg-[#EAB308FF] p-1 leading-none">A</span>
+                  </button>
+
+                  <button
+                    :disabled="isDeckManualLoadDisabled('B')"
+                    type="button"
+                    class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
+                    @click.stop="loadLibrarySongToDeck(record, 'B')"
+                  >
+                    <i-ic-baseline-download
+                      class="w-6 h-6 text-[#EC4899FF]"
+                    />
+                    <span class="inline-block bg-[#EC4899FF] p-1 leading-none">B</span>
+                  </button>
+                </div>
+              </template>
             </template>
           </a-table>
         </div>
@@ -673,6 +700,12 @@
             :key="s.entryId"
             :data-entry-id="s.entryId"
             @click="selectRow($event, s.entryId)"
+            @mousedown.left="onPlaylistRowPressStart(s, $event)"
+            @mouseup.left="onPlaylistRowPressEnd()"
+            @mouseleave="onPlaylistRowPressEnd()"
+            @touchstart.stop.prevent="onPlaylistRowPressStart(s)"
+            @touchend.stop="onPlaylistRowPressEnd()"
+            @touchcancel.stop="onPlaylistRowPressEnd()"
           >
             <td
               class="cursor-pointer"
@@ -690,8 +723,13 @@
               class="text-center w-[32px]"
               :class="{ 'bg-pink-500': selectedRows.includes(s.entryId) }"
             >
+              <i-mdi-headphones
+                v-if="isPlaylistEntryPreviewing(s)"
+                class="w-4 h-4 text-blue-400 mx-auto"
+                title="Previsualizando en audífonos"
+              />
               <i-mdi-alert
-                v-if="hasRecentArtistMatch(s, index)"
+                v-else-if="hasRecentArtistMatch(s, index)"
                 class="w-4 h-4 text-yellow-500 mx-auto"
                 title="Artista se reprodujo recientemente"
               />
@@ -942,6 +980,7 @@ const previewStatus = ref('idle')
 const isPreviewLoading = ref(false)
 const previewSinkId = ref(null)
 const previewOutputs = ref([])
+const previewPlaylistEntryId = ref(null)
 const deckSinkId = ref(null)
 const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
 previewSinkId.value = savedSettingsRef.previewSinkId || null
@@ -968,6 +1007,9 @@ const importSongsCache = ref([])
 const playlistSearchQuery = ref('')
 const playlistSearchResults = ref([])
 const playlistSearchIndex = ref(0)
+const PLAYLIST_PREVIEW_HOLD_MS = 500
+let playlistPreviewPressTimer = null
+let isPlaylistPressPreviewActive = false
 const m3uExportSourceFilter = ref('any')
 const m3uSourceLabel = computed(() => {
   switch (m3uExportSourceFilter.value) {
@@ -1076,6 +1118,12 @@ const columns = computed(() => {
       dataIndex: 'source',
       align: 'center',
       width: 80
+    },
+    {
+      title: '',
+      dataIndex: 'decks',
+      align: 'center',
+      width: 190
     }
   ]
 
@@ -1328,6 +1376,7 @@ function resetPreviewState() {
   previewStatus.value = 'idle'
   isPreviewLoading.value = false
   previewSongId.value = null
+  previewPlaylistEntryId.value = null
 }
 
 function stopPreview() {
@@ -1338,7 +1387,8 @@ function stopPreview() {
   resetPreviewState()
 }
 
-async function startPreview(song) {
+async function startPreview(song, options = {}) {
+  const { playlistEntryId = null } = options
   const audio = await ensurePreviewPlayer()
 
   isPreviewLoading.value = true
@@ -1356,6 +1406,7 @@ async function startPreview(song) {
     }
 
     previewSongId.value = song.id
+    previewPlaylistEntryId.value = playlistEntryId
     previewStatus.value = 'loading'
     audio.src = `http://localhost:3000/static/${song.folder}/${song.ytid}.mp3`
     const startAt = typeof song.start === 'number' ? song.start : 0
@@ -1379,6 +1430,10 @@ async function startPreview(song) {
   } finally {
     isPreviewLoading.value = false
   }
+}
+
+function isPlaylistEntryPreviewing(song) {
+  return previewPlaylistEntryId.value === song.entryId && previewStatus.value === 'playing'
 }
 
 function remove(array, element) {
@@ -2118,22 +2173,50 @@ function loadDeck(deck) {
   if (index === -1) return
 
   const [found] = playlistDetails.value.splice(index, 1)
+  const targetPlayer = deck === 'A' ? player1.value : player2.value
+  const canSwapLoadedSong = targetPlayer && (targetPlayer.status === playerStatuses.Listo || targetPlayer.status === playerStatuses.Pausado)
+  const canLoadDirectly = targetPlayer && (targetPlayer.status === playerStatuses.Detenido || targetPlayer.status === playerStatuses['Sin Carga'])
 
-  if (deck === 'A') {
-    if (player1.value.status === playerStatuses.Listo || player1.value.status === playerStatuses.Pausado) {
-      const songToInsert = player1.value.songFull?.entryId ? player1.value.songFull : createPlaylistEntry(player1.value.songFull)
+  if (canSwapLoadedSong) {
+    const songToInsert = targetPlayer.songFull?.entryId
+? targetPlayer.songFull
+: (
+      targetPlayer.songFull ? createPlaylistEntry(targetPlayer.songFull) : null
+    )
+    if (songToInsert) {
       playlistDetails.value.splice(index, 0, songToInsert)
-      player1.value.setSong(found)
     }
+    targetPlayer.setSong(found)
+  } else if (canLoadDirectly) {
+    targetPlayer.setSong(found)
   } else {
-    if (player2.value.status === playerStatuses.Listo || player2.value.status === playerStatuses.Pausado) {
-      const songToInsert = player2.value.songFull?.entryId ? player2.value.songFull : createPlaylistEntry(player2.value.songFull)
-      playlistDetails.value.splice(index, 0, songToInsert)
-      player2.value.setSong(found)
-    }
+    // Revert removal if target deck cannot accept a manual load in current state.
+    playlistDetails.value.splice(index, 0, found)
   }
 
   selectedRows.value = []
+}
+
+function isDeckManualLoadDisabled(deck) {
+  if (deck === 'A') {
+    return !player1.value || player1.value.status === playerStatuses.Reproduciendo || player1.value.status === playerStatuses.Cambiando
+  }
+
+  return !player2.value || player2.value.status === playerStatuses.Reproduciendo || player2.value.status === playerStatuses.Cambiando
+}
+
+function loadLibrarySongToDeck(song, deck) {
+  if (!song) return
+
+  const entry = song.entryId ? song : createPlaylistEntry(song)
+  const targetPlayer = deck === 'A' ? player1.value : player2.value
+  if (!targetPlayer) return
+
+  if (
+    targetPlayer.status === playerStatuses.Listo || targetPlayer.status === playerStatuses.Pausado || targetPlayer.status === playerStatuses.Detenido || targetPlayer.status === playerStatuses['Sin Carga']
+  ) {
+    targetPlayer.setSong(entry)
+  }
 }
 
 function getFirstUnplayedSong() {
@@ -2229,6 +2312,33 @@ function selectRow(e, id) {
   } else {
     selectedRows.value = []
     selectedRows.value.push(id)
+  }
+}
+
+async function onPlaylistRowPressStart(song, event) {
+  if (event && event.button !== undefined && event.button !== 0) return
+  if (playlistPreviewPressTimer) {
+    clearTimeout(playlistPreviewPressTimer)
+    playlistPreviewPressTimer = null
+  }
+
+  isPlaylistPressPreviewActive = false
+  playlistPreviewPressTimer = setTimeout(async() => {
+    await startPreview(song, { playlistEntryId: song.entryId })
+    isPlaylistPressPreviewActive = true
+    playlistPreviewPressTimer = null
+  }, PLAYLIST_PREVIEW_HOLD_MS)
+}
+
+function onPlaylistRowPressEnd() {
+  if (playlistPreviewPressTimer) {
+    clearTimeout(playlistPreviewPressTimer)
+    playlistPreviewPressTimer = null
+  }
+
+  if (isPlaylistPressPreviewActive) {
+    stopPreview()
+    isPlaylistPressPreviewActive = false
   }
 }
 

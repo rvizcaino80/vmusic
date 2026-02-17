@@ -14,7 +14,11 @@
           }"
           class="flex h-[80px] w-[80px] items-center justify-center"
         >
-          <img :src="songImage">
+          <img
+            :src="songImage"
+            class="select-none"
+            draggable="false"
+          >
         </div>
         <div
           v-else
@@ -314,14 +318,11 @@ function init() {
   })
 
   player.on('finish', () => {
-    songImage.value = ''
+    resetSongMetadata()
     player.setPlaybackRate(1.0)
     speed_added.value = 0
 
     player.toggleInteraction(false)
-    artist.value = ''
-    composer.value = ''
-    song.value = ''
     player.stop()
     player.destroy()
     init()
@@ -343,10 +344,7 @@ function init() {
 
 function next() {
   left.value = 0
-  artist.value = ''
-  composer.value = ''
-  songImage.value = ''
-  song.value = ''
+  resetSongMetadata()
   start.value = null
   end.value = null
   player.stop()
@@ -364,8 +362,7 @@ function calculateVolume(ct) {
 
   if (status.value === props.statuses.Cambiando && ct > end.value) {
     left.value = 0
-    artist.value = ''
-    song.value = ''
+    resetSongMetadata()
     start.value = null
     end.value = null
     player.stop()
@@ -424,6 +421,17 @@ function volToNormal() {
 
 function load(url) {
   // player.load(url)
+}
+
+function resetSongMetadata() {
+  artist.value = ''
+  artistsList.value = []
+  composer.value = ''
+  song.value = ''
+  songImage.value = ''
+  songFull.value = {}
+  songId.value = null
+  primaryArtistId.value = null
 }
 
 function setSong(s) {
