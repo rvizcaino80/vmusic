@@ -66,7 +66,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
 import { Icon } from '@iconify/vue'
 import axios from 'axios'
@@ -78,6 +78,10 @@ const song = ref({})
 const start = ref(0)
 const end = ref(0)
 const duration = ref(0)
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max)
+}
 
 onMounted(() => {
   axios
@@ -103,8 +107,14 @@ onMounted(() => {
 
       player.on('decode', (d) => {
         duration.value = d
-        start.value = song.value.start ? song.value.start : 0
-        end.value = song.value.end && song.value.end > 0 ? song.value.end : Math.round(d)
+        const maxPoint = Math.max(0, d - 0.01)
+        const rawStart = typeof song.value.start === 'number' ? song.value.start : 0
+        const defaultEnd = d > 0 ? d : 0
+        const rawEnd = song.value.end && song.value.end > 0 ? song.value.end : defaultEnd
+
+        start.value = clamp(rawStart, 0, maxPoint)
+        end.value = clamp(rawEnd, start.value + 0.01, d)
+        const finalMarker = clamp(end.value - 0.3, 0, maxPoint)
 
         wsRegions.addRegion({
           id: 'inicio',
@@ -114,17 +124,18 @@ onMounted(() => {
         })
         wsRegions.addRegion({
           id: 'final',
-          start: end.value - 0.3,
+          start: finalMarker,
           content: 'Fin',
           color: '#FF1493FF'
         })
       })
 
       wsRegions.on('region-updated', (region) => {
+        const maxPoint = Math.max(0, duration.value - 0.01)
         if (region.id === 'final') {
-          end.value = region.start
+          end.value = clamp(region.start, start.value + 0.01, duration.value)
         } else {
-          start.value = region.start
+          start.value = clamp(region.start, 0, Math.min(maxPoint, end.value - 0.01))
         }
       })
 
@@ -228,5 +239,12 @@ async function applySinkId(sinkId) {
 
 watch(() => props.previewSinkId, (val) => {
   applySinkId(val)
+})
+
+onBeforeUnmount(() => {
+  if (player) {
+    player.destroy()
+    player = null
+  }
 })
 </script>

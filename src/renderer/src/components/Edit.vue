@@ -81,11 +81,11 @@
       </div>
 
       <div>
-        <label class="text-sm text-gray-500 block">URL de metadata (Spotify / MusicBrainz / Discogs)</label>
+        <label class="text-sm text-gray-500 block">URL de metadata (Spotify / Shazam)</label>
         <a-input
           v-model:value="metadataUrl"
           class="w-full"
-          placeholder="Pega el enlace de Spotify, MusicBrainz o Discogs"
+          placeholder="Pega el enlace de Spotify o Shazam"
         />
       </div>
 
@@ -267,27 +267,9 @@ function saveSong() {
 
 async function extractCoverFromMetadata(value) {
   try {
-    if (value.includes('musicbrainz.org')) {
-      const response = await fetch(value)
-      const html = await response.text()
-      const $ = cheerio.load(html)
-
-      return $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content') || null
-    }
-    if (value.includes('discogs.com')) {
-      const releaseId = value.match(/release\/(\d+)/)?.[1]
-      if (!releaseId) return null
-      const apiResponse = await fetch(`https://api.discogs.com/releases/${releaseId}`, {
-        headers: {
-          'User-Agent': 'v-music-downloader/1.0'
-        }
-      })
-      if (!apiResponse.ok) return null
-      const data = await apiResponse.json()
-
-      return data.images?.[0]?.uri || data.images?.[0]?.resource_url || null
-    }
-    if (value.includes('open.spotify.com')) {
+    const isSpotify = value.includes('open.spotify.com')
+    const isShazam = value.includes('shazam.com/song/')
+    if (isSpotify || isShazam) {
       const response = await fetch(value)
       const html = await response.text()
       const $ = cheerio.load(html)

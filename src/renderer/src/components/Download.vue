@@ -46,12 +46,12 @@
 
       <a-form-item
         v-if="showMetadataField"
-        label="URL de metadata (Spotify / MusicBrainz / Discogs)"
+        label="URL de metadata (Spotify / Shazam)"
       >
         <a-input
           v-model:value="metadataUrl"
           class="w-full"
-          placeholder="Pega el enlace de Spotify, MusicBrainz o Discogs"
+          placeholder="Pega el enlace de Spotify o Shazam"
           @change="onMetadataURLChange"
         />
       </a-form-item>
@@ -466,57 +466,74 @@ async function onMetadataURLChange(e) {
 
   if (!value) return
 
+  const isSpotify = value.includes('open.spotify.com')
+  const isShazam = value.includes('shazam.com/song/')
+  if (!isSpotify && !isShazam) {
+    isError.value = true
+    errorMessage.value = 'La URL de metadata debe ser de Spotify o Shazam'
+
+    return
+  }
+
   try {
-    if (value.includes('musicbrainz.org')) {
-      const response = await fetch(value)
-      const html = await response.text()
-      const $ = cheerio.load(html)
+    const response = await fetch(value)
+    const html = await response.text()
+    const $ = cheerio.load(html)
 
-      const title = $('div.recordingheader h1 bdi').first()
-        .text() || $('h1 bdi').first()
-        .text()
-      const artist = $('div.recordingheader p.subheader bdi').first()
-        .text() || $('dd.artist bdi').first()
-        .text()
+    const image = $('meta[property=\"og:image\"]').attr('content') || $('meta[name=\"twitter:image\"]').attr('content')
+    let title = null
+    let artist = null
 
-      const image = $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content')
-      coverUrl.value = image || ''
-      await fillSongAndArtist(title, artist)
-    } else if (value.includes('discogs.com')) {
-      const releaseId = value.match(/release\/(\d+)/)?.[1]
-
-      if (releaseId) {
-        const apiResponse = await fetch(`https://api.discogs.com/releases/${releaseId}`, {
-          headers: {
-            'User-Agent': 'v-music-downloader/1.0'
-          }
-        })
-
-        if (!apiResponse.ok) throw new Error('No se pudo obtener la información de Discogs')
-
-        const data = await apiResponse.json()
-        const title = data.title
-        const artist = data.artists?.[0]?.name
-        coverUrl.value = data.images?.[0]?.uri || data.images?.[0]?.resource_url || ''
-
-        await fillSongAndArtist(title, artist)
-      }
-    } else if (value.includes('open.spotify.com')) {
-      const response = await fetch(value)
-      const html = await response.text()
-      const $ = cheerio.load(html)
-
-      const title = $('meta[property=\"og:title\"]').attr('content')
-      const artist = $('meta[name=\"music:musician_description\"]').attr('content') || $('meta[property=\"music:musician\"]').attr('content') || $('meta[property=\"og:description\"]').attr('content')
+    if (isSpotify) {
+      title = $('meta[property=\"og:title\"]').attr('content')
+      artist = $('meta[name=\"music:musician_description\"]').attr('content') || $('meta[property=\"music:musician\"]').attr('content') || $('meta[property=\"og:description\"]').attr('content')
         ?.split(' · ')?.[0]
-      const image = $('meta[property=\"og:image\"]').attr('content') || $('meta[name=\"twitter:image\"]').attr('content')
-      coverUrl.value = image || ''
+    } else {
+      const ogTitle = $('meta[property=\"og:title\"]').attr('content') || $('meta[name=\"twitter:title\"]').attr('content') || ''
+      const cleanOgTitle = ogTitle.replace(/\s*\|\s*Shazam.*$/i, '').trim()
+      if (cleanOgTitle.includes(' - ')) {
+        const [track, artistPart] = cleanOgTitle.split(' - ')
+        title = track?.trim() || null
+        artist = artistPart?.trim() || null
+      } else {
+        title = cleanOgTitle || null
+      }
 
-      await fillSongAndArtist(title, artist)
+      if (!artist) {
+        const jsonLdText = $('script[type=\"application/ld+json\"]').first()
+          .text()
+        if (jsonLdText) {
+          try {
+            const parsed = JSON.parse(jsonLdText)
+            const metadata = Array.isArray(parsed) ? parsed.find((i) => i?.['@type'] === 'MusicRecording') : parsed
+            if (!title) {
+              title = metadata?.name || null
+            }
+            artist = metadata?.byArtist?.name || metadata?.byArtist?.[0]?.name || artist
+          } catch (error) {
+            // ignore invalid json-ld
+          }
+        }
+      }
+
+      if (!artist) {
+        const description = $('meta[property=\"og:description\"]').attr('content') || $('meta[name=\"description\"]').attr('content') || ''
+        const match = description.match(/listen to\s+(.+?)\s+by\s+(.+?)(?:\s+on\s+|$)/i)
+        if (match) {
+          if (!title) {
+            title = match[1]?.trim() || null
+          }
+          artist = match[2]?.trim() || null
+        }
+      }
     }
+
+    coverUrl.value = image || ''
+
+    await fillSongAndArtist(title, artist)
   } catch (err) {
     isError.value = true
-    errorMessage.value = 'No se pudo extraer la información del enlace adicional'
+    errorMessage.value = 'No se pudo extraer la información del enlace de metadata'
   }
 }
 

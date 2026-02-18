@@ -4,8 +4,11 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
 function createWindow() {
+  const appTitle = `Salsamanía v${app.getVersion()}`
+
   // Create the browser window.
   const mainWindow = new BrowserWindow({
+    title: appTitle,
     width: 1920,
     height: 1080,
     show: false,
@@ -22,6 +25,12 @@ function createWindow() {
   mainWindow.on('ready-to-show', () => {
     mainWindow.maximize()
     mainWindow.show()
+    mainWindow.setTitle(appTitle)
+  })
+
+  mainWindow.on('page-title-updated', (event) => {
+    event.preventDefault()
+    mainWindow.setTitle(appTitle)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

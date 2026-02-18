@@ -436,10 +436,6 @@
                     v-if="record.Tags.some(tag => tag.id === 9998)"
                     class="px-[10px] py-[1px] rounded-full bg-yellow-200 text-yellow-00 text-xs"
                   >Reciente</span>
-                  <i-simple-icons-audiomack
-                    v-if="record.timestamp >= 1745522439843"
-                    class="text-blue-500"
-                  />
                 </div>
               </template>
               <template v-else-if="column.dataIndex === 'artistsJoined'">
@@ -742,12 +738,11 @@
         <div class="play-next-status text-xs text-white">
           <span v-if="playlistDetails.length <= 0">No hay más canciones</span>
           <span v-else-if="playlistDetails.length > 1">{{ playlistDetails.length }} canciones</span>
-          <span v-else>1 canción restante</span>.
-          <span v-if="timeLeft[0] > 0">Hasta las {{ timeLeft[1] }}</span>
+          <span v-else>1 canción restante</span>
           <span
-            v-if="timeLeft[2] > 0"
+            v-if="playlistEtaText"
             class="text-lime-500"
-          > +{{ timeLeft[2] }} día(s).</span>
+          >. {{ playlistEtaText }}</span>
           <span v-else>.</span>
         </div>
 
@@ -1266,7 +1261,13 @@ const state = reactive({
   selectedRowKeys: []
 })
 
-const timeLeft = computed(() => {
+function formatMeridiemLabel(time) {
+  return time
+    .replace('AM', 'A.M.')
+    .replace('PM', 'P.M.')
+}
+
+const playlistEtaText = computed(() => {
   const a = dayjs()
   let left = 0
   let left0 = 0
@@ -1286,11 +1287,25 @@ const timeLeft = computed(() => {
   }
 
   left = left0 + left1 + left2
+  if (left <= 0) return null
 
   const b = a.add(left, 'second')
-  const dayDiff = b.diff(a, 'day')
+  const dayDiff = b.startOf('day').diff(a.startOf('day'), 'day')
+  const formattedTime = formatMeridiemLabel(b.format('h:mm A'))
 
-  return [left, b.format('hh:mm A'), dayDiff]
+  if (dayDiff <= 0) {
+    return `Hoy a las ${formattedTime}`
+  }
+
+  if (dayDiff === 1) {
+    return `Mañana a las ${formattedTime}`
+  }
+
+  if (dayDiff === 2) {
+    return `Pasado mañana a las ${formattedTime}`
+  }
+
+  return `Aproximadamente en ${dayDiff} días`
 })
 
 async function requestOutputDevices() {
