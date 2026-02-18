@@ -24,10 +24,10 @@
           v-else
           :class="{
             'pulsate-bck': status === props.statuses.Reproduciendo,
-            'bg-pink-500': props.position === 'bottom',
-            'bg-yellow-500': props.position === 'top'
+            'player-deck-b': props.position === 'bottom',
+            'player-deck-a': props.position === 'top'
           }"
-          class="flex text-[70px] text-white text-bold text-center h-[80px] w-[80px] items-center justify-center"
+          class="flex text-[70px] player-text text-bold text-center h-[80px] w-[80px] items-center justify-center"
         >
           <span
             v-if="props.position === 'top'"
@@ -67,7 +67,7 @@
             <button
               v-if="canPreview"
               type="button"
-              class="text-white hover:text-yellow-200"
+              class="player-text player-preview-btn"
               title="Previsualizar en audífonos"
               @mousedown.stop.prevent="emitPreviewStart"
               @mouseup.stop="emitPreviewStop"
@@ -140,7 +140,7 @@
 </template>
 
 <script setup>
-import { onBeforeMount, onMounted, ref, watch, computed } from 'vue'
+import { onBeforeMount, onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
@@ -184,6 +184,7 @@ const baseSpeed = ref(0)
 let wsRegions = null
 let originalOptions = {}
 let crossfaderOptions = {}
+const regionColor = ref('rgba(114,0,0,0.64)')
 const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
 
 const baseSpeedLabel = computed(() => {
@@ -207,20 +208,27 @@ onMounted(() => {
 })
 
 function init() {
+  const waveColor = getCurrentWaveColor()
+  const cursorColor = getThemeColor('--vm-player-cursor', '#FFFFFF')
+  const crossfaderCursorColor = getThemeColor('--vm-player-crossfader-cursor', '#FF0000')
+  regionColor.value = getThemeColor('--vm-player-region', 'rgba(114,0,0,0.64)')
+
   originalOptions = {
     normalize: true,
     container: '#' + playerId.value,
-    cursorColor: '#ffffff',
+    cursorColor,
     height: 'auto',
-    fillParent: true
+    fillParent: true,
+    waveColor
   }
 
   crossfaderOptions = {
     normalize: true,
     container: '#' + playerId.value,
-    cursorColor: '#ff0000',
+    cursorColor: crossfaderCursorColor,
     height: 'auto',
-    fillParent: true
+    fillParent: true,
+    waveColor
   }
 
   player = WaveSurfer.create(originalOptions)
@@ -234,7 +242,7 @@ function init() {
         id: 'inicio',
         start: 0,
         end: start.value,
-        color: 'rgba(114,0,0,0.64)',
+        color: regionColor.value,
         drag: false,
         resize: false
       })
@@ -245,7 +253,7 @@ function init() {
         id: 'final',
         start: end.value,
         end: d,
-        color: 'rgba(114,0,0,0.64)',
+        color: regionColor.value,
         drag: false,
         resize: false
       })
@@ -259,16 +267,6 @@ function init() {
   wsRegions.on('region-clicked', (region, e) => {
     e.stopPropagation() // prevent triggering a click on the waveform
   })
-
-  if (props.position === 'top') {
-    player.setOptions({
-      waveColor: '#EAB308'
-    })
-  } else {
-    player.setOptions({
-      waveColor: '#EC4899'
-    })
-  }
 
   player.on('load', () => {
     songImage.value = ''
@@ -547,10 +545,68 @@ function loadCoverFromMap() {
   }
 }
 
+function getThemeColor(varName, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(varName)
+    .trim()
+
+  return value || fallback
+}
+
+function getCurrentWaveColor() {
+  const activeSchema = document.documentElement.getAttribute('data-color-schema')
+  if (activeSchema === 'monochrome' && status.value === props.statuses.Reproduciendo) {
+    return '#FFFFFF'
+  }
+
+  return getThemeColor(props.position === 'top' ? '--vm-player-wave-a' : '--vm-player-wave-b', props.position === 'top' ? '#EAB308' : '#EC4899')
+}
+
+function syncWaveColor() {
+  if (!player) return
+  const waveColor = getCurrentWaveColor()
+  player.setOptions({ waveColor })
+  crossfaderOptions = {
+    ...crossfaderOptions,
+    waveColor
+  }
+  originalOptions = {
+    ...originalOptions,
+    waveColor
+  }
+}
+
+function handleThemeChanged() {
+  if (!player) return
+  const waveColor = getCurrentWaveColor()
+  const cursorColor = getThemeColor('--vm-player-cursor', '#FFFFFF')
+  const crossfaderCursorColor = getThemeColor('--vm-player-crossfader-cursor', '#FF0000')
+  regionColor.value = getThemeColor('--vm-player-region', 'rgba(114,0,0,0.64)')
+
+  player.setOptions({
+    waveColor,
+    cursorColor
+  })
+  crossfaderOptions = {
+    ...crossfaderOptions,
+    waveColor,
+    cursorColor: crossfaderCursorColor
+  }
+}
+
 watch(() => props.outputSinkId,
   (val) => {
     setSinkId(val)
   })
+
+watch(status, () => {
+  syncWaveColor()
+})
+
+window.addEventListener('vmusic-color-schema-changed', handleThemeChanged)
+
+onBeforeUnmount(() => {
+  window.removeEventListener('vmusic-color-schema-changed', handleThemeChanged)
+})
 
 defineExpose({
   position: props.position,
@@ -574,3 +630,21 @@ defineExpose({
   setSinkId
 })
 </script>
+
+<style scoped>
+.player-text {
+  color: var(--vm-player-text);
+}
+
+.player-deck-a {
+  background-color: var(--vm-player-wave-a);
+}
+
+.player-deck-b {
+  background-color: var(--vm-player-wave-b);
+}
+
+.player-preview-btn:hover {
+  color: var(--vm-player-preview-hover);
+}
+</style>

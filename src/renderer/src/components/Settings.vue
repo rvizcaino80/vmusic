@@ -103,6 +103,17 @@
         />
       </a-form-item>
 
+      <a-form-item
+        label="Esquema de color"
+        name="colorSchema"
+      >
+        <a-select
+          v-model:value="formState.colorSchema"
+          :options="colorSchemaOptions"
+          placeholder="Selecciona un esquema"
+        />
+      </a-form-item>
+
       <a-form-item :wrapper-col="{ offset: 8, span: 16 }">
         <a-button
           type="primary"
@@ -126,7 +137,8 @@ export default {
       crossfaderTime: 1,
       recentlyAddedTime: 24,
       baseSpeed: 0,
-      excludeTags: []
+      excludeTags: [],
+      colorSchema: 'default'
     }
 
     const formState = reactive({
@@ -136,10 +148,17 @@ export default {
       baseSpeed: typeof savedSettings.baseSpeed === 'number' ? savedSettings.baseSpeed : 0,
       previewSinkId: savedSettings.previewSinkId || null,
       deckSinkId: savedSettings.deckSinkId || null,
-      excludeTags: savedSettings.excludeTags || []
+      excludeTags: savedSettings.excludeTags || [],
+      colorSchema: savedSettings.colorSchema || 'default'
     })
 
     const tagOptions = ref([])
+    const colorSchemaOptions = ref([
+      { label: 'Default', value: 'default' },
+      { label: 'Ocean', value: 'ocean' },
+      { label: 'Sunset', value: 'sunset' },
+      { label: 'Monochrome', value: 'monochrome' }
+    ])
     const audioOutputs = ref([])
     const isLoadingOutputs = ref(false)
     const isLoadingTags = ref(false)
@@ -199,7 +218,8 @@ export default {
         baseSpeed: formState.baseSpeed,
         previewSinkId: formState.previewSinkId === 'default' ? null : formState.previewSinkId || null,
         deckSinkId: formState.deckSinkId === 'default' ? null : formState.deckSinkId || null,
-        excludeTags: formState.excludeTags || []
+        excludeTags: formState.excludeTags || [],
+        colorSchema: formState.colorSchema || 'default'
       }
       localStorage.setItem('vmusic_settings', JSON.stringify(s))
       context.emit('saved')
@@ -213,6 +233,7 @@ export default {
       savedSettings,
       formState,
       tagOptions,
+      colorSchemaOptions,
       audioOutputs,
       isLoadingOutputs,
       isLoadingTags,

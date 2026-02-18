@@ -30,11 +30,11 @@
         <button
           v-if="isPlaying"
           type="button"
-          class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-800 p-2"
+          class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full wave-control p-2"
           @click="pause()"
         >
           <Icon
-            class="w-5 h-5 text-white"
+            class="w-5 h-5 wave-control-icon"
             icon="material-symbols:pause"
           />
         </button>
@@ -42,11 +42,11 @@
         <button
           v-else
           type="button"
-          class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-800 p-2"
+          class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full wave-control p-2"
           @click="play()"
         >
           <Icon
-            class="w-5 h-5 text-white"
+            class="w-5 h-5 wave-control-icon"
             icon="mdi:play"
           />
         </button>
@@ -73,6 +73,7 @@ import axios from 'axios'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 
 let player = null
+let wsRegions = null
 let isPlaying = ref(false)
 const song = ref({})
 const start = ref(0)
@@ -92,10 +93,10 @@ onMounted(() => {
       player = WaveSurfer.create({
         normalize: true,
         container: '#wave',
-        cursorColor: '#00000000',
+        cursorColor: getThemeColor('--vm-wave-editor-cursor', '#00000000'),
         height: 600,
-        waveColor: '#4B5563FF',
-        progressColor: '#6B7280FF',
+        waveColor: getThemeColor('--vm-wave-editor-wave', '#4B5563FF'),
+        progressColor: getThemeColor('--vm-wave-editor-progress', '#6B7280FF'),
         cursorWidth: 2,
         hideScrollbar: false,
         autoScroll: true,
@@ -103,7 +104,7 @@ onMounted(() => {
         minPxPerSec: 30
       })
 
-      const wsRegions = player.registerPlugin(RegionsPlugin.create())
+      wsRegions = player.registerPlugin(RegionsPlugin.create())
 
       player.on('decode', (d) => {
         duration.value = d
@@ -120,13 +121,13 @@ onMounted(() => {
           id: 'inicio',
           start: start.value,
           content: 'Inicio',
-          color: '#FF1493FF'
+          color: getThemeColor('--vm-wave-editor-region', '#FF1493FF')
         })
         wsRegions.addRegion({
           id: 'final',
           start: finalMarker,
           content: 'Fin',
-          color: '#FF1493FF'
+          color: getThemeColor('--vm-wave-editor-region', '#FF1493FF')
         })
       })
 
@@ -228,6 +229,29 @@ function onZoomChange(z) {
   })
 }
 
+function getThemeColor(varName, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(varName)
+    .trim()
+
+  return value || fallback
+}
+
+function handleThemeChanged() {
+  if (!player) return
+  player.setOptions({
+    waveColor: getThemeColor('--vm-wave-editor-wave', '#4B5563FF'),
+    progressColor: getThemeColor('--vm-wave-editor-progress', '#6B7280FF'),
+    cursorColor: getThemeColor('--vm-wave-editor-cursor', '#00000000')
+  })
+
+  if (wsRegions && typeof wsRegions.getRegions === 'function') {
+    const regionColor = getThemeColor('--vm-wave-editor-region', '#FF1493FF')
+    wsRegions.getRegions().forEach((region) => {
+      region.setOptions({ color: regionColor })
+    })
+  }
+}
+
 async function applySinkId(sinkId) {
   if (!sinkId || sinkId === 'default' || !player || typeof player.setSinkId !== 'function') return
   try {
@@ -241,10 +265,23 @@ watch(() => props.previewSinkId, (val) => {
   applySinkId(val)
 })
 
+window.addEventListener('vmusic-color-schema-changed', handleThemeChanged)
+
 onBeforeUnmount(() => {
+  window.removeEventListener('vmusic-color-schema-changed', handleThemeChanged)
   if (player) {
     player.destroy()
     player = null
   }
 })
 </script>
+
+<style scoped>
+.wave-control {
+  background-color: var(--vm-wave-editor-control-bg);
+}
+
+.wave-control-icon {
+  color: var(--vm-wave-editor-control-text);
+}
+</style>

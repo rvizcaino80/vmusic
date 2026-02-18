@@ -19,32 +19,151 @@ svg {
   @font-face {
     font-family: Helixa;
     font-weight: 400;
-    src: url('../fonts/Inter-Regular.woff2') format("woff2");
+    src: url('../fonts/Inter-Regular.woff2') format('woff2');
   }
 
   @font-face {
     font-family: Helixa;
     font-weight: 700;
-    src: url('../fonts/Inter-SemiBold.woff2') format("woff2");
+    src: url('../fonts/Inter-SemiBold.woff2') format('woff2');
   }
 }
 
-html, body, #app{
+html,
+body,
+#app {
   @apply font-sans;
   min-height: 100vh;
 }
 
-div.fullheight{
+:root,
+html[data-color-schema='default'] {
+  --vm-bg-body: #1f2937;
+  --vm-bg-surface: #d1d5db;
+  --vm-bg-panel: #f3f4f6;
+  --vm-bg-table-dark: #111827;
+  --vm-bg-control: #4b5563;
+  --vm-bg-control-alt: #6b7280;
+  --vm-bg-selected: #ec4899;
+  --vm-text-on-dark: #ffffff;
+  --vm-text-muted: #6b7280;
+  --vm-text-accent: #84cc16;
+  --vm-table-stripe: #fafafa;
+  --vm-table-deleted: #fecaca;
+  --vm-ant-primary: #1677ff;
+  --vm-player-wave-a: #eab308;
+  --vm-player-wave-b: #ec4899;
+  --vm-player-cursor: #ffffff;
+  --vm-player-crossfader-cursor: #ff0000;
+  --vm-player-region: rgba(114, 0, 0, 0.64);
+  --vm-player-text: #ffffff;
+  --vm-player-preview-hover: #fef08a;
+  --vm-wave-editor-wave: #4b5563ff;
+  --vm-wave-editor-progress: #6b7280ff;
+  --vm-wave-editor-cursor: #00000000;
+  --vm-wave-editor-region: #ff1493ff;
+  --vm-wave-editor-control-bg: #1f2937;
+  --vm-wave-editor-control-text: #ffffff;
+}
+
+html[data-color-schema='ocean'] {
+  --vm-bg-body: #0b1d2f;
+  --vm-bg-surface: #c8e1ea;
+  --vm-bg-panel: #e8f3f7;
+  --vm-bg-table-dark: #092032;
+  --vm-bg-control: #1f5a7a;
+  --vm-bg-control-alt: #2c7398;
+  --vm-bg-selected: #0ea5a4;
+  --vm-text-on-dark: #e6f7ff;
+  --vm-text-muted: #4f6f81;
+  --vm-text-accent: #2dd4bf;
+  --vm-table-stripe: #eef7fb;
+  --vm-table-deleted: #ffd7cc;
+  --vm-ant-primary: #0ea5a4;
+  --vm-player-wave-a: #22c55e;
+  --vm-player-wave-b: #06b6d4;
+  --vm-player-cursor: #dbeafe;
+  --vm-player-crossfader-cursor: #14b8a6;
+  --vm-player-region: rgba(2, 132, 199, 0.45);
+  --vm-player-text: #e6f7ff;
+  --vm-player-preview-hover: #a5f3fc;
+  --vm-wave-editor-wave: #1d4e89;
+  --vm-wave-editor-progress: #0f766e;
+  --vm-wave-editor-cursor: #00000000;
+  --vm-wave-editor-region: #06b6d4;
+  --vm-wave-editor-control-bg: #1f5a7a;
+  --vm-wave-editor-control-text: #e6f7ff;
+}
+
+html[data-color-schema='sunset'] {
+  --vm-bg-body: #2f1723;
+  --vm-bg-surface: #f3d6c6;
+  --vm-bg-panel: #fff1e8;
+  --vm-bg-table-dark: #3b1020;
+  --vm-bg-control: #9a3412;
+  --vm-bg-control-alt: #c2410c;
+  --vm-bg-selected: #db2777;
+  --vm-text-on-dark: #fff7ed;
+  --vm-text-muted: #7a3d31;
+  --vm-text-accent: #f59e0b;
+  --vm-table-stripe: #fff5ef;
+  --vm-table-deleted: #fecdd3;
+  --vm-ant-primary: #ea580c;
+  --vm-player-wave-a: #f59e0b;
+  --vm-player-wave-b: #f43f5e;
+  --vm-player-cursor: #fff7ed;
+  --vm-player-crossfader-cursor: #fb923c;
+  --vm-player-region: rgba(159, 18, 57, 0.45);
+  --vm-player-text: #fff7ed;
+  --vm-player-preview-hover: #fdba74;
+  --vm-wave-editor-wave: #9a3412;
+  --vm-wave-editor-progress: #c2410c;
+  --vm-wave-editor-cursor: #00000000;
+  --vm-wave-editor-region: #e11d48;
+  --vm-wave-editor-control-bg: #7c2d12;
+  --vm-wave-editor-control-text: #fff7ed;
+}
+
+html[data-color-schema='monochrome'] {
+  --vm-bg-body: #171717;
+  --vm-bg-surface: #d4d4d4;
+  --vm-bg-panel: #f5f5f5;
+  --vm-bg-table-dark: #0f0f0f;
+  --vm-bg-control: #404040;
+  --vm-bg-control-alt: #525252;
+  --vm-bg-selected: #737373;
+  --vm-text-on-dark: #fafafa;
+  --vm-text-muted: #737373;
+  --vm-text-accent: #d4d4d4;
+  --vm-table-stripe: #fafafa;
+  --vm-table-deleted: #e5e5e5;
+  --vm-ant-primary: #525252;
+  --vm-player-wave-a: #525252;
+  --vm-player-wave-b: #404040;
+  --vm-player-cursor: #fafafa;
+  --vm-player-crossfader-cursor: #d4d4d4;
+  --vm-player-region: rgba(64, 64, 64, 0.52);
+  --vm-player-text: #fafafa;
+  --vm-player-preview-hover: #d4d4d4;
+  --vm-wave-editor-wave: #525252;
+  --vm-wave-editor-progress: #737373;
+  --vm-wave-editor-cursor: #00000000;
+  --vm-wave-editor-region: #a3a3a3;
+  --vm-wave-editor-control-bg: #262626;
+  --vm-wave-editor-control-text: #fafafa;
+}
+
+div.fullheight {
   min-height: 100vh;
 }
 
-body{
-  @apply bg-gray-800;
+body {
+  background-color: var(--vm-bg-body);
 }
 
-table.dark{
-  tr{
-    td{
+table.dark {
+  tr {
+    td {
       @apply px-2 py-0.5 text-white;
     }
   }
@@ -54,9 +173,9 @@ table.dark{
   }
 }
 
-table.library{
-  tr{
-    td.selected-row{
+table.library {
+  tr {
+    td.selected-row {
       @apply text-white bg-indigo-600 !important;
 
       span {
@@ -65,14 +184,14 @@ table.library{
     }
   }
 
-  tr{
-    td{
+  tr {
+    td {
       @apply px-2 py-0.5 select-none;
     }
   }
 
   tr:nth-child(odd) {
-    td{
+    td {
       @apply bg-gray-200;
     }
   }
@@ -193,6 +312,49 @@ iframe {
   }
 }
 
-.ant-divider{
+.ant-divider {
   margin-top: 0 !important;
+}
+
+.vmusic-app .bg-gray-100 {
+  background-color: var(--vm-bg-panel) !important;
+}
+
+.vmusic-app .bg-gray-300 {
+  background-color: var(--vm-bg-surface) !important;
+}
+
+.vmusic-app .bg-gray-600 {
+  background-color: var(--vm-bg-control) !important;
+}
+
+.vmusic-app .bg-gray-500 {
+  background-color: var(--vm-bg-control-alt) !important;
+}
+
+.vmusic-app .bg-gray-900 {
+  background-color: var(--vm-bg-table-dark) !important;
+}
+
+.vmusic-app .bg-pink-500 {
+  background-color: var(--vm-bg-selected) !important;
+}
+
+.vmusic-app .text-lime-500 {
+  color: var(--vm-text-accent) !important;
+}
+
+.vmusic-app .text-gray-500 {
+  color: var(--vm-text-muted) !important;
+}
+
+.vmusic-app .text-white {
+  color: var(--vm-text-on-dark) !important;
+}
+
+.vmusic-app .ant-btn-primary,
+.vmusic-app .ant-btn-primary:hover,
+.vmusic-app .ant-btn-primary:focus {
+  border-color: var(--vm-ant-primary) !important;
+  background-color: var(--vm-ant-primary) !important;
 }

@@ -500,7 +500,7 @@
     </div>
   </div>
 
-  <div class="flex items-stretch">
+  <div class="vmusic-app flex items-stretch">
     <div class="flex-[5] flex flex-col justify-between">
       <Player
         ref="player1"
@@ -954,6 +954,26 @@ const playerStatuses = {
   Nivelando: 90
 }
 const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
+const COLOR_SCHEMA_DEFAULT = 'default'
+const COLOR_SCHEMA_VALUES = ['default', 'ocean', 'sunset', 'monochrome']
+
+function normalizeColorSchema(schema) {
+  if (!schema || !COLOR_SCHEMA_VALUES.includes(schema)) {
+    return COLOR_SCHEMA_DEFAULT
+  }
+
+  return schema
+}
+
+function applyColorSchema(schema) {
+  const normalized = normalizeColorSchema(schema)
+  document.documentElement.setAttribute('data-color-schema', normalized)
+  window.dispatchEvent(new CustomEvent('vmusic-color-schema-changed', {
+    detail: { schema: normalized }
+  }))
+
+  return normalized
+}
 
 let currentSelectedOption = ref(null)
 
@@ -977,10 +997,18 @@ const previewSinkId = ref(null)
 const previewOutputs = ref([])
 const previewPlaylistEntryId = ref(null)
 const deckSinkId = ref(null)
+const hasStoredSettings = Boolean(localStorage.getItem('vmusic_settings'))
 const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
 previewSinkId.value = savedSettingsRef.previewSinkId || null
 deckSinkId.value = savedSettingsRef.deckSinkId || null
 const excludedTags = ref(savedSettingsRef.excludeTags || [])
+const colorSchema = ref(applyColorSchema(savedSettingsRef.colorSchema))
+if (hasStoredSettings && savedSettingsRef.colorSchema !== colorSchema.value) {
+  localStorage.setItem('vmusic_settings', JSON.stringify({
+    ...savedSettingsRef,
+    colorSchema: colorSchema.value
+  }))
+}
 const downloadTasksCount = ref(0)
 const DOWNLOAD_TASKS_STORAGE_KEY = 'vmusic_download_tasks'
 
@@ -1167,7 +1195,8 @@ if (!localStorage.getItem('vmusic_settings')) {
     recentlyAddedTime: 24,
     previewSinkId: null,
     deckSinkId: null,
-    baseSpeed: 0
+    baseSpeed: 0,
+    colorSchema: COLOR_SCHEMA_DEFAULT
   }
   localStorage.setItem('vmusic_settings', JSON.stringify(initialSettings))
 }
@@ -2439,6 +2468,7 @@ function settingsSaved() {
   previewSinkId.value = s.previewSinkId || null
   deckSinkId.value = s.deckSinkId || null
   excludedTags.value = s.excludeTags || []
+  colorSchema.value = applyColorSchema(s.colorSchema)
   preparePreviewOutput()
   if (player1.value?.setSinkId && deckSinkId.value) {
     player1.value.setSinkId(deckSinkId.value)
@@ -2640,11 +2670,11 @@ table tr td.ant-table-cell {
 }
 
 .ant-table-striped .table-striped td {
-  background-color: #fafafa;
+  background-color: var(--vm-table-stripe);
 }
 
 .ant-table-striped .table-deleted td {
-  background-color: #fecaca !important;
+  background-color: var(--vm-table-deleted) !important;
 }
 
 .ant-table-pagination.ant-pagination {
