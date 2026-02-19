@@ -157,7 +157,9 @@ export default {
       { label: 'Default', value: 'default' },
       { label: 'Ocean', value: 'ocean' },
       { label: 'Sunset', value: 'sunset' },
-      { label: 'Monochrome', value: 'monochrome' }
+      { label: 'Monochrome', value: 'monochrome' },
+      { label: 'Aurora', value: 'aurora' },
+      { label: 'Linen', value: 'linen' }
     ])
     const audioOutputs = ref([])
     const isLoadingOutputs = ref(false)

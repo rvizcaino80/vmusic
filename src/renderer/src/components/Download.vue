@@ -206,6 +206,7 @@ const emit = defineEmits(['downloaded', 'artists-updated'])
 const localArtists = ref([])
 const notFoundArtist = ref(null)
 const formDisabled = ref(true)
+const isInferringGenre = ref(false)
 const downloadTasks = ref([])
 const inProgressDownloads = computed(() => downloadTasks.value.filter((task) => task.status !== 'done' && task.status !== 'error'))
 const isSaving = computed(() => inProgressDownloads.value.length > 0)
@@ -293,6 +294,10 @@ watch(() => props.selectedArtist, (n, o) => {
     totalArtists.value = 1
     selectedArtists.value[1] = n
   }
+})
+
+watch(() => selectedArtists.value[1], (artistId) => {
+  autoSelectGenreFromArtist(artistId)
 })
 
 function saveSong() {
@@ -408,6 +413,55 @@ function addComposer() {
 }
 
 async function onTagsChange(e) {
+}
+
+function normalizeTagName(tagName) {
+  return (tagName || '').trim()
+}
+
+function isIgnoredGenre(tagName) {
+  const normalized = normalizeTagName(tagName).toLowerCase()
+
+  return normalized === 'agregado-reciente' || normalized === 'reciente'
+}
+
+async function autoSelectGenreFromArtist(artistId) {
+  if (!artistId || isInferringGenre.value) return
+
+  isInferringGenre.value = true
+  try {
+    const response = await axios.post('http://localhost:3000/songs/filter-by-artist', {
+      artists: [artistId]
+    })
+
+    const songs = Array.isArray(response.data?.songs) ? response.data.songs : []
+    const counts = new Map()
+
+    songs.forEach((songItem) => {
+      const tags = Array.isArray(songItem?.Tags) ? songItem.Tags : []
+      tags.forEach((tag) => {
+        const tagName = normalizeTagName(tag?.name || '')
+        if (!tagName || isIgnoredGenre(tagName)) return
+        counts.set(tagName, (counts.get(tagName) || 0) + 1)
+      })
+    })
+
+    if (counts.size <= 0) return
+
+    const [genreName] = [...counts.entries()].sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1]
+
+      return a[0].localeCompare(b[0])
+    })[0]
+
+    if (genreName) {
+      selectedTags.value = [genreName]
+    }
+  } catch (error) {
+    console.warn('No se pudo inferir género por artista', error?.message || error)
+  } finally {
+    isInferringGenre.value = false
+  }
 }
 
 async function onURLChange(e) {

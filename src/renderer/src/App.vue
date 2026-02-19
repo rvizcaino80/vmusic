@@ -475,9 +475,9 @@
                     @click.stop="loadLibrarySongToDeck(record, 'A')"
                   >
                     <i-ic-baseline-download
-                      class="w-6 h-6 text-[#EAB308FF]"
+                      class="w-6 h-6 deck-a-indicator"
                     />
-                    <span class="inline-block bg-[#EAB308FF] p-1 leading-none">A</span>
+                    <span class="inline-block p-1 leading-none deck-a-badge">A</span>
                   </button>
 
                   <button
@@ -487,9 +487,9 @@
                     @click.stop="loadLibrarySongToDeck(record, 'B')"
                   >
                     <i-ic-baseline-download
-                      class="w-6 h-6 text-[#EC4899FF]"
+                      class="w-6 h-6 deck-b-indicator"
                     />
-                    <span class="inline-block bg-[#EC4899FF] p-1 leading-none">B</span>
+                    <span class="inline-block p-1 leading-none deck-b-badge">B</span>
                   </button>
                 </div>
               </template>
@@ -668,10 +668,8 @@
             class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 text-white p-2"
             @click="loadDeck('A')"
           >
-            <i-ic-baseline-download
-              class="w-6 h-6 text-white"
-            />
-            <span class="inline-block bg-[#EAB308FF] p-1 leading-none">A</span>
+            <i-ic-baseline-download class="w-6 h-6 deck-a-indicator" />
+            <span class="inline-block p-1 leading-none deck-a-badge">A</span>
           </button>
 
           <button
@@ -681,10 +679,8 @@
             class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 text-white p-2"
             @click="loadDeck('B')"
           >
-            <i-ic-baseline-download
-              class="w-6 h-6 text-white"
-            />
-            <span class="inline-block bg-[#EC4899FF] p-1 leading-none">B</span>
+            <i-ic-baseline-download class="w-6 h-6 deck-b-indicator" />
+            <span class="inline-block p-1 leading-none deck-b-badge">B</span>
           </button>
         </div>
       </div>
@@ -955,9 +951,12 @@ const playerStatuses = {
 }
 const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
 const COLOR_SCHEMA_DEFAULT = 'default'
-const COLOR_SCHEMA_VALUES = ['default', 'ocean', 'sunset', 'monochrome']
+const COLOR_SCHEMA_VALUES = ['default', 'ocean', 'sunset', 'monochrome', 'aurora', 'linen']
 
 function normalizeColorSchema(schema) {
+  if (schema === 'graphite') {
+    return 'aurora'
+  }
   if (!schema || !COLOR_SCHEMA_VALUES.includes(schema)) {
     return COLOR_SCHEMA_DEFAULT
   }
@@ -2679,5 +2678,23 @@ table tr td.ant-table-cell {
 
 .ant-table-pagination.ant-pagination {
   margin: 5px 0 0 0 !important;
+}
+
+.deck-a-indicator {
+  color: var(--vm-player-wave-a);
+}
+
+.deck-b-indicator {
+  color: var(--vm-player-wave-b);
+}
+
+.deck-a-badge {
+  background-color: var(--vm-player-wave-a);
+  color: var(--vm-player-text);
+}
+
+.deck-b-badge {
+  background-color: var(--vm-player-wave-b);
+  color: var(--vm-player-text);
 }
 </style>
