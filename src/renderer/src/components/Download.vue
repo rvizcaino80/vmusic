@@ -180,7 +180,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch, defineEmits, onMounted } from 'vue'
+import { computed, nextTick, ref, watch, defineEmits, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
@@ -213,9 +213,57 @@ const isSaving = computed(() => inProgressDownloads.value.length > 0)
 const TASKS_STORAGE_KEY = 'vmusic_download_tasks'
 const COVER_MAP_STORAGE_KEY = 'vmusic_cover_map'
 const NOTES_STORAGE_KEY = 'vmusic_song_notes'
+const DOWNLOAD_TASK_TIMEOUT_MS = 5 * 60 * 1000
+let downloadTasksWatchdog = null
+
+function now() {
+  return Date.now()
+}
+
+function normalizeTask(task) {
+  const createdAt = typeof task?.createdAt === 'number' ? task.createdAt : now()
+  const updatedAt = typeof task?.updatedAt === 'number' ? task.updatedAt : createdAt
+  const status = task?.status || 'downloading'
+
+  return {
+    ...task,
+    status,
+    statusLabel: task?.statusLabel || (status === 'saving' ? 'Guardando...' : 'Descargando...'),
+    createdAt,
+    updatedAt
+  }
+}
 
 function syncTasksToStorage() {
   localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(downloadTasks.value))
+}
+
+function setTaskStatus(task, status, statusLabel) {
+  task.status = status
+  task.statusLabel = statusLabel
+  task.updatedAt = now()
+  syncTasksToStorage()
+}
+
+function removeTask(taskId) {
+  downloadTasks.value = downloadTasks.value.filter((item) => item.id !== taskId)
+  syncTasksToStorage()
+}
+
+function cleanupTimedOutTasks() {
+  const current = now()
+  const before = downloadTasks.value.length
+
+  downloadTasks.value = downloadTasks.value.filter((task) => {
+    if (task.status === 'done' || task.status === 'error') return true
+    const age = current - (task.updatedAt || task.createdAt || current)
+
+    return age <= DOWNLOAD_TASK_TIMEOUT_MS
+  })
+
+  if (downloadTasks.value.length !== before) {
+    syncTasksToStorage()
+  }
 }
 
 function saveNoteLocally(ytid, note) {
@@ -332,7 +380,9 @@ function saveSong() {
       url: trimmedUrl,
       title: trimmedSong,
       status: 'downloading',
-      statusLabel: 'Descargando...'
+      statusLabel: 'Descargando...',
+      createdAt: now(),
+      updatedAt: now()
     }
     const coverFromMeta = coverUrl.value || ''
 
@@ -360,9 +410,7 @@ function saveSong() {
         }
         payload.ytid = ytid
         saveNoteLocally(ytid, noteForSong)
-        task.status = 'saving'
-        task.statusLabel = 'Guardando...'
-        syncTasksToStorage()
+        setTaskStatus(task, 'saving', 'Guardando...')
 
         return axios.post('http://localhost:3000/songs/save', {
           ytid: payload.ytid,
@@ -376,7 +424,7 @@ function saveSong() {
       })
       .then(function() {
         emit('downloaded', artistIds)
-        task.status = 'done'
+        setTaskStatus(task, 'done', 'Completada')
         if (payload.ytid && payload.coverUrl) {
           try {
             const stored = localStorage.getItem(COVER_MAP_STORAGE_KEY)
@@ -387,18 +435,15 @@ function saveSong() {
             // ignore storage issues
           }
         }
-        syncTasksToStorage()
       })
       .catch(function(error) {
-        task.status = 'error'
+        setTaskStatus(task, 'error', 'Error')
         isError.value = true
         errorMessage.value = error.response?.data?.message || error.message || 'Error al descargar'
-        syncTasksToStorage()
       })
       .finally(function() {
         if (task.status === 'done' || task.status === 'error') {
-          downloadTasks.value = downloadTasks.value.filter((item) => item.id !== task.id)
-          syncTasksToStorage()
+          removeTask(task.id)
         }
       })
   }
@@ -637,11 +682,20 @@ onMounted(() => {
     try {
       const parsed = JSON.parse(stored)
       if (Array.isArray(parsed)) {
-        downloadTasks.value = parsed
+        downloadTasks.value = parsed.map((task) => normalizeTask(task))
       }
     } catch (error) {
       // ignore invalid cache
     }
+  }
+  cleanupTimedOutTasks()
+  downloadTasksWatchdog = setInterval(cleanupTimedOutTasks, 5000)
+})
+
+onUnmounted(() => {
+  if (downloadTasksWatchdog) {
+    clearInterval(downloadTasksWatchdog)
+    downloadTasksWatchdog = null
   }
 })
 </script>

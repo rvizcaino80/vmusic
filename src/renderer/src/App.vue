@@ -1169,6 +1169,7 @@ if (
 }
 const downloadTasksCount = ref(0)
 const DOWNLOAD_TASKS_STORAGE_KEY = 'vmusic_download_tasks'
+const DOWNLOAD_TASK_TIMEOUT_MS = 5 * 60 * 1000
 
 // Tags
 const tags = ref([])
@@ -1511,7 +1512,21 @@ function refreshDownloadCount() {
   try {
     const parsed = JSON.parse(stored)
     if (Array.isArray(parsed)) {
-      downloadTasksCount.value = parsed.filter((task) => task.status !== 'done' && task.status !== 'error').length
+      const now = Date.now()
+      const filtered = parsed.filter((task) => {
+        if (task.status === 'done' || task.status === 'error') return false
+        const updatedAt = typeof task.updatedAt === 'number' ? task.updatedAt : (typeof task.createdAt === 'number' ? task.createdAt : 0)
+        if (!updatedAt) return false
+
+        return (now - updatedAt) <= DOWNLOAD_TASK_TIMEOUT_MS
+      })
+      if (filtered.length !== parsed.filter((task) => task.status !== 'done' && task.status !== 'error').length) {
+        localStorage.setItem(DOWNLOAD_TASKS_STORAGE_KEY, JSON.stringify([
+          ...parsed.filter((task) => task.status === 'done' || task.status === 'error'),
+          ...filtered
+        ]))
+      }
+      downloadTasksCount.value = filtered.length
     } else {
       downloadTasksCount.value = 0
     }
