@@ -146,7 +146,7 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
 
-const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'preview-start', 'preview-stop'])
+const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'preview-start', 'preview-stop', 'finished'])
 
 const props = defineProps({
   position: String,
@@ -316,6 +316,10 @@ function init() {
   })
 
   player.on('finish', () => {
+    const finishedSong = songFull.value?.id ? { ...songFull.value } : null
+    if (finishedSong) {
+      emit('finished', finishedSong)
+    }
     resetSongMetadata()
     player.setPlaybackRate(1.0)
     speed_added.value = 0
@@ -341,6 +345,10 @@ function init() {
 }
 
 function next() {
+  const finishedSong = songFull.value?.id ? { ...songFull.value } : null
+  if (finishedSong) {
+    emit('finished', finishedSong)
+  }
   left.value = 0
   resetSongMetadata()
   start.value = null
@@ -359,6 +367,10 @@ function calculateVolume(ct) {
   left.value = end.value - ct
 
   if (status.value === props.statuses.Cambiando && ct > end.value) {
+    const finishedSong = songFull.value?.id ? { ...songFull.value } : null
+    if (finishedSong) {
+      emit('finished', finishedSong)
+    }
     left.value = 0
     resetSongMetadata()
     start.value = null

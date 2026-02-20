@@ -14,9 +14,9 @@
   >
     <div
       :class="{
-        'w-9/12': currentSelectedOption === options.library,
+        'w-9/12': currentSelectedOption === options.library || currentSelectedOption === options.history,
         'w-11/12': currentSelectedOption === options.wave,
-        'w-2/5': currentSelectedOption !== options.wave && currentSelectedOption !== options.library
+        'w-2/5': currentSelectedOption !== options.wave && currentSelectedOption !== options.library && currentSelectedOption !== options.history
       }"
       class="right-[40px] fixed flex h-full flex-col min-h-[0] bg-gray-300 p-6 text-black"
       @click="hideMenu"
@@ -497,6 +497,138 @@
           </a-table>
         </div>
       </div>
+
+      <div
+        v-if="currentSelectedOption && currentSelectedOption === options.history"
+        class="flex flex-col space-y-4 flex-1 min-h-[0]"
+      >
+        <div class="flex items-center justify-between space-x-3">
+          <div class="flex items-center space-x-3">
+            <a-button
+              v-if="playlistDetails.length === 0"
+              :disabled="historySelectedRows.length <= 0"
+              type="primary"
+              class="flex items-center space-x-1 pl-2.5"
+              @click="addHistoryToPlaylist(0, { ignoreMarks: $event.altKey })"
+            >
+              <i-mdi-plus class="w-5 h-5" />
+              Agregar
+            </a-button>
+
+            <a-button
+              v-if="playlistDetails.length === 0"
+              :disabled="historySelectedRows.length <= 1"
+              type="primary"
+              class="flex items-center space-x-1 pl-2.5"
+              @click="addHistoryToPlaylist(3)"
+            >
+              <i-mdi-shuffle class="w-4 h-4" />
+              Aleatorio
+            </a-button>
+
+            <template v-if="playlistDetails.length > 0">
+              <a-button
+                :disabled="historySelectedRows.length <= 0"
+                type="primary"
+                class="flex items-center space-x-1 pl-2.5"
+                @click="addHistoryToPlaylist(1, { ignoreMarks: $event.altKey })"
+              >
+                <i-ic-baseline-move-up class="w-5 h-5" />
+                Al comienzo
+              </a-button>
+
+              <a-button
+                :disabled="historySelectedRows.length <= 0"
+                type="primary"
+                class="flex items-center space-x-1 pl-2.5"
+                @click="addHistoryToPlaylist(2, { ignoreMarks: $event.altKey })"
+              >
+                <i-ic-baseline-move-down class="w-5 h-5" />
+                Al final
+              </a-button>
+            </template>
+          </div>
+
+          <div class="text-sm text-gray-700">
+            {{ recentSongHistory.length }} canciones recientes
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto">
+          <a-table
+            class="ant-table-striped"
+            :animate-rows="false"
+            :row-key="record => record.historyId"
+            :row-class-name="(_record, index) => (index % 2 === 1 ? 'table-striped' : null)"
+            :show-sorter-tooltip="false"
+            :pagination="false"
+            sticky
+            size="small"
+            :data-source="recentSongHistory"
+            :columns="historyColumns"
+            :row-selection="{ selectedRowKeys: historySelectedRows, onChange: onHistorySelectChange }"
+          >
+            <template #emptyText>
+              <div class="min-h-[40px] leading-[40px]">
+                No hay canciones en historial.
+              </div>
+            </template>
+            <template #bodyCell="{ record, column }">
+              <template v-if="column.dataIndex === 'artistsJoined'">
+                <div class="flex flex-wrap gap-x-3 gap-y-1">
+                  <div
+                    v-for="artist in record.Artists"
+                    :key="artist.id"
+                    class="flex items-center space-x-1 text-[13px]"
+                  >
+                    <button
+                      type="button"
+                      class="text-left hover:underline cursor-pointer"
+                      title="Ver canciones de este artista"
+                      @click.stop="quickFilterByArtist(artist.id)"
+                    >
+                      {{ artist.name }}
+                    </button>
+                  </div>
+                </div>
+              </template>
+              <template v-else-if="column.dataIndex === 'source'">
+                <i-ic-baseline-apple
+                  v-if="record.isAppleMusic"
+                  class="mx-auto w-5 h-5"
+                />
+                <i-mingcute-youtube-fill
+                  v-else
+                  class="mx-auto w-5 h-5"
+                />
+              </template>
+              <template v-else-if="column.dataIndex === 'decks'">
+                <div class="flex items-center justify-center space-x-2">
+                  <button
+                    :disabled="isDeckManualLoadDisabled('A')"
+                    type="button"
+                    class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
+                    @click.stop="loadLibrarySongToDeck(record, 'A')"
+                  >
+                    <i-ic-baseline-download class="w-6 h-6 deck-a-indicator" />
+                    <span class="inline-block p-1 leading-none deck-a-badge">A</span>
+                  </button>
+
+                  <button
+                    :disabled="isDeckManualLoadDisabled('B')"
+                    type="button"
+                    class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
+                    @click.stop="loadLibrarySongToDeck(record, 'B')"
+                  >
+                    <i-ic-baseline-download class="w-6 h-6 deck-b-indicator" />
+                    <span class="inline-block p-1 leading-none deck-b-badge">B</span>
+                  </button>
+                </div>
+              </template>
+            </template>
+          </a-table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -512,6 +644,7 @@
         @preview-stop="stopPreview"
         @loaded="checkPlayers(player1)"
         @stopped="checkPlayers(player1)"
+        @finished="onSongFinished"
         @fading="songFading(player1)"
         @speed="saveSpeed(player1)"
       />
@@ -538,6 +671,7 @@
         @preview-stop="stopPreview"
         @loaded="checkPlayers(player2)"
         @stopped="checkPlayers(player2)"
+        @finished="onSongFinished"
         @fading="songFading(player2)"
         @speed="saveSpeed(player2)"
       />
@@ -858,6 +992,16 @@
             </span>
           </div>
         </div>
+
+        <div
+          :class="{ 'bg-gray-300': currentSelectedOption === options.history }"
+          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
+          @click="setOption(options.history)"
+        >
+          <div>
+            <i-mdi-clock-outline class="w-7 h-7" />
+          </div>
+        </div>
       </div>
 
       <div class="flex flex-col w-full">
@@ -931,6 +1075,7 @@ import Multiselect from './components/Multiselect.vue'
 let options = {
   library: 10,
   download: 20,
+  history: 22,
   downloadDetails: 25,
   tags: 30,
   settings: 40,
@@ -952,6 +1097,16 @@ const playerStatuses = {
 const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
 const COLOR_SCHEMA_DEFAULT = 'default'
 const COLOR_SCHEMA_VALUES = ['default', 'ocean', 'sunset', 'monochrome', 'aurora', 'linen']
+const SONG_HISTORY_STORAGE_KEY = 'vmusic_song_history'
+
+function normalizeHistoryLimit(limit) {
+  const parsed = Number(limit)
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 15
+  }
+
+  return Math.floor(parsed)
+}
 
 function normalizeColorSchema(schema) {
   if (schema === 'graphite') {
@@ -998,14 +1153,18 @@ const previewPlaylistEntryId = ref(null)
 const deckSinkId = ref(null)
 const hasStoredSettings = Boolean(localStorage.getItem('vmusic_settings'))
 const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
+const normalizedHistoryLimit = normalizeHistoryLimit(savedSettingsRef.historyLimit)
 previewSinkId.value = savedSettingsRef.previewSinkId || null
 deckSinkId.value = savedSettingsRef.deckSinkId || null
 const excludedTags = ref(savedSettingsRef.excludeTags || [])
 const colorSchema = ref(applyColorSchema(savedSettingsRef.colorSchema))
-if (hasStoredSettings && savedSettingsRef.colorSchema !== colorSchema.value) {
+if (
+  hasStoredSettings && (savedSettingsRef.colorSchema !== colorSchema.value || savedSettingsRef.historyLimit !== normalizedHistoryLimit)
+) {
   localStorage.setItem('vmusic_settings', JSON.stringify({
     ...savedSettingsRef,
-    colorSchema: colorSchema.value
+    colorSchema: colorSchema.value,
+    historyLimit: normalizedHistoryLimit
   }))
 }
 const downloadTasksCount = ref(0)
@@ -1017,6 +1176,8 @@ const tags = ref([])
 // Playlist
 const history = ref([])
 const tagHistory = ref([])
+const songHistory = ref([])
+const historySelectedRows = ref([])
 const playlist = ref([])
 const playlistDetails = ref([])
 const currentMode = ref(0)
@@ -1164,6 +1325,43 @@ const columns = computed(() => {
   return cols
 })
 
+const historyColumns = computed(() => ([
+  {
+    title: 'Título',
+    dataIndex: 'name',
+    sorter: {
+      compare: (a, b) => a.name.localeCompare(b.name)
+    }
+  },
+  {
+    title: 'Artista',
+    dataIndex: 'artistsJoined',
+    sorter: {
+      compare: (a, b) => a.artistsJoined.localeCompare(b.artistsJoined)
+    }
+  },
+  {
+    title: 'Fuente',
+    dataIndex: 'source',
+    align: 'center',
+    width: 80
+  },
+  {
+    title: '',
+    dataIndex: 'decks',
+    align: 'center',
+    width: 190
+  }
+]))
+
+const recentSongHistory = computed(() => {
+  const limit = normalizeHistoryLimit(JSON.parse(localStorage.getItem('vmusic_settings'))?.historyLimit)
+
+  return [...songHistory.value]
+    .sort((a, b) => (b.playedAt || 0) - (a.playedAt || 0))
+    .slice(0, limit)
+})
+
 const addButtonDisabled = computed(() => {
   const player1Status = player1.value?.status
   const player2Status = player2.value?.status
@@ -1192,6 +1390,7 @@ if (!localStorage.getItem('vmusic_settings')) {
     rowsPerPage: 24,
     crossfaderTime: 1,
     recentlyAddedTime: 24,
+    historyLimit: 15,
     previewSinkId: null,
     deckSinkId: null,
     baseSpeed: 0,
@@ -1202,6 +1401,10 @@ if (!localStorage.getItem('vmusic_settings')) {
 
 const onSelectChange = (selectedRowKeys) => {
   selectedSongs.value = selectedRowKeys
+}
+
+const onHistorySelectChange = (selectedRowKeys) => {
+  historySelectedRows.value = selectedRowKeys
 }
 
 const onSelectAll = (selected, selectedRows, changeRows) => {
@@ -1217,6 +1420,75 @@ const onSelectAll = (selected, selectedRows, changeRows) => {
     pageSizeRef.value = savedSettings.rowsPerPage
   }
 }
+
+function formatHistoryPlayedAt(value) {
+  return dayjs(value).format('YYYY-MM-DD HH:mm:ss')
+}
+
+function normalizeSongForHistory(song) {
+  if (!song) return null
+
+  return {
+    ...song,
+    key: song.id,
+    artistsJoined: Array.isArray(song.Artists) ? song.Artists.map((artist) => artist.name).join(', ') : '',
+    composersJoined: Array.isArray(song.Composers) ? song.Composers.map((composer) => composer.name).join(', ') : ''
+  }
+}
+
+function saveSongHistory() {
+  localStorage.setItem(SONG_HISTORY_STORAGE_KEY, JSON.stringify(songHistory.value))
+}
+
+function loadSongHistory() {
+  const stored = localStorage.getItem(SONG_HISTORY_STORAGE_KEY)
+  if (!stored) {
+    songHistory.value = []
+
+    return
+  }
+
+  try {
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed)) {
+      songHistory.value = []
+
+      return
+    }
+    songHistory.value = parsed
+      .map((item) => ({
+        ...normalizeSongForHistory(item),
+        historyId: item.historyId || `${item.id}-${item.playedAt || Date.now()}-${Math.random().toString(16)
+          .slice(2)}`,
+        playedAt: item.playedAt || Date.now(),
+        playedAtText: formatHistoryPlayedAt(item.playedAt || Date.now())
+      }))
+      .filter((item) => Boolean(item && item.id))
+  } catch (error) {
+    songHistory.value = []
+  }
+}
+
+function recordSongToHistory(song) {
+  const normalized = normalizeSongForHistory(song)
+  if (!normalized || !normalized.id) return
+
+  const playedAt = Date.now()
+  const entry = {
+    ...normalized,
+    historyId: `${normalized.id}-${playedAt}-${Math.random().toString(16)
+      .slice(2)}`,
+    playedAt,
+    playedAtText: formatHistoryPlayedAt(playedAt)
+  }
+  const limit = normalizeHistoryLimit(JSON.parse(localStorage.getItem('vmusic_settings'))?.historyLimit)
+  songHistory.value = [entry, ...songHistory.value]
+    .sort((a, b) => (b.playedAt || 0) - (a.playedAt || 0))
+    .slice(0, limit)
+  saveSongHistory()
+}
+
+loadSongHistory()
 
 onMounted(() => {
   // filterSongs()
@@ -1277,6 +1549,11 @@ watch(playlistDetails, () => {
     playlistSearchResults.value = []
     playlistSearchIndex.value = 0
   }
+})
+
+watch(recentSongHistory, (rows) => {
+  const validIds = new Set(rows.map((row) => row.historyId))
+  historySelectedRows.value = historySelectedRows.value.filter((key) => validIds.has(key))
 })
 
 const removeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -1626,6 +1903,9 @@ async function setOption(option, extraArtists = [], recent = false) {
     artists.value = await getArtists(true)
 
     // reset()
+  } else if (currentSelectedOption.value === options.history) {
+    historySelectedRows.value = []
+    loadSongHistory()
   } else if (currentSelectedOption.value === options.tags) {
     getTags()
   }
@@ -2114,33 +2394,36 @@ async function exportM3U() {
   }
 }
 
-function addToPlaylist(action, play = false, options = {}) {
+function addSongsToPlaylist(songIds, action, play = false, options = {}) {
   const { ignoreMarks = false } = options
+  if (!Array.isArray(songIds) || songIds.length <= 0) return
+
+  const ids = [...songIds]
   const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
   pageSizeRef.value = savedSettings.rowsPerPage
 
   if (action === 0) {
-    playlist.value = selectedSongs.value.concat(playlist.value)
+    playlist.value = ids.concat(playlist.value)
   } else if (action === 1) {
-    playlist.value = selectedSongs.value.concat(playlist.value)
+    playlist.value = ids.concat(playlist.value)
   } else if (action === 2) {
-    selectedSongs.value.forEach((song) => {
+    ids.forEach((song) => {
       playlist.value.push(song)
     })
   } else if (action === 3) {
-    selectedSongs.value = shuffle(selectedSongs.value)
-    selectedSongs.value.forEach((song) => {
+    const shuffled = shuffle(ids)
+    shuffled.forEach((song) => {
       playlist.value.push(song)
     })
   }
 
   axios
     .post('http://localhost:3000/songs/by-id', {
-      ids: selectedSongs.value
+      ids
     })
     .then(function(response) {
       let temp = []
-      selectedSongs.value.forEach((item) => {
+      ids.forEach((item) => {
         temp.push(response.data.filter((s) => s.id === item)[0])
       })
 
@@ -2166,6 +2449,21 @@ function addToPlaylist(action, play = false, options = {}) {
     .finally(function() {
       loadPlayers(play)
     })
+}
+
+function addToPlaylist(action, play = false, options = {}) {
+  addSongsToPlaylist(selectedSongs.value, action, play, options)
+}
+
+function getSelectedHistorySongs() {
+  const selected = new Set(historySelectedRows.value)
+
+  return recentSongHistory.value.filter((song) => selected.has(song.historyId))
+}
+
+function addHistoryToPlaylist(action, options = {}) {
+  const ids = getSelectedHistorySongs().map((song) => song.id)
+  addSongsToPlaylist(ids, action, false, options)
 }
 
 function loadPlayers(play = false) {
@@ -2220,11 +2518,7 @@ function loadDeck(deck) {
   const canLoadDirectly = targetPlayer && (targetPlayer.status === playerStatuses.Detenido || targetPlayer.status === playerStatuses['Sin Carga'])
 
   if (canSwapLoadedSong) {
-    const songToInsert = targetPlayer.songFull?.entryId
-? targetPlayer.songFull
-: (
-      targetPlayer.songFull ? createPlaylistEntry(targetPlayer.songFull) : null
-    )
+    const songToInsert = targetPlayer.songFull?.entryId ? targetPlayer.songFull : (targetPlayer.songFull ? createPlaylistEntry(targetPlayer.songFull) : null)
     if (songToInsert) {
       playlistDetails.value.splice(index, 0, songToInsert)
     }
@@ -2481,6 +2775,11 @@ function settingsSaved() {
   if (player2.value?.refreshBaseSpeed) {
     player2.value.refreshBaseSpeed()
   }
+  const historyLimit = normalizeHistoryLimit(s.historyLimit)
+  songHistory.value = [...songHistory.value]
+    .sort((a, b) => (b.playedAt || 0) - (a.playedAt || 0))
+    .slice(0, historyLimit)
+  saveSongHistory()
   if (currentSelectedOption.value === options.library) {
     const allowed = selectedTags.value.filter((id) => !excludedTags.value.includes(id))
     selectedTags.value = allowed
@@ -2628,6 +2927,10 @@ async function previewStartFromPlayer({ song, status }) {
   // Permitir preview solo si el deck correspondiente no está reproduciendo
   if (status === playerStatuses.Reproduciendo) return
   await startPreview(song)
+}
+
+function onSongFinished(song) {
+  recordSongToHistory(song)
 }
 
 function onTableChange(pagination, filters, sorter, { action, currentDataSource }) {

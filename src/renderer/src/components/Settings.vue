@@ -50,6 +50,19 @@
       </a-form-item>
 
       <a-form-item
+        label="Historial reciente"
+        name="historyLimit"
+        :rules="[{ required: true, type: 'number', message: 'Ingrese un número válido!' }]"
+      >
+        <a-input-number
+          id="inputNumber"
+          v-model:value="formState.historyLimit"
+          :min="1"
+          :max="200"
+        />
+      </a-form-item>
+
+      <a-form-item
         label="Velocidad base"
         name="baseSpeed"
         :rules="[{ required: true, type: 'number', message: 'Ingrese un número válido!' }]"
@@ -136,6 +149,7 @@ export default {
       rowsPerPage: 24,
       crossfaderTime: 1,
       recentlyAddedTime: 24,
+      historyLimit: 15,
       baseSpeed: 0,
       excludeTags: [],
       colorSchema: 'default'
@@ -145,6 +159,7 @@ export default {
       rowsPerPage: savedSettings.rowsPerPage,
       crossfaderTime: savedSettings.crossfaderTime,
       recentlyAddedTime: savedSettings.recentlyAddedTime,
+      historyLimit: typeof savedSettings.historyLimit === 'number' ? savedSettings.historyLimit : 15,
       baseSpeed: typeof savedSettings.baseSpeed === 'number' ? savedSettings.baseSpeed : 0,
       previewSinkId: savedSettings.previewSinkId || null,
       deckSinkId: savedSettings.deckSinkId || null,
@@ -217,6 +232,7 @@ export default {
         rowsPerPage: formState.rowsPerPage,
         crossfaderTime: formState.crossfaderTime,
         recentlyAddedTime: formState.recentlyAddedTime,
+        historyLimit: formState.historyLimit,
         baseSpeed: formState.baseSpeed,
         previewSinkId: formState.previewSinkId === 'default' ? null : formState.previewSinkId || null,
         deckSinkId: formState.deckSinkId === 'default' ? null : formState.deckSinkId || null,
