@@ -1103,6 +1103,9 @@ const playerStatuses = {
 const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
 const COLOR_SCHEMA_DEFAULT = 'default'
 const COLOR_SCHEMA_VALUES = ['default', 'monochrome', 'sunset', 'aurora', 'bosque', 'linen', 'coral', 'nocturno', 'ocean']
+const COLOR_SCHEMA_TRANSITION_MS = 1000
+let colorSchemaTransitionTimer = null
+let colorSchemaTransitionRaf = null
 const SONG_HISTORY_STORAGE_KEY = 'vmusic_song_history'
 
 function normalizeHistoryLimit(limit) {
@@ -1127,10 +1130,29 @@ function normalizeColorSchema(schema) {
 
 function applyColorSchema(schema) {
   const normalized = normalizeColorSchema(schema)
-  document.documentElement.setAttribute('data-color-schema', normalized)
-  window.dispatchEvent(new CustomEvent('vmusic-color-schema-changed', {
-    detail: { schema: normalized }
-  }))
+  const root = document.documentElement
+  root.classList.add('vm-theme-transitioning')
+
+  // Ensure the transition styles are committed before changing CSS variables.
+
+  root.offsetHeight
+  if (colorSchemaTransitionRaf) {
+    cancelAnimationFrame(colorSchemaTransitionRaf)
+  }
+  colorSchemaTransitionRaf = requestAnimationFrame(() => {
+    root.setAttribute('data-color-schema', normalized)
+    window.dispatchEvent(new CustomEvent('vmusic-color-schema-changed', {
+      detail: { schema: normalized }
+    }))
+    colorSchemaTransitionRaf = null
+  })
+  if (colorSchemaTransitionTimer) {
+    clearTimeout(colorSchemaTransitionTimer)
+  }
+  colorSchemaTransitionTimer = setTimeout(() => {
+    root.classList.remove('vm-theme-transitioning')
+    colorSchemaTransitionTimer = null
+  }, COLOR_SCHEMA_TRANSITION_MS + 40)
 
   return normalized
 }

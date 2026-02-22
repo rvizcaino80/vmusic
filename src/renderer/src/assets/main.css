@@ -306,6 +306,14 @@ body {
   background-color: var(--vm-bg-body);
 }
 
+html.vm-theme-transitioning *,
+html.vm-theme-transitioning *::before,
+html.vm-theme-transitioning *::after {
+  transition-property: background-color, color, border-color, fill, stroke, stop-color, box-shadow;
+  transition-duration: 1000ms;
+  transition-timing-function: ease;
+}
+
 table.dark {
   tr {
     td {
