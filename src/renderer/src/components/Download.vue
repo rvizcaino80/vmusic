@@ -78,7 +78,7 @@
 
       <a-alert
         v-if="notFoundArtist"
-        :message="`Artista (${notFoundArtist}) no encontrado.`"
+        :message="`No se encontró coincidencia exacta para (${notFoundArtist}).`"
         type="info"
       >
         <template #action>
@@ -218,6 +218,176 @@ let downloadTasksWatchdog = null
 
 function now() {
   return Date.now()
+}
+
+function normalizeArtistName(value) {
+  return (value || '')
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/&|\+/g, ' y ')
+    .replace(/\band\b/g, ' y ')
+    .replace(/\bfeat(?:\.|uring)?\b/g, ' ')
+    .replace(/\bft\.?\b/g, ' ')
+    .replace(/\bx\b/g, ' y ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function normalizeExactArtistName(value) {
+  return (value || '')
+    .toString()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function normalizeSearchText(value) {
+  return (value || '')
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function artistTokens(value) {
+  return normalizeArtistName(value).split(' ')
+    .filter((token) => token.length > 0)
+}
+
+function splitArtistCandidates(value) {
+  const raw = (value || '').toString().trim()
+  if (!raw) return []
+
+  const chunks = raw.split(/\s*(?:,|;|\/|&|\+|\s+y\s+|\s+and\s+|\s+feat\.?\s+|\s+featuring\s+|\s+ft\.?\s+|\s+x\s+)\s*/i)
+  const dedup = new Set([raw, ...chunks])
+
+  return [...dedup]
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+}
+
+function artistSpecificity(value) {
+  const normalized = normalizeArtistName(value)
+  if (!normalized) return 0
+  const tokens = normalized.split(' ')
+    .filter((token) => token.length > 0)
+
+  return (tokens.length * 1000) + normalized.length
+}
+
+function shouldReplaceBest(bestScore, bestArtist, nextScore, nextArtistName) {
+  if (nextScore > bestScore) return true
+  if (nextScore < bestScore) return false
+  if (!bestArtist) return true
+
+  const bestSpecificity = artistSpecificity(bestArtist?.name || '')
+  const nextSpecificity = artistSpecificity(nextArtistName || '')
+
+  return nextSpecificity > bestSpecificity
+}
+
+function scoreArtistSimilarity(a, b) {
+  const normalizedA = normalizeArtistName(a)
+  const normalizedB = normalizeArtistName(b)
+  if (!normalizedA || !normalizedB) return 0
+  if (normalizedA === normalizedB) return 1
+
+  const shortest = Math.min(normalizedA.length, normalizedB.length)
+  if (shortest >= 4 && (normalizedA.includes(normalizedB) || normalizedB.includes(normalizedA))) {
+    return 0.92
+  }
+
+  const tokensA = new Set(artistTokens(a))
+  const tokensB = new Set(artistTokens(b))
+  if (tokensA.size <= 0 || tokensB.size <= 0) return 0
+
+  let common = 0
+  for (const token of tokensA) {
+    if (tokensB.has(token)) common += 1
+  }
+
+  const base = common / Math.max(tokensA.size, tokensB.size)
+  const firstA = [...tokensA][0]
+  const firstB = [...tokensB][0]
+  const startsEqual = firstA && firstB && firstA === firstB ? 0.08 : 0
+
+  return Math.min(1, base + startsEqual)
+}
+
+function findBestArtistMatch(name) {
+  const artistList = localArtists.value.length > 0 ? localArtists.value : props.artists
+  if (!name || !Array.isArray(artistList) || artistList.length <= 0) return null
+
+  const normalizedFullName = normalizeArtistName(name)
+  const fullNameTokens = artistTokens(name)
+  const candidates = splitArtistCandidates(name)
+  let bestArtist = null
+  let bestScore = 0
+
+  // Phase 1: prioritize the complete metadata artist string.
+  artistList.forEach((artist) => {
+    const artistName = artist?.name || ''
+    if (!artistName) return
+
+    const normalizedArtistName = normalizeArtistName(artistName)
+    let score = scoreArtistSimilarity(name, artistName)
+
+    if (normalizedFullName && normalizedArtistName === normalizedFullName) {
+      score = 1
+    }
+
+    if (fullNameTokens.length > 1 && artistTokens(artistName).length === 1 && score < 1) {
+      score -= 0.12
+    }
+
+    if (shouldReplaceBest(bestScore, bestArtist, score, artistName)) {
+      bestScore = score
+      bestArtist = artist
+    }
+  })
+
+  if (bestScore >= 0.95) return bestArtist
+
+  // Phase 2: fallback to splitted candidates if full-name match is weak.
+  artistList.forEach((artist) => {
+    const artistName = artist?.name || ''
+    if (!artistName) return
+
+    candidates.forEach((candidate) => {
+      let score = scoreArtistSimilarity(candidate, artistName)
+
+      if (fullNameTokens.length > 1 && artistTokens(artistName).length === 1 && score < 1) {
+        score -= 0.12
+      }
+
+      if (shouldReplaceBest(bestScore, bestArtist, score, artistName)) {
+        bestScore = score
+        bestArtist = artist
+      }
+    })
+  })
+
+  return bestScore >= 0.8 ? bestArtist : null
+}
+
+function findArtistMatchDetails(name) {
+  const artistList = localArtists.value.length > 0 ? localArtists.value : props.artists
+  if (!name || !Array.isArray(artistList) || artistList.length <= 0) {
+    return { artist: null, isPerfect: false }
+  }
+
+  const normalizedExactInput = normalizeExactArtistName(name)
+  const perfectArtist = artistList.find((artist) => normalizeExactArtistName(artist?.name || '') === normalizedExactInput) || null
+  if (perfectArtist) {
+    return { artist: perfectArtist, isPerfect: true }
+  }
+
+  return { artist: findBestArtistMatch(name), isPerfect: false }
 }
 
 function normalizeTask(task) {
@@ -541,11 +711,12 @@ async function onURLChange(e) {
       tempArtist = songInfo.audio.byArtist[0].name
     }
 
-    const a = props.artists.filter((a) => a.name.trim().toLowerCase() === tempArtist.trim().toLowerCase())
+    const { artist: match, isPerfect } = findArtistMatchDetails(tempArtist)
 
-    if (a.length > 0) {
+    if (match) {
       await nextTick()
-      selectedArtists.value[1] = a[0].id
+      selectedArtists.value[1] = match.id
+      notFoundArtist.value = isPerfect ? null : tempArtist
     } else {
       notFoundArtist.value = tempArtist
     }
@@ -644,11 +815,12 @@ async function fillSongAndArtist(title, artistName) {
   }
 
   if (artistName) {
-    const match = props.artists.filter((a) => a.name.trim().toLowerCase() === artistName.trim().toLowerCase())
+    const { artist: match, isPerfect } = findArtistMatchDetails(artistName)
 
-    if (match.length > 0) {
+    if (match) {
       await nextTick()
-      selectedArtists.value[1] = match[0].id
+      selectedArtists.value[1] = match.id
+      notFoundArtist.value = isPerfect ? null : artistName
     } else {
       notFoundArtist.value = artistName
     }
@@ -656,7 +828,10 @@ async function fillSongAndArtist(title, artistName) {
 }
 
 const filterOption = (input, option) => {
-  return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+  const normalizedInput = normalizeSearchText(input)
+  const normalizedLabel = normalizeSearchText(option?.label || '')
+
+  return normalizedLabel.includes(normalizedInput)
 }
 
 function addNewArtist(name) {

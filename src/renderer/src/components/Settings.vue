@@ -170,11 +170,14 @@ export default {
     const tagOptions = ref([])
     const colorSchemaOptions = ref([
       { label: 'Default', value: 'default' },
-      { label: 'Ocean', value: 'ocean' },
-      { label: 'Sunset', value: 'sunset' },
-      { label: 'Monochrome', value: 'monochrome' },
+      { label: 'Acero y Brasa', value: 'monochrome' },
+      { label: 'Atardecer', value: 'sunset' },
       { label: 'Aurora', value: 'aurora' },
-      { label: 'Linen', value: 'linen' }
+      { label: 'Bosque', value: 'bosque' },
+      { label: 'Cobre y Turquesa', value: 'linen' },
+      { label: 'Coral', value: 'coral' },
+      { label: 'Nocturno', value: 'nocturno' },
+      { label: 'Oceano', value: 'ocean' }
     ])
     const audioOutputs = ref([])
     const isLoadingOutputs = ref(false)

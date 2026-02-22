@@ -290,8 +290,21 @@ function addComposer() {
   totalComposers.value += 1
 }
 
+function normalizeSearchText(value) {
+  return (value || '')
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 const filterOption = (input, option) => {
-  return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+  const normalizedInput = normalizeSearchText(input)
+  const normalizedLabel = normalizeSearchText(option?.label || '')
+
+  return normalizedLabel.includes(normalizedInput)
 }
 
 function saveNoteLocally(ytidValue, note) {

@@ -636,9 +636,13 @@
     <div class="flex-[5] flex flex-col justify-between">
       <Player
         ref="player1"
+        :class="{
+          'opacity-50': !player1 || player1.status !== playerStatuses.Reproduciendo
+        }"
         :statuses="playerStatuses"
         position="top"
         :output-sink-id="deckSinkId"
+        class="transition-opacity duration-300"
         @artist-click="openLibraryForArtist"
         @preview-start="previewStartFromPlayer"
         @preview-stop="stopPreview"
@@ -650,22 +654,24 @@
       />
       <div class="p-6">
         <div class="relative">
-          <div class="select-none absolute text-sm text-gray-500 right-[140px] top-[40px]">
-            v{{ version }}
-          </div>
-          <img
+          <div
             id="logo"
-            class="w-full h-auto select-none"
-            src="/logo.png"
-            alt="Salsamanía por Rogers Vizcaino"
-          >
+            class="vm-logo w-full h-auto select-none"
+            role="img"
+            aria-label="Salsamanía por Rogers Vizcaino"
+            v-html="logoSvgMarkup"
+          />
         </div>
       </div>
       <Player
         ref="player2"
+        :class="{
+          'opacity-50': !player2 || player2.status !== playerStatuses.Reproduciendo
+        }"
         :statuses="playerStatuses"
         position="bottom"
         :output-sink-id="deckSinkId"
+        class="transition-opacity duration-300"
         @artist-click="openLibraryForArtist"
         @preview-start="previewStartFromPlayer"
         @preview-stop="stopPreview"
@@ -1059,8 +1065,8 @@
 <script setup>
 import axios from 'axios'
 import { onMounted, onUnmounted, computed, ref, watch, reactive, nextTick } from 'vue'
-import { version } from '../../../package.json'
 import dayjs from 'dayjs'
+import logoSvgMarkup from './assets/logo.svg?raw'
 
 /* Components */
 import Artists from './components/Artists.vue'
@@ -1096,7 +1102,7 @@ const playerStatuses = {
 }
 const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
 const COLOR_SCHEMA_DEFAULT = 'default'
-const COLOR_SCHEMA_VALUES = ['default', 'ocean', 'sunset', 'monochrome', 'aurora', 'linen']
+const COLOR_SCHEMA_VALUES = ['default', 'monochrome', 'sunset', 'aurora', 'bosque', 'linen', 'coral', 'nocturno', 'ocean']
 const SONG_HISTORY_STORAGE_KEY = 'vmusic_song_history'
 
 function normalizeHistoryLimit(limit) {
@@ -3014,5 +3020,11 @@ table tr td.ant-table-cell {
 .deck-b-badge {
   background-color: var(--vm-player-wave-b);
   color: var(--vm-player-text);
+}
+
+.vm-logo svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 </style>

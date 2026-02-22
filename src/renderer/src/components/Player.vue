@@ -184,6 +184,8 @@ const baseSpeed = ref(0)
 let wsRegions = null
 let originalOptions = {}
 let crossfaderOptions = {}
+let resizeObserver = null
+let resizeRafId = null
 const regionColor = ref('rgba(114,0,0,0.64)')
 const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
 
@@ -205,6 +207,8 @@ onBeforeMount(() => {
 onMounted(() => {
   updateBaseSpeed()
   init()
+  window.addEventListener('resize', onViewportResize)
+  setupResizeObserver()
 })
 
 function init() {
@@ -565,12 +569,46 @@ function getThemeColor(varName, fallback) {
 }
 
 function getCurrentWaveColor() {
-  const activeSchema = document.documentElement.getAttribute('data-color-schema')
-  if (activeSchema === 'monochrome' && status.value === props.statuses.Reproduciendo) {
-    return '#FFFFFF'
-  }
-
   return getThemeColor(props.position === 'top' ? '--vm-player-wave-a' : '--vm-player-wave-b', props.position === 'top' ? '#EAB308' : '#EC4899')
+}
+
+function redrawWaveform() {
+  if (!player) return
+
+  const waveColor = getCurrentWaveColor()
+  const cursorColor = status.value === props.statuses.Cambiando ? getThemeColor('--vm-player-crossfader-cursor', '#FF0000') : getThemeColor('--vm-player-cursor', '#FFFFFF')
+
+  player.setOptions({
+    waveColor,
+    cursorColor,
+    height: 'auto',
+    fillParent: true
+  })
+}
+
+function scheduleWaveformRedraw() {
+  if (resizeRafId) {
+    cancelAnimationFrame(resizeRafId)
+  }
+  resizeRafId = requestAnimationFrame(() => {
+    resizeRafId = null
+    redrawWaveform()
+  })
+}
+
+function onViewportResize() {
+  scheduleWaveformRedraw()
+}
+
+function setupResizeObserver() {
+  if (typeof ResizeObserver === 'undefined') return
+  const container = document.getElementById(playerId.value)
+  if (!container) return
+
+  resizeObserver = new ResizeObserver(() => {
+    scheduleWaveformRedraw()
+  })
+  resizeObserver.observe(container)
 }
 
 function syncWaveColor() {
@@ -618,6 +656,15 @@ window.addEventListener('vmusic-color-schema-changed', handleThemeChanged)
 
 onBeforeUnmount(() => {
   window.removeEventListener('vmusic-color-schema-changed', handleThemeChanged)
+  window.removeEventListener('resize', onViewportResize)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+  if (resizeRafId) {
+    cancelAnimationFrame(resizeRafId)
+    resizeRafId = null
+  }
 })
 
 defineExpose({
