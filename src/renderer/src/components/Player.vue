@@ -482,6 +482,12 @@ function stop() {
   player.stop()
 }
 
+function restart() {
+  if (!player) return
+  const restartAt = Number.isFinite(start.value) ? Math.max(0, start.value) : 0
+  player.setTime(restartAt)
+}
+
 function getStatusName(status) {
   for (let s in props.statuses) {
     if (props.statuses.hasOwnProperty(s)) {
@@ -678,6 +684,7 @@ defineExpose({
   play,
   pause,
   stop,
+  restart,
   setSong,
   next,
   speed_added,

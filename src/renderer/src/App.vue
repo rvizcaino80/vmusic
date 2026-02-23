@@ -637,7 +637,7 @@
       <Player
         ref="player1"
         :class="{
-          'opacity-50': !player1 || player1.status !== playerStatuses.Reproduciendo
+          'opacity-40': !player1 || player1.status !== playerStatuses.Reproduciendo
         }"
         :statuses="playerStatuses"
         position="top"
@@ -666,7 +666,7 @@
       <Player
         ref="player2"
         :class="{
-          'opacity-50': !player2 || player2.status !== playerStatuses.Reproduciendo
+          'opacity-40': !player2 || player2.status !== playerStatuses.Reproduciendo
         }"
         :statuses="playerStatuses"
         position="bottom"
@@ -1238,6 +1238,8 @@ const m3uSourceLabel = computed(() => {
 const player1 = ref(null)
 const player2 = ref(null)
 const isFirstPlay = ref(true)
+const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
+const mediaKeyCodes = new Set(['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaStop'])
 
 // Multiselects
 const artistMultiSelect = ref(null)
@@ -1575,6 +1577,18 @@ onUnmounted(() => {
   }
 })
 
+onMounted(() => {
+  setupMediaSessionHandlers()
+  updateMediaSessionState()
+  updateMediaSessionMetadata()
+  window.addEventListener('keydown', onHardwareMediaKey)
+})
+
+onUnmounted(() => {
+  clearMediaSessionHandlers()
+  window.removeEventListener('keydown', onHardwareMediaKey)
+})
+
 watch(autopause, (newValue) => {
   if (newValue) {
     if (player1.value.status === playerStatuses.Reproduciendo) {
@@ -1597,6 +1611,16 @@ watch(playlistDetails, () => {
 watch(recentSongHistory, (rows) => {
   const validIds = new Set(rows.map((row) => row.historyId))
   historySelectedRows.value = historySelectedRows.value.filter((key) => validIds.has(key))
+})
+
+watch(() => [
+  player1.value?.status,
+  player2.value?.status,
+  player1.value?.songFull?.id,
+  player2.value?.songFull?.id
+], () => {
+  updateMediaSessionState()
+  updateMediaSessionMetadata()
 })
 
 const removeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -2612,6 +2636,7 @@ function getFirstUnplayedSong() {
 }
 
 function play() {
+  if (!player1.value || !player2.value) return
   autopause.value = false
 
   if (isFirstPlay.value && player1.value.status === playerStatuses.Listo) {
@@ -2629,6 +2654,7 @@ function play() {
 }
 
 function pause() {
+  if (!player1.value || !player2.value) return
   if (player1.value.status === playerStatuses.Reproduciendo) {
     player1.value.pause()
   }
@@ -2901,10 +2927,128 @@ function saveSpeed(p) {
 }
 
 function next() {
+  if (!player1.value || !player2.value) return
   if (player1.value.status === playerStatuses.Reproduciendo) {
     player1.value.next()
   } else if (player2.value.status === playerStatuses.Reproduciendo) {
     player2.value.next()
+  }
+}
+
+function getMediaTargetPlayer() {
+  if (!player1.value || !player2.value) return null
+
+  if (player1.value.status === playerStatuses.Reproduciendo) return player1.value
+  if (player2.value.status === playerStatuses.Reproduciendo) return player2.value
+  if (player1.value.status === playerStatuses.Pausado || player1.value.status === playerStatuses.Listo) return player1.value
+  if (player2.value.status === playerStatuses.Pausado || player2.value.status === playerStatuses.Listo) return player2.value
+
+  return null
+}
+
+function previousTrack() {
+  const targetPlayer = getMediaTargetPlayer()
+  if (!targetPlayer || typeof targetPlayer.restart !== 'function') return
+  targetPlayer.restart()
+}
+
+function setMediaSessionActionHandler(action, handler) {
+  if (!('mediaSession' in navigator)) return
+  try {
+    navigator.mediaSession.setActionHandler(action, handler)
+  } catch (error) {
+    // Some platforms do not support all actions.
+  }
+}
+
+function setupMediaSessionHandlers() {
+  if (!('mediaSession' in navigator)) return
+
+  setMediaSessionActionHandler('play', () => play())
+  setMediaSessionActionHandler('pause', () => pause())
+  setMediaSessionActionHandler('nexttrack', () => next())
+  setMediaSessionActionHandler('previoustrack', () => previousTrack())
+  setMediaSessionActionHandler('stop', () => pause())
+}
+
+function clearMediaSessionHandlers() {
+  if (!('mediaSession' in navigator)) return
+  mediaSessionActions.forEach((action) => setMediaSessionActionHandler(action, null))
+}
+
+function updateMediaSessionState() {
+  if (!('mediaSession' in navigator)) return
+
+  const playing = player1.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Reproduciendo
+  const hasLoadedSong = Boolean(player1.value?.songFull?.id || player2.value?.songFull?.id)
+
+  if (playing) {
+    navigator.mediaSession.playbackState = 'playing'
+
+    return
+  }
+
+  navigator.mediaSession.playbackState = hasLoadedSong ? 'paused' : 'none'
+}
+
+function updateMediaSessionMetadata() {
+  if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return
+
+  const activePlayer = getMediaTargetPlayer()
+  const song = activePlayer?.songFull
+
+  if (!song?.id) {
+    navigator.mediaSession.metadata = null
+
+    return
+  }
+
+  const artistNames = Array.isArray(song.Artists) ? song.Artists.map((artist) => artist.name).join(', ') : ''
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: song.name || 'Sin canción',
+    artist: artistNames || 'Sin artista',
+    album: 'Salsamanía'
+  })
+}
+
+function onHardwareMediaKey(event) {
+  if (!mediaKeyCodes.has(event.code)) return
+  try {
+    event.preventDefault()
+
+    if (event.code === 'MediaPlayPause') {
+      if (player1.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Reproduciendo) {
+        pause()
+      } else {
+        play()
+      }
+
+      return
+    }
+
+    if (event.code === 'MediaPlay') {
+      play()
+
+      return
+    }
+
+    if (event.code === 'MediaPause' || event.code === 'MediaStop') {
+      pause()
+
+      return
+    }
+
+    if (event.code === 'MediaTrackNext') {
+      next()
+
+      return
+    }
+
+    if (event.code === 'MediaTrackPrevious') {
+      previousTrack()
+    }
+  } catch (error) {
+    console.warn('Error al manejar media key', error)
   }
 }
 
