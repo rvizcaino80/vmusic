@@ -56,7 +56,7 @@ html[data-color-schema='default'] {
   --vm-text-accent: #84cc16;
   --vm-table-stripe: #fafafa;
   --vm-table-deleted: #fecaca;
-  --vm-ant-primary: #1677ff;
+  --vm-ant-primary: #eab308;
   --vm-player-wave-a: #eab308;
   --vm-player-wave-b: #ec4899;
   --vm-player-cursor: #ffffff;
@@ -172,7 +172,7 @@ html[data-color-schema='monochrome'] {
   --vm-text-accent: #d4d4d4;
   --vm-table-stripe: #fafafa;
   --vm-table-deleted: #e5e5e5;
-  --vm-ant-primary: #525252;
+  --vm-ant-primary: #3b82f6;
   --vm-player-wave-a: #3b82f6;
   --vm-player-wave-b: #ef4444;
   --vm-player-cursor: #fafafa;

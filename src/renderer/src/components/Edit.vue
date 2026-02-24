@@ -31,13 +31,11 @@
         </div>
 
         <div class="mt-2">
-          <button
-            type="button"
-            class="text-sm py-1 px-2 text-gray-800 bg-gray-400"
+          <a-button
             @click="addArtist"
           >
             Agregar artista {{ totalArtists + 1 }}
-          </button>
+          </a-button>
         </div>
       </div>
 
@@ -60,13 +58,11 @@
         </div>
 
         <div class="mt-2">
-          <button
-            type="button"
-            class="text-sm py-1 px-2 text-gray-800 bg-gray-400"
+          <a-button
             @click="addComposer"
           >
             Agregar compositor {{ totalComposers + 1 }}
-          </button>
+          </a-button>
         </div>
       </div>
 
@@ -109,10 +105,12 @@
         />
       </div>
 
-      <button
+      <a-button
         :disabled="isUpdateDisabled"
-        type="submit"
-        class="p-2 border border-gray-800 bg-gray-800 text-white flex items-center space-x-1 font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+        type="primary"
+        html-type="submit"
+        size="large"
+        class="flex items-center space-x-1"
       >
         <Icon
           v-if="isSaving"
@@ -125,7 +123,7 @@
           icon="tdesign:save"
         />
         <span>Actualizar</span>
-      </button>
+      </a-button>
     </form>
   </div>
 </template>
