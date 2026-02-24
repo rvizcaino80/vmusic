@@ -646,6 +646,7 @@
           :output-sink-id="deckSinkId"
           class="transition-opacity duration-300"
           @artist-click="openLibraryForArtist"
+          @song-click="openLibraryForSong"
           @preview-start="previewStartFromPlayer"
           @preview-stop="stopPreview"
           @loaded="checkPlayers(player1)"
@@ -675,6 +676,7 @@
           :output-sink-id="deckSinkId"
           class="transition-opacity duration-300"
           @artist-click="openLibraryForArtist"
+          @song-click="openLibraryForSong"
           @preview-start="previewStartFromPlayer"
           @preview-stop="stopPreview"
           @loaded="checkPlayers(player2)"
@@ -3224,6 +3226,42 @@ async function openLibraryForArtist(artistId) {
   quickFilterByArtist(artistId)
 }
 
+async function openLibraryForSong(songData) {
+  const songId = typeof songData === 'number' ? songData : songData?.id
+  const songName = typeof songData === 'string' ? songData : songData?.name
+  if (!songId && !songName) return
+
+  await setOption(options.library)
+
+  // Ensure the song is visible regardless of previous filters.
+  selectedArtists.value = artists.value.map((a) => a.id)
+  selectedTags.value = tags.value.map((tag) => tag.id)
+  filterQuery.value = songName || ''
+  m3uExportSourceFilter.value = 'any'
+  libraryState.value.page = 1
+  await filterSongs()
+
+  let targetIndex = -1
+  if (songId) {
+    targetIndex = filteredSongs2.value.findIndex((item) => item.id === songId)
+  }
+  if (targetIndex === -1 && songName) {
+    const normalized = removeAccents(songName.toLowerCase())
+    targetIndex = filteredSongs2.value.findIndex((item) => removeAccents((item.name || '').toLowerCase()) === normalized)
+  }
+
+  if (targetIndex !== -1) {
+    const pageSize = pageSizeRef.value || 24
+    libraryState.value.page = Math.floor(targetIndex / pageSize) + 1
+    selectedSongs.value = [filteredSongs2.value[targetIndex].id]
+  } else {
+    selectedSongs.value = []
+  }
+
+  saveLibraryView()
+  await nextTick()
+}
+
 async function previewStartFromPlayer({ song, status }) {
   // Permitir preview solo si el deck correspondiente no está reproduciendo
   if (status === playerStatuses.Reproduciendo) return
@@ -3371,6 +3409,10 @@ table tr td.ant-table-cell {
 #app .vmusic-app .vm-side-nav .vm-item-selected,
 #app .vmusic-app .vm-side-nav .vm-item-selected svg {
   color: #000000 !important;
+}
+
+#app .vmusic-app .vm-side-nav .vm-item-selected {
+  background-color: color-mix(in srgb, #d6d3d1 95%, var(--vm-player-wave-a) 5%) !important;
 }
 
 </style>

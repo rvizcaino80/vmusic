@@ -61,8 +61,16 @@
           </h2>
           <div class="flex items-center space-x-2">
             <h1 class="text-white text-2xl select-none max-w-[380px] truncate">
-              {{ song || 'Sin canción'
-              }}
+              <button
+                v-if="songFull?.id"
+                type="button"
+                class="hover:underline"
+                title="Ver esta canción en biblioteca"
+                @click.stop="emitSongClick"
+              >
+                {{ song || 'Sin canción' }}
+              </button>
+              <span v-else>{{ song || 'Sin canción' }}</span>
             </h1>
             <button
               v-if="canPreview"
@@ -146,7 +154,7 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
 
-const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'preview-start', 'preview-stop', 'finished'])
+const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'song-click', 'preview-start', 'preview-stop', 'finished'])
 
 const props = defineProps({
   position: String,
@@ -554,6 +562,14 @@ function emitArtistClick(id) {
   if (targetId) {
     emit('artist-click', targetId)
   }
+}
+
+function emitSongClick() {
+  if (!songFull.value?.id) return
+  emit('song-click', {
+    id: songFull.value.id,
+    name: songFull.value.name || song.value
+  })
 }
 
 function updateBaseSpeed() {
