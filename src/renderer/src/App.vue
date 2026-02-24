@@ -1096,7 +1096,7 @@ const playerStatuses = {
 }
 const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
 const COLOR_SCHEMA_DEFAULT = 'default'
-const COLOR_SCHEMA_VALUES = ['default', 'monochrome', 'sunset', 'aurora', 'orquidea', 'bosque', 'linen', 'coral', 'nocturno', 'ocean']
+const COLOR_SCHEMA_VALUES = ['default', 'monochrome', 'sunset', 'aurora', 'orquidea', 'tormenta_cobre', 'bosque', 'linen', 'coral', 'nocturno', 'ocean']
 const COLOR_SCHEMA_TRANSITION_MS = 1000
 let colorSchemaTransitionTimer = null
 let colorSchemaTransitionRaf = null

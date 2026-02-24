@@ -217,6 +217,35 @@ html[data-color-schema='orquidea'] {
   --vm-wave-editor-control-text: #faf5ff;
 }
 
+html[data-color-schema='tormenta_cobre'] {
+  --vm-bg-body: #201710;
+  --vm-bg-surface: #e7d7cb;
+  --vm-bg-panel: #f3e7de;
+  --vm-bg-table-dark: #16100b;
+  --vm-bg-control: #7a4a2a;
+  --vm-bg-control-alt: #925937;
+  --vm-bg-selected: #b56a3a;
+  --vm-text-on-dark: #fff7f2;
+  --vm-text-muted: #8b6a55;
+  --vm-text-accent: #d9a066;
+  --vm-table-stripe: #fbf4ee;
+  --vm-table-deleted: #f5d9c5;
+  --vm-ant-primary: #a05a2c;
+  --vm-player-wave-a: #d1925b;
+  --vm-player-wave-b: #7a4a2a;
+  --vm-player-cursor: #fff7f2;
+  --vm-player-crossfader-cursor: #f8d6b4;
+  --vm-player-region: rgba(181, 106, 58, 0.34);
+  --vm-player-text: #fff7f2;
+  --vm-player-preview-hover: #f4cfa9;
+  --vm-wave-editor-wave: #8a4f2b;
+  --vm-wave-editor-progress: #6f3f23;
+  --vm-wave-editor-cursor: #00000000;
+  --vm-wave-editor-region: #b56a3a;
+  --vm-wave-editor-control-bg: #5b341e;
+  --vm-wave-editor-control-text: #fff7f2;
+}
+
 html[data-color-schema='linen'] {
   --vm-bg-body: #2a2621;
   --vm-bg-surface: #dfd6c9;
@@ -305,32 +334,32 @@ html[data-color-schema='coral'] {
 }
 
 html[data-color-schema='nocturno'] {
-  --vm-bg-body: #0c1020;
-  --vm-bg-surface: #aebcdd;
-  --vm-bg-panel: #cedaf0;
-  --vm-bg-table-dark: #070b16;
-  --vm-bg-control: #14203c;
-  --vm-bg-control-alt: #1f3158;
-  --vm-bg-selected: #7c3aed;
-  --vm-text-on-dark: #eff4ff;
-  --vm-text-muted: #64748b;
-  --vm-text-accent: #38bdf8;
-  --vm-table-stripe: #dfe8f8;
-  --vm-table-deleted: #ddd6fe;
-  --vm-ant-primary: #4f46e5;
-  --vm-player-wave-a: #8b5cf6;
-  --vm-player-wave-b: #06b6d4;
-  --vm-player-cursor: #eff4ff;
-  --vm-player-crossfader-cursor: #22d3ee;
-  --vm-player-region: rgba(6, 182, 212, 0.32);
-  --vm-player-text: #eff4ff;
-  --vm-player-preview-hover: #7dd3fc;
-  --vm-wave-editor-wave: #4338ca;
-  --vm-wave-editor-progress: #0891b2;
+  --vm-bg-body: #010208;
+  --vm-bg-surface: #0b1223;
+  --vm-bg-panel: #101a2e;
+  --vm-bg-table-dark: #000206;
+  --vm-bg-control: #192541;
+  --vm-bg-control-alt: #223255;
+  --vm-bg-selected: #2448b3;
+  --vm-text-on-dark: #e8f0ff;
+  --vm-text-muted: #8396b7;
+  --vm-text-accent: #4f8ff0;
+  --vm-table-stripe: #18243d;
+  --vm-table-deleted: #2f2a4d;
+  --vm-ant-primary: #2448b3;
+  --vm-player-wave-a: #2448b3;
+  --vm-player-wave-b: #0c84a6;
+  --vm-player-cursor: #e8f0ff;
+  --vm-player-crossfader-cursor: #54d3ef;
+  --vm-player-region: rgba(12, 132, 166, 0.24);
+  --vm-player-text: #e8f0ff;
+  --vm-player-preview-hover: #7db2ef;
+  --vm-wave-editor-wave: #2448b3;
+  --vm-wave-editor-progress: #0a76aa;
   --vm-wave-editor-cursor: #00000000;
-  --vm-wave-editor-region: #7c3aed;
-  --vm-wave-editor-control-bg: #1e2a4a;
-  --vm-wave-editor-control-text: #eff4ff;
+  --vm-wave-editor-region: #2448b3;
+  --vm-wave-editor-control-bg: #091024;
+  --vm-wave-editor-control-text: #e8f0ff;
 }
 
 div.fullheight {

@@ -185,15 +185,16 @@ export default {
     const tagOptions = ref([])
     const colorSchemaOptions = ref([
       { label: 'Default', value: 'default' },
-      { label: 'Acero y Brasa', value: 'monochrome' },
       { label: 'Atardecer', value: 'sunset' },
-      { label: 'Aurora', value: 'aurora' },
-      { label: 'Orquidea', value: 'orquidea' },
+      { label: 'Aurora', value: 'ocean' },
       { label: 'Bosque', value: 'bosque' },
-      { label: 'Cobre y Turquesa', value: 'linen' },
-      { label: 'Coral', value: 'coral' },
+      { label: 'Campo', value: 'linen' },
+      { label: 'Chicle', value: 'aurora' },
+      { label: 'Cobre', value: 'tormenta_cobre' },
+      { label: 'Deportivo', value: 'monochrome' },
       { label: 'Nocturno', value: 'nocturno' },
-      { label: 'Oceano', value: 'ocean' }
+      { label: 'Orquidea', value: 'orquidea' },
+      { label: 'Rubí', value: 'coral' }
     ])
     const audioOutputs = ref([])
     const isLoadingOutputs = ref(false)
