@@ -619,7 +619,8 @@ iframe {
 }
 
 #app .vm-secondary-panel .ant-table-striped .table-deleted > td {
-  background-color: #fecaca !important;
+  text-decoration: line-through !important;
+  text-decoration-thickness: 1.5px;
   color: #111827 !important;
 }
 

@@ -2258,8 +2258,7 @@ function markSongAsDeleted(id) {
   rows.forEach((row) => {
     const key = row.getAttribute('data-row-key')
     if (Number(key) === id) {
-      row.classList.add('bg-red-200')
-      row.querySelectorAll('td').forEach((cell) => cell.classList.add('bg-red-200'))
+      row.querySelectorAll('td').forEach((cell) => cell.classList.add('line-through'))
     }
   })
 }
@@ -3296,7 +3295,8 @@ table tr td.ant-table-cell {
 }
 
 .ant-table-striped .table-deleted td {
-  background-color: #fecaca !important;
+  text-decoration: line-through !important;
+  text-decoration-thickness: 1.5px;
 }
 
 .ant-table-pagination.ant-pagination {
@@ -3340,14 +3340,14 @@ table tr td.ant-table-cell {
   --vm-neutral-accent-hover: #44403c;
   --vm-neutral-accent-soft: #292524;
   --vm-neutral-accent-ring: rgba(120, 113, 108, 0.28);
-  --vm-secondary-surface: color-mix(in srgb, #d6d3d1 95%, var(--vm-player-wave-a) 5%);
-  --vm-secondary-panel-bg: color-mix(in srgb, #e7e5e4 95%, var(--vm-player-wave-a) 5%);
-  --vm-secondary-control: color-mix(in srgb, #78716c 94%, var(--vm-player-wave-a) 6%);
-  --vm-secondary-control-alt: color-mix(in srgb, #a8a29e 94%, var(--vm-player-wave-a) 6%);
-  --vm-secondary-row-base: color-mix(in srgb, #f0edeb 96%, var(--vm-player-wave-a) 4%);
-  --vm-secondary-row-stripe: color-mix(in srgb, #ede9e6 95%, var(--vm-player-wave-a) 5%);
-  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-player-wave-a) 18%, #ffffff 82%);
-  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-player-wave-a) 12%, #ffffff 88%);
+  --vm-secondary-surface: color-mix(in srgb, #d6d3d1 93%, var(--vm-player-wave-b) 7%);
+  --vm-secondary-panel-bg: color-mix(in srgb, #e7e5e4 93%, var(--vm-player-wave-b) 7%);
+  --vm-secondary-control: color-mix(in srgb, #78716c 92%, var(--vm-player-wave-b) 8%);
+  --vm-secondary-control-alt: color-mix(in srgb, #a8a29e 92%, var(--vm-player-wave-b) 8%);
+  --vm-secondary-row-base: color-mix(in srgb, #f0edeb 94%, var(--vm-player-wave-b) 6%);
+  --vm-secondary-row-stripe: color-mix(in srgb, #ede9e6 93%, var(--vm-player-wave-b) 7%);
+  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-player-wave-b) 22%, #ffffff 78%);
+  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-player-wave-b) 15%, #ffffff 85%);
   --vm-bg-surface: var(--vm-secondary-surface);
   --vm-bg-panel: var(--vm-secondary-panel-bg);
   --vm-bg-control: var(--vm-secondary-control);
@@ -3393,7 +3393,7 @@ table tr td.ant-table-cell {
 }
 
 #app .vmusic-app .vm-side-nav .vm-item-selected {
-  background-color: color-mix(in srgb, #d6d3d1 95%, var(--vm-player-wave-a) 5%) !important;
+  background-color: color-mix(in srgb, #d6d3d1 93%, var(--vm-player-wave-b) 7%) !important;
 }
 
 </style>
