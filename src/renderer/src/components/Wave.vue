@@ -79,6 +79,7 @@ const song = ref({})
 const start = ref(0)
 const end = ref(0)
 const duration = ref(0)
+const WAVE_MARKER_COLOR = 'rgba(255, 0, 0, 0.85)'
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
@@ -95,8 +96,8 @@ onMounted(() => {
         container: '#wave',
         cursorColor: getThemeColor('--vm-wave-editor-cursor', '#00000000'),
         height: 600,
-        waveColor: getThemeColor('--vm-wave-editor-wave', '#4B5563FF'),
-        progressColor: getThemeColor('--vm-wave-editor-progress', '#6B7280FF'),
+        waveColor: getWaveEditorWaveColor(),
+        progressColor: getWaveEditorProgressColor(),
         cursorWidth: 2,
         hideScrollbar: false,
         autoScroll: true,
@@ -121,13 +122,13 @@ onMounted(() => {
           id: 'inicio',
           start: start.value,
           content: 'Inicio',
-          color: getThemeColor('--vm-wave-editor-region', '#FF1493FF')
+          color: WAVE_MARKER_COLOR
         })
         wsRegions.addRegion({
           id: 'final',
           start: finalMarker,
           content: 'Fin',
-          color: getThemeColor('--vm-wave-editor-region', '#FF1493FF')
+          color: WAVE_MARKER_COLOR
         })
       })
 
@@ -236,18 +237,27 @@ function getThemeColor(varName, fallback) {
   return value || fallback
 }
 
+function getWaveEditorWaveColor() {
+  return getThemeColor('--vm-wave-editor-wave', '#4B5563FF')
+}
+
+function getWaveEditorProgressColor() {
+  const waveColor = getWaveEditorWaveColor()
+
+  return `color-mix(in srgb, ${waveColor} 70%, black 30%)`
+}
+
 function handleThemeChanged() {
   if (!player) return
   player.setOptions({
-    waveColor: getThemeColor('--vm-wave-editor-wave', '#4B5563FF'),
-    progressColor: getThemeColor('--vm-wave-editor-progress', '#6B7280FF'),
+    waveColor: getWaveEditorWaveColor(),
+    progressColor: getWaveEditorProgressColor(),
     cursorColor: getThemeColor('--vm-wave-editor-cursor', '#00000000')
   })
 
   if (wsRegions && typeof wsRegions.getRegions === 'function') {
-    const regionColor = getThemeColor('--vm-wave-editor-region', '#FF1493FF')
     wsRegions.getRegions().forEach((region) => {
-      region.setOptions({ color: regionColor })
+      region.setOptions({ color: WAVE_MARKER_COLOR })
     })
   }
 }

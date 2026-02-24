@@ -24,7 +24,7 @@
     <a-divider>Descargar</a-divider>
     <div
       v-if="isError"
-      class="px-2 py-1 bg-red-300 text-red-700 mb-4"
+      class="mb-4 border border-amber-400 bg-amber-200 px-2 py-1 text-amber-900"
     >
       {{ errorMessage }}.
     </div>
@@ -78,6 +78,7 @@
 
       <a-alert
         v-if="notFoundArtist"
+        class="download-message-alert"
         :message="`No se encontró coincidencia exacta para (${notFoundArtist}).`"
         type="info"
       >
@@ -874,3 +875,16 @@ onUnmounted(() => {
   }
 })
 </script>
+
+<style scoped>
+:deep(.download-message-alert.ant-alert) {
+  background-color: #fde68a !important;
+  border: 1px solid #f59e0b !important;
+}
+
+:deep(.download-message-alert .ant-alert-message),
+:deep(.download-message-alert .ant-alert-description),
+:deep(.download-message-alert .ant-alert-icon) {
+  color: #78350f !important;
+}
+</style>

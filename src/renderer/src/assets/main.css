@@ -38,12 +38,12 @@ body,
 
 :root,
 html[data-color-schema='default'] {
-  --vm-neutral-accent: #3f4754;
-  --vm-neutral-accent-hover: #4e5766;
-  --vm-neutral-accent-soft: #2a323f;
-  --vm-neutral-accent-ring: rgba(148, 163, 184, 0.25);
-  --vm-neutral-row-selected: #e8e4e0;
-  --vm-neutral-row-hover: #f0eeec;
+  --vm-neutral-accent: var(--vm-ant-primary);
+  --vm-neutral-accent-hover: color-mix(in srgb, var(--vm-ant-primary) 84%, black 16%);
+  --vm-neutral-accent-soft: color-mix(in srgb, var(--vm-ant-primary) 22%, black 78%);
+  --vm-neutral-accent-ring: color-mix(in srgb, var(--vm-ant-primary) 28%, transparent);
+  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-ant-primary) 14%, #ffffff 86%);
+  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-ant-primary) 9%, #ffffff 91%);
   --vm-bg-body: #1f2937;
   --vm-bg-surface: #d1d5db;
   --vm-bg-panel: #f3f4f6;
@@ -369,24 +369,24 @@ html[data-color-schema='nocturno'] {
   --vm-bg-table-dark: #000104;
   --vm-bg-control: #14203a;
   --vm-bg-control-alt: #1d2d4d;
-  --vm-bg-selected: #1e669f;
+  --vm-bg-selected: #4a56c8;
   --vm-text-on-dark: #e8f0ff;
   --vm-text-muted: #7b8fb2;
   --vm-text-accent: #4f8ff0;
   --vm-table-stripe: #141f35;
   --vm-table-deleted: #27223f;
-  --vm-ant-primary: #1e669f;
-  --vm-player-wave-a: #1e669f;
+  --vm-ant-primary: #4a56c8;
+  --vm-player-wave-a: #4a56c8;
   --vm-player-wave-b: #0a7391;
   --vm-player-cursor: #e8f0ff;
   --vm-player-crossfader-cursor: #4bc2dd;
   --vm-player-region: rgba(10, 115, 145, 0.22);
   --vm-player-text: #e8f0ff;
   --vm-player-preview-hover: #7db2ef;
-  --vm-wave-editor-wave: #1e669f;
+  --vm-wave-editor-wave: #4a56c8;
   --vm-wave-editor-progress: #09618a;
   --vm-wave-editor-cursor: #00000000;
-  --vm-wave-editor-region: #1e669f;
+  --vm-wave-editor-region: #4a56c8;
   --vm-wave-editor-control-bg: #070d1e;
   --vm-wave-editor-control-text: #e8f0ff;
 }
@@ -742,4 +742,9 @@ iframe {
   --ant-table-row-hover-bg: var(--vm-neutral-row-hover);
   --ant-table-selected-row-bg: var(--vm-neutral-row-selected);
   --ant-table-selected-row-hover-bg: var(--vm-neutral-row-selected);
+}
+
+#app .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
 }

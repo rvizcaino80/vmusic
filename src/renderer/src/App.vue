@@ -1103,25 +1103,25 @@ let colorSchemaTransitionRaf = null
 const SONG_HISTORY_STORAGE_KEY = 'vmusic_song_history'
 const antTheme = {
   token: {
-    colorPrimary: '#57534e',
-    colorInfo: '#57534e',
-    colorLink: '#57534e',
-    colorPrimaryHover: '#44403c',
-    colorPrimaryActive: '#292524',
-    colorPrimaryBorder: '#57534e',
-    controlOutline: 'rgba(120, 113, 108, 0.28)',
-    controlItemBgActive: '#d6d3d1'
+    colorPrimary: 'var(--vm-ant-primary)',
+    colorInfo: 'var(--vm-ant-primary)',
+    colorLink: 'var(--vm-ant-primary)',
+    colorPrimaryHover: 'color-mix(in srgb, var(--vm-ant-primary) 84%, black 16%)',
+    colorPrimaryActive: 'color-mix(in srgb, var(--vm-ant-primary) 72%, black 28%)',
+    colorPrimaryBorder: 'var(--vm-ant-primary)',
+    controlOutline: 'color-mix(in srgb, var(--vm-ant-primary) 28%, transparent)',
+    controlItemBgActive: 'color-mix(in srgb, var(--vm-ant-primary) 14%, #ffffff 86%)'
   },
   components: {
     Select: {
-      optionActiveBg: '#d6d3d1',
-      optionSelectedBg: '#d6d3d1',
+      optionActiveBg: 'color-mix(in srgb, var(--vm-ant-primary) 9%, #ffffff 91%)',
+      optionSelectedBg: 'color-mix(in srgb, var(--vm-ant-primary) 14%, #ffffff 86%)',
       optionSelectedColor: '#0f172a'
     },
     Table: {
-      rowHoverBg: '#f0eeec',
-      rowSelectedBg: '#e8e4e0',
-      rowSelectedHoverBg: '#ece8e4'
+      rowHoverBg: 'color-mix(in srgb, var(--vm-ant-primary) 9%, #ffffff 91%)',
+      rowSelectedBg: 'color-mix(in srgb, var(--vm-ant-primary) 14%, #ffffff 86%)',
+      rowSelectedHoverBg: 'color-mix(in srgb, var(--vm-ant-primary) 16%, #ffffff 84%)'
     }
   }
 }
@@ -3378,18 +3378,18 @@ table tr td.ant-table-cell {
 }
 
 .vm-secondary-panel {
-  --vm-neutral-accent: #57534e;
-  --vm-neutral-accent-hover: #44403c;
-  --vm-neutral-accent-soft: #292524;
-  --vm-neutral-accent-ring: rgba(120, 113, 108, 0.28);
+  --vm-neutral-accent: var(--vm-ant-primary);
+  --vm-neutral-accent-hover: color-mix(in srgb, var(--vm-ant-primary) 84%, black 16%);
+  --vm-neutral-accent-soft: color-mix(in srgb, var(--vm-ant-primary) 22%, black 78%);
+  --vm-neutral-accent-ring: color-mix(in srgb, var(--vm-ant-primary) 28%, transparent);
   --vm-secondary-surface: color-mix(in srgb, #d6d3d1 93%, var(--vm-player-wave-a) 7%);
   --vm-secondary-panel-bg: color-mix(in srgb, #e7e5e4 93%, var(--vm-player-wave-a) 7%);
   --vm-secondary-control: color-mix(in srgb, #78716c 92%, var(--vm-player-wave-a) 8%);
   --vm-secondary-control-alt: color-mix(in srgb, #a8a29e 92%, var(--vm-player-wave-a) 8%);
   --vm-secondary-row-base: color-mix(in srgb, #f0edeb 94%, var(--vm-player-wave-a) 6%);
   --vm-secondary-row-stripe: color-mix(in srgb, #ede9e6 93%, var(--vm-player-wave-a) 7%);
-  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-player-wave-a) 12%, #ffffff 88%);
-  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-player-wave-a) 8%, #ffffff 92%);
+  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-ant-primary) 14%, #ffffff 86%);
+  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-ant-primary) 9%, #ffffff 91%);
   --vm-bg-surface: var(--vm-secondary-surface);
   --vm-bg-panel: var(--vm-secondary-panel-bg);
   --vm-bg-control: var(--vm-secondary-control);
