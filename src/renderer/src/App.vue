@@ -78,13 +78,8 @@
 
                 <a-button
                   size="small"
-                  type="primary"
-                  class="flex items-center space-x-1 pl-1.5"
                   @click="selectAllArtists"
                 >
-                  <i-ri-checkbox-line
-                    class="w-4 h-4"
-                  />
                   Todos
                 </a-button>
 
@@ -100,14 +95,9 @@
               </button-->
 
                 <a-button
-                  type="primary"
                   size="small"
-                  class="flex items-center space-x-1 pl-1.5"
                   @click="selectNoneArtists"
                 >
-                  <i-carbon-checkbox
-                    class="w-4 h-4"
-                  />
                   Ninguno
                 </a-button>
               </div>
@@ -127,25 +117,15 @@
               <div class="flex items-center space-x-2 text-xs text-white mb-2">
                 <a-button
                   size="small"
-                  type="primary"
-                  class="flex items-center space-x-1 pl-1.5"
                   @click="selectAllTags($event)"
                 >
-                  <i-ri-checkbox-line
-                    class="w-4 h-4"
-                  />
                   Todos
                 </a-button>
 
                 <a-button
-                  type="primary"
                   size="small"
-                  class="flex items-center space-x-1 pl-1.5"
                   @click="selectNoneTags"
                 >
-                  <i-carbon-checkbox
-                    class="w-4 h-4"
-                  />
                   Ninguno
                 </a-button>
               </div>
@@ -2279,6 +2259,7 @@ function markSongAsDeleted(id) {
     const key = row.getAttribute('data-row-key')
     if (Number(key) === id) {
       row.classList.add('bg-red-200')
+      row.querySelectorAll('td').forEach((cell) => cell.classList.add('bg-red-200'))
     }
   })
 }
@@ -3315,7 +3296,7 @@ table tr td.ant-table-cell {
 }
 
 .ant-table-striped .table-deleted td {
-  background-color: var(--vm-table-deleted) !important;
+  background-color: #fecaca !important;
 }
 
 .ant-table-pagination.ant-pagination {
@@ -3365,8 +3346,8 @@ table tr td.ant-table-cell {
   --vm-secondary-control-alt: color-mix(in srgb, #a8a29e 94%, var(--vm-player-wave-a) 6%);
   --vm-secondary-row-base: color-mix(in srgb, #f0edeb 96%, var(--vm-player-wave-a) 4%);
   --vm-secondary-row-stripe: color-mix(in srgb, #ede9e6 95%, var(--vm-player-wave-a) 5%);
-  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-player-wave-a) 28%, #ffffff 72%);
-  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-player-wave-a) 20%, #ffffff 80%);
+  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-player-wave-a) 18%, #ffffff 82%);
+  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-player-wave-a) 12%, #ffffff 88%);
   --vm-bg-surface: var(--vm-secondary-surface);
   --vm-bg-panel: var(--vm-secondary-panel-bg);
   --vm-bg-control: var(--vm-secondary-control);

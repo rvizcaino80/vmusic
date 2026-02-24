@@ -73,32 +73,32 @@ html[data-color-schema='default'] {
 }
 
 html[data-color-schema='ocean'] {
-  --vm-bg-body: #0b1d2f;
-  --vm-bg-surface: #c8e1ea;
-  --vm-bg-panel: #e8f3f7;
-  --vm-bg-table-dark: #092032;
-  --vm-bg-control: #1f5a7a;
-  --vm-bg-control-alt: #2c7398;
-  --vm-bg-selected: #0ea5a4;
-  --vm-text-on-dark: #e6f7ff;
-  --vm-text-muted: #4f6f81;
+  --vm-bg-body: #082025;
+  --vm-bg-surface: #c6ebe8;
+  --vm-bg-panel: #e2f8f6;
+  --vm-bg-table-dark: #06171b;
+  --vm-bg-control: #0f6b72;
+  --vm-bg-control-alt: #14858f;
+  --vm-bg-selected: #14b8a6;
+  --vm-text-on-dark: #e8fffc;
+  --vm-text-muted: #4f7b7e;
   --vm-text-accent: #2dd4bf;
-  --vm-table-stripe: #eef7fb;
+  --vm-table-stripe: #ecfbfa;
   --vm-table-deleted: #ffd7cc;
-  --vm-ant-primary: #0ea5a4;
-  --vm-player-wave-a: #22c55e;
-  --vm-player-wave-b: #06b6d4;
-  --vm-player-cursor: #dbeafe;
-  --vm-player-crossfader-cursor: #14b8a6;
-  --vm-player-region: rgba(2, 132, 199, 0.45);
-  --vm-player-text: #e6f7ff;
-  --vm-player-preview-hover: #a5f3fc;
-  --vm-wave-editor-wave: #1d4e89;
-  --vm-wave-editor-progress: #0f766e;
+  --vm-ant-primary: #14b8a6;
+  --vm-player-wave-a: #2dd4bf;
+  --vm-player-wave-b: #22d3ee;
+  --vm-player-cursor: #e8fffc;
+  --vm-player-crossfader-cursor: #0ea5a4;
+  --vm-player-region: rgba(20, 184, 166, 0.35);
+  --vm-player-text: #e8fffc;
+  --vm-player-preview-hover: #99f6e4;
+  --vm-wave-editor-wave: #0f766e;
+  --vm-wave-editor-progress: #14b8a6;
   --vm-wave-editor-cursor: #00000000;
-  --vm-wave-editor-region: #06b6d4;
-  --vm-wave-editor-control-bg: #1f5a7a;
-  --vm-wave-editor-control-text: #e6f7ff;
+  --vm-wave-editor-region: #2dd4bf;
+  --vm-wave-editor-control-bg: #0f6b72;
+  --vm-wave-editor-control-text: #e8fffc;
 }
 
 html[data-color-schema='sunset'] {
@@ -160,32 +160,32 @@ html[data-color-schema='monochrome'] {
 }
 
 html[data-color-schema='aurora'] {
-  --vm-bg-body: #2b1f2f;
-  --vm-bg-surface: #ecdde6;
-  --vm-bg-panel: #f8eef4;
-  --vm-bg-table-dark: #201624;
-  --vm-bg-control: #7b3d6a;
-  --vm-bg-control-alt: #95507f;
-  --vm-bg-selected: #d97757;
-  --vm-text-on-dark: #fff4fb;
-  --vm-text-muted: #8a6680;
-  --vm-text-accent: #f2b84b;
-  --vm-table-stripe: #fff7fb;
+  --vm-bg-body: #251527;
+  --vm-bg-surface: #f0dce7;
+  --vm-bg-panel: #faedf5;
+  --vm-bg-table-dark: #1b0f1f;
+  --vm-bg-control: #8b3f74;
+  --vm-bg-control-alt: #a34f88;
+  --vm-bg-selected: #f97393;
+  --vm-text-on-dark: #fff5fb;
+  --vm-text-muted: #8f6b85;
+  --vm-text-accent: #f9a8d4;
+  --vm-table-stripe: #fdf3f9;
   --vm-table-deleted: #f9d9d1;
-  --vm-ant-primary: #b14e78;
-  --vm-player-wave-a: #f59e0b;
-  --vm-player-wave-b: #fb7185;
-  --vm-player-cursor: #fff4fb;
-  --vm-player-crossfader-cursor: #f8c56d;
-  --vm-player-region: rgba(218, 122, 86, 0.45);
-  --vm-player-text: #fff4fb;
-  --vm-player-preview-hover: #ffd39a;
-  --vm-wave-editor-wave: #9d4a75;
-  --vm-wave-editor-progress: #d97757;
+  --vm-ant-primary: #be5b94;
+  --vm-player-wave-a: #fb7185;
+  --vm-player-wave-b: #f472b6;
+  --vm-player-cursor: #fff5fb;
+  --vm-player-crossfader-cursor: #fda4af;
+  --vm-player-region: rgba(244, 114, 182, 0.35);
+  --vm-player-text: #fff5fb;
+  --vm-player-preview-hover: #fbcfe8;
+  --vm-wave-editor-wave: #a33e79;
+  --vm-wave-editor-progress: #e879b9;
   --vm-wave-editor-cursor: #00000000;
-  --vm-wave-editor-region: #f2b84b;
-  --vm-wave-editor-control-bg: #6f355f;
-  --vm-wave-editor-control-text: #fff4fb;
+  --vm-wave-editor-region: #fb7185;
+  --vm-wave-editor-control-bg: #7a2f63;
+  --vm-wave-editor-control-text: #fff5fb;
 }
 
 html[data-color-schema='linen'] {
@@ -263,7 +263,7 @@ html[data-color-schema='coral'] {
   --vm-player-wave-a: #ef4444;
   --vm-player-wave-b: #be123c;
   --vm-player-cursor: #fff7f4;
-  --vm-player-crossfader-cursor: #f87171;
+  --vm-player-crossfader-cursor: #fecaca;
   --vm-player-region: rgba(225, 29, 72, 0.4);
   --vm-player-text: #fff7f4;
   --vm-player-preview-hover: #fecaca;
@@ -594,7 +594,10 @@ iframe {
   box-shadow: none !important;
 }
 
-#app .ant-table-striped .table-striped:not(.ant-table-row-selected):not(:hover) > td {
+#app
+  .ant-table-striped
+  .table-striped:not(.table-deleted):not(.ant-table-row-selected):not(:hover)
+  > td {
   background-color: var(--vm-table-stripe) !important;
   color: #0f172a !important;
 }
@@ -602,7 +605,7 @@ iframe {
 #app
   .vm-secondary-panel
   .ant-table-tbody
-  > tr:not(.table-striped):not(.ant-table-row-selected):not(:hover)
+  > tr:not(.table-striped):not(.table-deleted):not(.ant-table-row-selected):not(:hover)
   > td.ant-table-cell {
   background-color: var(--vm-secondary-row-base, #f0edeb) !important;
 }
@@ -610,9 +613,14 @@ iframe {
 #app
   .vm-secondary-panel
   .ant-table-striped
-  .table-striped:not(.ant-table-row-selected):not(:hover)
+  .table-striped:not(.table-deleted):not(.ant-table-row-selected):not(:hover)
   > td {
   background-color: var(--vm-secondary-row-stripe, #ede9e6) !important;
+}
+
+#app .vm-secondary-panel .ant-table-striped .table-deleted > td {
+  background-color: #fecaca !important;
+  color: #111827 !important;
 }
 
 #app
