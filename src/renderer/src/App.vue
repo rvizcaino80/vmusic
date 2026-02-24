@@ -965,7 +965,7 @@
       </div>
 
       <div
-        class="z-50 text-sm flex flex-col space-y-10 justify-between items-center bg-gray-100 fullheight"
+        class="vm-side-nav z-50 text-sm flex flex-col space-y-10 justify-between items-center bg-gray-100 fullheight"
       >
         <div class="flex flex-col w-full">
           <div
@@ -1144,6 +1144,15 @@ function normalizeHistoryLimit(limit) {
   return Math.floor(parsed)
 }
 
+function normalizeRowsPerPage(value, fallback = 24) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback
+  }
+
+  return Math.floor(parsed)
+}
+
 function normalizeColorSchema(schema) {
   if (schema === 'graphite') {
     return 'aurora'
@@ -1209,17 +1218,23 @@ const deckSinkId = ref(null)
 const hasStoredSettings = Boolean(localStorage.getItem('vmusic_settings'))
 const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
 const normalizedHistoryLimit = normalizeHistoryLimit(savedSettingsRef.historyLimit)
+const normalizedRowsPerPage = normalizeRowsPerPage(savedSettingsRef.rowsPerPage, 24)
+const normalizedRowsPerPageFs = normalizeRowsPerPage(savedSettingsRef.rowsPerPageFs, normalizedRowsPerPage)
 previewSinkId.value = savedSettingsRef.previewSinkId || null
 deckSinkId.value = savedSettingsRef.deckSinkId || null
 const excludedTags = ref(savedSettingsRef.excludeTags || [])
 const colorSchema = ref(applyColorSchema(savedSettingsRef.colorSchema))
 if (
-  hasStoredSettings && (savedSettingsRef.colorSchema !== colorSchema.value || savedSettingsRef.historyLimit !== normalizedHistoryLimit)
+  hasStoredSettings && (
+    savedSettingsRef.colorSchema !== colorSchema.value || savedSettingsRef.historyLimit !== normalizedHistoryLimit || savedSettingsRef.rowsPerPage !== normalizedRowsPerPage || savedSettingsRef.rowsPerPageFs !== normalizedRowsPerPageFs
+  )
 ) {
   localStorage.setItem('vmusic_settings', JSON.stringify({
     ...savedSettingsRef,
     colorSchema: colorSchema.value,
-    historyLimit: normalizedHistoryLimit
+    historyLimit: normalizedHistoryLimit,
+    rowsPerPage: normalizedRowsPerPage,
+    rowsPerPageFs: normalizedRowsPerPageFs
   }))
 }
 const downloadTasksCount = ref(0)
@@ -1266,6 +1281,7 @@ const player1 = ref(null)
 const player2 = ref(null)
 const isFirstPlay = ref(true)
 let playersResizeRafId = null
+const isWindowFullscreen = ref(false)
 const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
 const mediaKeyCodes = new Set(['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaStop'])
 
@@ -1447,6 +1463,7 @@ if (!localStorage.getItem('vmusic_library_state')) {
 if (!localStorage.getItem('vmusic_settings')) {
   const initialSettings = {
     rowsPerPage: 24,
+    rowsPerPageFs: 24,
     crossfaderTime: 1,
     recentlyAddedTime: 24,
     historyLimit: 15,
@@ -1476,8 +1493,16 @@ const onSelectAll = (selected, selectedRows, changeRows) => {
     setTimeout(() => {
       selectedSongs.value = []
     }, 0)
-    pageSizeRef.value = savedSettings.rowsPerPage
+    pageSizeRef.value = getRowsPerPageByMode(savedSettings)
   }
+}
+
+function getRowsPerPageByMode(settings = null) {
+  const saved = settings || JSON.parse(localStorage.getItem('vmusic_settings')) || {}
+  const normal = normalizeRowsPerPage(saved.rowsPerPage, 24)
+  const fullscreen = normalizeRowsPerPage(saved.rowsPerPageFs, normal)
+
+  return isWindowFullscreen.value ? fullscreen : normal
 }
 
 function formatHistoryPlayedAt(value) {
@@ -1609,6 +1634,11 @@ onMounted(() => {
   setupMediaSessionHandlers()
   updateMediaSessionState()
   updateMediaSessionMetadata()
+  isWindowFullscreen.value = Boolean(document.fullscreenElement)
+  pageSizeRef.value = getRowsPerPageByMode()
+  if (window.electron2?.ipcRenderer?.on) {
+    window.electron2.ipcRenderer.on('window-fullscreen-changed', onFullscreenChanged)
+  }
   window.addEventListener('keydown', onHardwareMediaKey)
   window.addEventListener('resize', onWindowResizeRedrawPlayers)
   window.addEventListener('fullscreenchange', onWindowResizeRedrawPlayers)
@@ -1616,6 +1646,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearMediaSessionHandlers()
+  if (window.electron2?.ipcRenderer?.removeListener) {
+    window.electron2.ipcRenderer.removeListener('window-fullscreen-changed', onFullscreenChanged)
+  }
   window.removeEventListener('keydown', onHardwareMediaKey)
   window.removeEventListener('resize', onWindowResizeRedrawPlayers)
   window.removeEventListener('fullscreenchange', onWindowResizeRedrawPlayers)
@@ -1625,7 +1658,16 @@ onUnmounted(() => {
   }
 })
 
+function onFullscreenChanged(_event, isFullscreen) {
+  isWindowFullscreen.value = Boolean(isFullscreen)
+  pageSizeRef.value = getRowsPerPageByMode()
+}
+
 function onWindowResizeRedrawPlayers() {
+  if (!window.electron2?.ipcRenderer?.on) {
+    isWindowFullscreen.value = Boolean(document.fullscreenElement)
+  }
+  pageSizeRef.value = getRowsPerPageByMode()
   if (playersResizeRafId) {
     cancelAnimationFrame(playersResizeRafId)
   }
@@ -1983,7 +2025,7 @@ async function setOption(option, extraArtists = [], recent = false) {
       body: JSON.stringify(savedSettings)
     })
 
-    pageSizeRef.value = savedSettings.rowsPerPage
+    pageSizeRef.value = getRowsPerPageByMode(savedSettings)
 
     if (songs.value.length <= 0 || tags.value.length <= 0 || artists.value.length <= 0) {
       // Set all tags
@@ -2514,7 +2556,7 @@ function addSongsToPlaylist(songIds, action, play = false, options = {}) {
 
   const ids = [...songIds]
   const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
-  pageSizeRef.value = savedSettings.rowsPerPage
+  pageSizeRef.value = getRowsPerPageByMode(savedSettings)
 
   if (action === 0) {
     playlist.value = ids.concat(playlist.value)
@@ -2905,6 +2947,7 @@ function settingsSaved() {
     filterSongs()
     saveLibraryView()
   }
+  pageSizeRef.value = getRowsPerPageByMode(s)
   setOption(null)
 }
 
@@ -3254,32 +3297,56 @@ table tr td.ant-table-cell {
   --vm-neutral-accent-hover: #44403c;
   --vm-neutral-accent-soft: #292524;
   --vm-neutral-accent-ring: rgba(120, 113, 108, 0.28);
-  --vm-neutral-row-selected: #d6d3d1;
-  --vm-neutral-row-hover: #d6d3d1;
-  --vm-bg-surface: #d6d3d1;
-  --vm-bg-panel: #e7e5e4;
-  --vm-bg-control: #78716c;
-  --vm-bg-control-alt: #a8a29e;
-  --vm-table-stripe: #d8d5d3;
-  background-color: #d6d3d1 !important;
+  --vm-secondary-surface: color-mix(in srgb, #d6d3d1 95%, var(--vm-player-wave-a) 5%);
+  --vm-secondary-panel-bg: color-mix(in srgb, #e7e5e4 95%, var(--vm-player-wave-a) 5%);
+  --vm-secondary-control: color-mix(in srgb, #78716c 94%, var(--vm-player-wave-a) 6%);
+  --vm-secondary-control-alt: color-mix(in srgb, #a8a29e 94%, var(--vm-player-wave-a) 6%);
+  --vm-secondary-row-base: color-mix(in srgb, #f0edeb 96%, var(--vm-player-wave-a) 4%);
+  --vm-secondary-row-stripe: color-mix(in srgb, #ede9e6 95%, var(--vm-player-wave-a) 5%);
+  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-player-wave-a) 28%, #ffffff 72%);
+  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-player-wave-a) 20%, #ffffff 80%);
+  --vm-bg-surface: var(--vm-secondary-surface);
+  --vm-bg-panel: var(--vm-secondary-panel-bg);
+  --vm-bg-control: var(--vm-secondary-control);
+  --vm-bg-control-alt: var(--vm-secondary-control-alt);
+  --vm-table-stripe: var(--vm-secondary-row-stripe);
+  background-color: var(--vm-secondary-surface) !important;
 }
 
 .vm-secondary-panel.bg-gray-300 {
-  background-color: #d6d3d1 !important;
+  background-color: var(--vm-secondary-surface) !important;
 }
 
 .vm-secondary-panel .bg-gray-300 {
-  background-color: #d6d3d1 !important;
+  background-color: var(--vm-secondary-surface) !important;
 }
 
 .vm-secondary-panel .bg-gray-100 {
-  background-color: #e7e5e4 !important;
+  background-color: var(--vm-secondary-panel-bg) !important;
 }
 
 .vm-secondary-panel .bg-gray-700,
 .vm-secondary-panel .bg-gray-600,
 .vm-secondary-panel .bg-gray-500 {
-  background-color: #78716c !important;
+  background-color: var(--vm-secondary-control) !important;
+}
+
+#app .vmusic-app .vm-side-nav {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--vm-player-wave-a) 45%, black 55%) 0%,
+    color-mix(in srgb, var(--vm-player-wave-b) 45%, black 55%) 100%
+  ) !important;
+  color: #ffffff !important;
+}
+
+#app .vmusic-app .vm-side-nav svg {
+  color: #ffffff !important;
+}
+
+#app .vmusic-app .vm-side-nav .vm-item-selected,
+#app .vmusic-app .vm-side-nav .vm-item-selected svg {
+  color: #000000 !important;
 }
 
 </style>

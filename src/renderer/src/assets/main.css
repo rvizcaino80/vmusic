@@ -604,7 +604,7 @@ iframe {
   .ant-table-tbody
   > tr:not(.table-striped):not(.ant-table-row-selected):not(:hover)
   > td.ant-table-cell {
-  background-color: #f0edeb !important;
+  background-color: var(--vm-secondary-row-base, #f0edeb) !important;
 }
 
 #app
@@ -612,7 +612,7 @@ iframe {
   .ant-table-striped
   .table-striped:not(.ant-table-row-selected):not(:hover)
   > td {
-  background-color: #ede9e6 !important;
+  background-color: var(--vm-secondary-row-stripe, #ede9e6) !important;
 }
 
 #app

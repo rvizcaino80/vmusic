@@ -33,6 +33,18 @@ function createWindow() {
     mainWindow.setTitle(appTitle)
   })
 
+  mainWindow.on('enter-full-screen', () => {
+    mainWindow.webContents.send('window-fullscreen-changed', true)
+  })
+
+  mainWindow.on('leave-full-screen', () => {
+    mainWindow.webContents.send('window-fullscreen-changed', false)
+  })
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.webContents.send('window-fullscreen-changed', mainWindow.isFullScreen())
+  })
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
 

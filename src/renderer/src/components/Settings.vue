@@ -24,6 +24,19 @@
       </a-form-item>
 
       <a-form-item
+        label="Canciones por página (FS)"
+        name="rowsPerPageFs"
+        :rules="[{ required: true, type: 'number', message: 'Ingrese un número válido!' }]"
+      >
+        <a-input-number
+          id="inputNumberRowsFs"
+          v-model:value="formState.rowsPerPageFs"
+          :min="1"
+          :max="100"
+        />
+      </a-form-item>
+
+      <a-form-item
         label="Tiempo de Crossfader"
         name="crossfaderTime"
         :rules="[{ required: true, type: 'number', message: 'Ingrese un número válido!' }]"
@@ -147,6 +160,7 @@ export default {
   setup(props, context) {
     const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings')) || {
       rowsPerPage: 24,
+      rowsPerPageFs: 24,
       crossfaderTime: 1,
       recentlyAddedTime: 24,
       historyLimit: 15,
@@ -157,6 +171,7 @@ export default {
 
     const formState = reactive({
       rowsPerPage: savedSettings.rowsPerPage,
+      rowsPerPageFs: typeof savedSettings.rowsPerPageFs === 'number' ? savedSettings.rowsPerPageFs : savedSettings.rowsPerPage,
       crossfaderTime: savedSettings.crossfaderTime,
       recentlyAddedTime: savedSettings.recentlyAddedTime,
       historyLimit: typeof savedSettings.historyLimit === 'number' ? savedSettings.historyLimit : 15,
@@ -233,6 +248,7 @@ export default {
     const onFinish = (values) => {
       const s = {
         rowsPerPage: formState.rowsPerPage,
+        rowsPerPageFs: formState.rowsPerPageFs,
         crossfaderTime: formState.crossfaderTime,
         recentlyAddedTime: formState.recentlyAddedTime,
         historyLimit: formState.historyLimit,
