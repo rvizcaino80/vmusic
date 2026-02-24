@@ -1095,8 +1095,8 @@ const playerStatuses = {
   Nivelando: 90
 }
 const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
-const COLOR_SCHEMA_DEFAULT = 'default'
-const COLOR_SCHEMA_VALUES = ['default', 'monochrome', 'sunset', 'aurora', 'orquidea', 'tormenta_cobre', 'bosque', 'linen', 'coral', 'nocturno', 'ocean', 'oceano']
+const COLOR_SCHEMA_DEFAULT = 'sunset'
+const COLOR_SCHEMA_VALUES = ['monochrome', 'sunset', 'aurora', 'orquidea', 'tormenta_cobre', 'bosque', 'linen', 'coral', 'nocturno', 'ocean', 'oceano']
 const COLOR_SCHEMA_TRANSITION_MS = 1000
 let colorSchemaTransitionTimer = null
 let colorSchemaTransitionRaf = null
@@ -1145,6 +1145,9 @@ function normalizeRowsPerPage(value, fallback = 24) {
 }
 
 function normalizeColorSchema(schema) {
+  if (schema === 'default') {
+    return 'sunset'
+  }
   if (schema === 'graphite') {
     return 'aurora'
   }

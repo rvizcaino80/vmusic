@@ -166,7 +166,7 @@ export default {
       historyLimit: 15,
       baseSpeed: 0,
       excludeTags: [],
-      colorSchema: 'default'
+      colorSchema: 'sunset'
     }
 
     const formState = reactive({
@@ -179,12 +179,11 @@ export default {
       previewSinkId: savedSettings.previewSinkId || null,
       deckSinkId: savedSettings.deckSinkId || null,
       excludeTags: savedSettings.excludeTags || [],
-      colorSchema: savedSettings.colorSchema || 'default'
+      colorSchema: savedSettings.colorSchema || 'sunset'
     })
 
     const tagOptions = ref([])
     const colorSchemaOptions = ref([
-      { label: 'Default', value: 'default' },
       { label: 'Atardecer', value: 'sunset' },
       { label: 'Aurora', value: 'ocean' },
       { label: 'Bosque', value: 'bosque' },
@@ -259,7 +258,7 @@ export default {
         previewSinkId: formState.previewSinkId === 'default' ? null : formState.previewSinkId || null,
         deckSinkId: formState.deckSinkId === 'default' ? null : formState.deckSinkId || null,
         excludeTags: formState.excludeTags || [],
-        colorSchema: formState.colorSchema || 'default'
+        colorSchema: formState.colorSchema || 'sunset'
       }
       localStorage.setItem('vmusic_settings', JSON.stringify(s))
       context.emit('saved')
