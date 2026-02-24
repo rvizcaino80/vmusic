@@ -225,6 +225,7 @@ onMounted(() => {
 
 function init() {
   const waveColor = getCurrentWaveColor()
+  const progressColor = getCurrentProgressColor()
   const cursorColor = getThemeColor('--vm-player-cursor', '#FFFFFF')
   const crossfaderCursorColor = getThemeColor('--vm-player-crossfader-cursor', '#FF0000')
   regionColor.value = getThemeColor('--vm-player-region', 'rgba(114,0,0,0.64)')
@@ -235,7 +236,8 @@ function init() {
     cursorColor,
     height: 'auto',
     fillParent: true,
-    waveColor
+    waveColor,
+    progressColor
   }
 
   crossfaderOptions = {
@@ -244,7 +246,8 @@ function init() {
     cursorColor: crossfaderCursorColor,
     height: 'auto',
     fillParent: true,
-    waveColor
+    waveColor,
+    progressColor
   }
 
   player = WaveSurfer.create(originalOptions)
@@ -618,6 +621,12 @@ function getCurrentWaveColor() {
   return getThemeColor(props.position === 'top' ? '--vm-player-wave-a' : '--vm-player-wave-b', props.position === 'top' ? '#EAB308' : '#EC4899')
 }
 
+function getCurrentProgressColor() {
+  const waveColor = getCurrentWaveColor()
+
+  return `color-mix(in srgb, ${waveColor} 72%, black 28%)`
+}
+
 function forceWaveContainerFit() {
   const mount = document.getElementById(playerId.value)
   if (!mount) return
@@ -654,10 +663,12 @@ function redrawWaveform() {
   if (!player) return
 
   const waveColor = getCurrentWaveColor()
+  const progressColor = getCurrentProgressColor()
   const cursorColor = status.value === props.statuses.Cambiando ? getThemeColor('--vm-player-crossfader-cursor', '#FF0000') : getThemeColor('--vm-player-cursor', '#FFFFFF')
 
   player.setOptions({
     waveColor,
+    progressColor,
     cursorColor,
     width: '100%',
     minPxPerSec: 0,
@@ -779,31 +790,37 @@ function refreshWaveform() {
 function syncWaveColor() {
   if (!player) return
   const waveColor = getCurrentWaveColor()
-  player.setOptions({ waveColor })
+  const progressColor = getCurrentProgressColor()
+  player.setOptions({ waveColor, progressColor })
   crossfaderOptions = {
     ...crossfaderOptions,
-    waveColor
+    waveColor,
+    progressColor
   }
   originalOptions = {
     ...originalOptions,
-    waveColor
+    waveColor,
+    progressColor
   }
 }
 
 function handleThemeChanged() {
   if (!player) return
   const waveColor = getCurrentWaveColor()
+  const progressColor = getCurrentProgressColor()
   const cursorColor = getThemeColor('--vm-player-cursor', '#FFFFFF')
   const crossfaderCursorColor = getThemeColor('--vm-player-crossfader-cursor', '#FF0000')
   regionColor.value = getThemeColor('--vm-player-region', 'rgba(114,0,0,0.64)')
 
   player.setOptions({
     waveColor,
+    progressColor,
     cursorColor
   })
   crossfaderOptions = {
     ...crossfaderOptions,
     waveColor,
+    progressColor,
     cursorColor: crossfaderCursorColor
   }
 }

@@ -10,7 +10,7 @@
 
     <div
       v-if="currentSelectedOption"
-      class="backdrop bg-black bg-opacity-70 z-50 fixed w-full h-full"
+      class="backdrop z-50 fixed w-full h-full"
       @click="hideMenu"
     >
       <div
@@ -738,7 +738,10 @@
             </div>
           </div>
 
-          <div class="flex items-center space-x-3">
+          <div
+            v-if="playlistDetails.length > 0"
+            class="flex items-center space-x-3"
+          >
             <button
               :disabled="selectedRows.length <= 0"
               type="button"
@@ -784,7 +787,10 @@
             </button>
           </div>
 
-          <div class="flex items-center space-x-3">
+          <div
+            v-if="playlistDetails.length > 0"
+            class="flex items-center space-x-3"
+          >
             <button
               :disabled="!player1 || selectedRows.length <= 0 || player1.status === playerStatuses.Reproduciendo ||
                 player1.status === playerStatuses.Cambiando"
@@ -854,7 +860,10 @@
           </table>
         </div>
 
-        <div class="flex items-center justify-between">
+        <div
+          v-if="playlistDetails.length > 0"
+          class="flex items-center justify-between"
+        >
           <div class="play-next-status text-xs text-white">
             <span v-if="playlistDetails.length <= 0">No hay más canciones</span>
             <span v-else-if="playlistDetails.length > 1">{{ playlistDetails.length }} canciones</span>
@@ -1087,7 +1096,7 @@ const playerStatuses = {
 }
 const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
 const COLOR_SCHEMA_DEFAULT = 'default'
-const COLOR_SCHEMA_VALUES = ['default', 'monochrome', 'sunset', 'aurora', 'bosque', 'linen', 'coral', 'nocturno', 'ocean']
+const COLOR_SCHEMA_VALUES = ['default', 'monochrome', 'sunset', 'aurora', 'orquidea', 'bosque', 'linen', 'coral', 'nocturno', 'ocean']
 const COLOR_SCHEMA_TRANSITION_MS = 1000
 let colorSchemaTransitionTimer = null
 let colorSchemaTransitionRaf = null
@@ -3365,14 +3374,14 @@ table tr td.ant-table-cell {
   --vm-neutral-accent-hover: #44403c;
   --vm-neutral-accent-soft: #292524;
   --vm-neutral-accent-ring: rgba(120, 113, 108, 0.28);
-  --vm-secondary-surface: color-mix(in srgb, #d6d3d1 93%, var(--vm-player-wave-b) 7%);
-  --vm-secondary-panel-bg: color-mix(in srgb, #e7e5e4 93%, var(--vm-player-wave-b) 7%);
-  --vm-secondary-control: color-mix(in srgb, #78716c 92%, var(--vm-player-wave-b) 8%);
-  --vm-secondary-control-alt: color-mix(in srgb, #a8a29e 92%, var(--vm-player-wave-b) 8%);
-  --vm-secondary-row-base: color-mix(in srgb, #f0edeb 94%, var(--vm-player-wave-b) 6%);
-  --vm-secondary-row-stripe: color-mix(in srgb, #ede9e6 93%, var(--vm-player-wave-b) 7%);
-  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-player-wave-b) 22%, #ffffff 78%);
-  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-player-wave-b) 15%, #ffffff 85%);
+  --vm-secondary-surface: color-mix(in srgb, #d6d3d1 93%, var(--vm-player-wave-a) 7%);
+  --vm-secondary-panel-bg: color-mix(in srgb, #e7e5e4 93%, var(--vm-player-wave-a) 7%);
+  --vm-secondary-control: color-mix(in srgb, #78716c 92%, var(--vm-player-wave-a) 8%);
+  --vm-secondary-control-alt: color-mix(in srgb, #a8a29e 92%, var(--vm-player-wave-a) 8%);
+  --vm-secondary-row-base: color-mix(in srgb, #f0edeb 94%, var(--vm-player-wave-a) 6%);
+  --vm-secondary-row-stripe: color-mix(in srgb, #ede9e6 93%, var(--vm-player-wave-a) 7%);
+  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-player-wave-a) 22%, #ffffff 78%);
+  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-player-wave-a) 15%, #ffffff 85%);
   --vm-bg-surface: var(--vm-secondary-surface);
   --vm-bg-panel: var(--vm-secondary-panel-bg);
   --vm-bg-control: var(--vm-secondary-control);
@@ -3422,7 +3431,7 @@ table tr td.ant-table-cell {
 }
 
 #app .vmusic-app .vm-side-nav .vm-item-selected {
-  background-color: color-mix(in srgb, #d6d3d1 93%, var(--vm-player-wave-b) 7%) !important;
+  background-color: color-mix(in srgb, #d6d3d1 93%, var(--vm-player-wave-a) 7%) !important;
 }
 
 #app .vmusic-app .playlist-list-container {

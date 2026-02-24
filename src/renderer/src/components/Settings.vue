@@ -188,6 +188,7 @@ export default {
       { label: 'Acero y Brasa', value: 'monochrome' },
       { label: 'Atardecer', value: 'sunset' },
       { label: 'Aurora', value: 'aurora' },
+      { label: 'Orquidea', value: 'orquidea' },
       { label: 'Bosque', value: 'bosque' },
       { label: 'Cobre y Turquesa', value: 'linen' },
       { label: 'Coral', value: 'coral' },
