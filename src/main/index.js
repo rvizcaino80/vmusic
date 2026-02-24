@@ -26,6 +26,14 @@ function createWindow() {
     mainWindow.maximize()
     mainWindow.show()
     mainWindow.setTitle(appTitle)
+    setTimeout(() => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('window-display-mode-changed', {
+          isFullScreen: mainWindow.isFullScreen(),
+          isMaximized: mainWindow.isMaximized()
+        })
+      }
+    }, 800)
   })
 
   mainWindow.on('page-title-updated', (event) => {
@@ -33,17 +41,20 @@ function createWindow() {
     mainWindow.setTitle(appTitle)
   })
 
-  mainWindow.on('enter-full-screen', () => {
-    mainWindow.webContents.send('window-fullscreen-changed', true)
-  })
+  const sendWindowDisplayMode = () => {
+    mainWindow.webContents.send('window-display-mode-changed', {
+      isFullScreen: mainWindow.isFullScreen(),
+      isMaximized: mainWindow.isMaximized()
+    })
+  }
 
-  mainWindow.on('leave-full-screen', () => {
-    mainWindow.webContents.send('window-fullscreen-changed', false)
-  })
+  mainWindow.on('enter-full-screen', sendWindowDisplayMode)
+  mainWindow.on('leave-full-screen', sendWindowDisplayMode)
+  mainWindow.on('maximize', sendWindowDisplayMode)
+  mainWindow.on('unmaximize', sendWindowDisplayMode)
+  mainWindow.on('resized', sendWindowDisplayMode)
 
-  mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow.webContents.send('window-fullscreen-changed', mainWindow.isFullScreen())
-  })
+  mainWindow.webContents.on('did-finish-load', sendWindowDisplayMode)
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -100,6 +111,18 @@ app.whenReady().then(() => {
 
   ipcMain.handle('empty-clipboard', async(event, ...args) => {
     clipboard.clear()
+  })
+
+  ipcMain.handle('get-window-display-mode', async(event, ...args) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
+    if (!win) {
+      return { isFullScreen: false, isMaximized: false }
+    }
+
+    return {
+      isFullScreen: win.isFullScreen(),
+      isMaximized: win.isMaximized()
+    }
   })
   createWindow()
 

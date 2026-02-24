@@ -16,6 +16,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron2', {
       getClipboardText: () => ipcRenderer.invoke('get-clipboard-text'),
       emptyClipboard: () => ipcRenderer.invoke('empty-clipboard'),
+      getWindowDisplayMode: () => ipcRenderer.invoke('get-window-display-mode'),
       ipcRenderer: ipcRenderer
     })
 

@@ -1505,6 +1505,21 @@ function getRowsPerPageByMode(settings = null) {
   return isWindowFullscreen.value ? fullscreen : normal
 }
 
+async function syncWindowDisplayMode() {
+  if (!window.electron2?.getWindowDisplayMode) {
+    isWindowFullscreen.value = Boolean(document.fullscreenElement)
+
+    return
+  }
+
+  try {
+    const mode = await window.electron2.getWindowDisplayMode()
+    isWindowFullscreen.value = Boolean(mode?.isFullScreen)
+  } catch (error) {
+    isWindowFullscreen.value = Boolean(document.fullscreenElement)
+  }
+}
+
 function formatHistoryPlayedAt(value) {
   return dayjs(value).format('YYYY-MM-DD HH:mm:ss')
 }
@@ -1634,9 +1649,11 @@ onMounted(() => {
   setupMediaSessionHandlers()
   updateMediaSessionState()
   updateMediaSessionMetadata()
-  isWindowFullscreen.value = Boolean(document.fullscreenElement)
-  pageSizeRef.value = getRowsPerPageByMode()
+  syncWindowDisplayMode().finally(() => {
+    pageSizeRef.value = getRowsPerPageByMode()
+  })
   if (window.electron2?.ipcRenderer?.on) {
+    window.electron2.ipcRenderer.on('window-display-mode-changed', onWindowDisplayModeChanged)
     window.electron2.ipcRenderer.on('window-fullscreen-changed', onFullscreenChanged)
   }
   window.addEventListener('keydown', onHardwareMediaKey)
@@ -1647,6 +1664,7 @@ onMounted(() => {
 onUnmounted(() => {
   clearMediaSessionHandlers()
   if (window.electron2?.ipcRenderer?.removeListener) {
+    window.electron2.ipcRenderer.removeListener('window-display-mode-changed', onWindowDisplayModeChanged)
     window.electron2.ipcRenderer.removeListener('window-fullscreen-changed', onFullscreenChanged)
   }
   window.removeEventListener('keydown', onHardwareMediaKey)
@@ -1663,11 +1681,15 @@ function onFullscreenChanged(_event, isFullscreen) {
   pageSizeRef.value = getRowsPerPageByMode()
 }
 
-function onWindowResizeRedrawPlayers() {
-  if (!window.electron2?.ipcRenderer?.on) {
-    isWindowFullscreen.value = Boolean(document.fullscreenElement)
-  }
+function onWindowDisplayModeChanged(_event, mode) {
+  isWindowFullscreen.value = Boolean(mode?.isFullScreen)
   pageSizeRef.value = getRowsPerPageByMode()
+}
+
+function onWindowResizeRedrawPlayers() {
+  syncWindowDisplayMode().finally(() => {
+    pageSizeRef.value = getRowsPerPageByMode()
+  })
   if (playersResizeRafId) {
     cancelAnimationFrame(playersResizeRafId)
   }
@@ -2004,6 +2026,7 @@ async function setOption(option, extraArtists = [], recent = false) {
   if (currentSelectedOption.value === options.library) {
     isLoadingLibrary.value = true
     preparePreviewOutput()
+    await syncWindowDisplayMode()
 
     // Load library status
     libraryState.value = {}
@@ -2914,7 +2937,7 @@ async function downloaded(artistIds) {
   downloadSelectedArtist.value = Array.isArray(artistIds) ? artistIds[0] : null
 }
 
-function settingsSaved() {
+async function settingsSaved() {
   const s = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
   previewSinkId.value = s.previewSinkId || null
   deckSinkId.value = s.deckSinkId || null
@@ -2947,6 +2970,7 @@ function settingsSaved() {
     filterSongs()
     saveLibraryView()
   }
+  await syncWindowDisplayMode()
   pageSizeRef.value = getRowsPerPageByMode(s)
   setOption(null)
 }
