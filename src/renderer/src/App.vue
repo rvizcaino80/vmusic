@@ -686,7 +686,7 @@
                   (player2 && player2.status === playerStatuses.Cambiando)
               "
               type="button"
-              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="pause"
             >
               <i-material-symbols-pause
@@ -703,7 +703,7 @@
                     player2.status === playerStatuses.Cambiando)
               "
               type="button"
-              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="play"
             >
               <i-mdi-play
@@ -719,7 +719,7 @@
                     player2.status === playerStatuses.Cambiando)
               "
               type="button"
-              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="next"
             >
               <i-material-symbols-skip-next
@@ -742,7 +742,7 @@
             <button
               :disabled="selectedRows.length <= 0"
               type="button"
-              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="moveFirst(playlistDetails, selectedRows[0])"
             >
               <i-ic-baseline-move-up
@@ -753,7 +753,7 @@
             <button
               :disabled="selectedRows.length <= 0"
               type="button"
-              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="moveUp(playlistDetails, selectedRows[0])"
             >
               <i-teenyicons-up-solid
@@ -764,7 +764,7 @@
             <button
               :disabled="selectedRows.length <= 0"
               type="button"
-              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="moveDown(playlistDetails, selectedRows[0])"
             >
               <i-teenyicons-down-solid
@@ -775,7 +775,7 @@
             <button
               :disabled="selectedRows.length <= 0"
               type="button"
-              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 text-white p-2"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 text-white p-2"
               @click="remove(playlistDetails, selectedRows[0])"
             >
               <i-mdi-remove-bold
@@ -789,7 +789,7 @@
               :disabled="!player1 || selectedRows.length <= 0 || player1.status === playerStatuses.Reproduciendo ||
                 player1.status === playerStatuses.Cambiando"
               type="button"
-              class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 text-white p-2"
+              class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-black/30 text-white p-2"
               @click="loadDeck('A')"
             >
               <i-ic-baseline-download class="w-6 h-6 deck-a-indicator" />
@@ -800,7 +800,7 @@
               :disabled="!player2 || selectedRows.length <= 0 || player2.status === playerStatuses.Reproduciendo ||
                 player2.status === playerStatuses.Cambiando"
               type="button"
-              class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 text-white p-2"
+              class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-black/30 text-white p-2"
               @click="loadDeck('B')"
             >
               <i-ic-baseline-download class="w-6 h-6 deck-b-indicator" />
@@ -809,7 +809,7 @@
           </div>
         </div>
 
-        <div class="bg-gray-900 flex-1 overflow-y-auto basis-0">
+        <div class="playlist-list-container bg-gray-900 flex-1 overflow-y-auto basis-0">
           <table class="dark border-collapse w-full text-sm">
             <tr
               v-for="(s, index) in playlistDetails"
@@ -874,7 +874,7 @@
               <input
                 v-model="playlistSearchQuery"
                 type="text"
-                class="bg-gray-600 text-white text-xs px-2 py-1 w-40 outline-none"
+                class="bg-black text-white text-xs px-2 py-1 w-40 outline-none"
                 placeholder="Buscar en lista"
                 @input="onPlaylistSearchInput"
               >
@@ -911,7 +911,7 @@
               v-if="false"
               :disabled="isImportingM3U"
               type="button"
-              class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
+              class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-black/30 p-1 px-2"
               @click="openM3UPicker"
             >
               <i-mdi-file-music-outline
@@ -919,35 +919,35 @@
               />
               <span>{{ isImportingM3U ? 'Cargando...' : 'Cargar' }}</span>
             </button>
-            <button
+            <a-button
               :disabled="playlistDetails.length <= 1"
-              type="button"
-              class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
+              size="small"
+              class="playlist-quick-action"
               @click="shufflePlaylist"
             >
-              <i-ic-baseline-shuffle
-                class="w-4 h-4"
-              />
-              <span>Revolver</span>
-            </button>
+              <template #icon>
+                <i-ic-baseline-shuffle class="w-4 h-4" />
+              </template>
+              Revolver
+            </a-button>
 
-            <button
+            <a-button
               :disabled="playlistDetails.length <= 0"
-              type="button"
-              class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
+              size="small"
+              class="playlist-quick-action"
               @click="removeAll(playlistDetails)"
             >
-              <i-iconamoon-trash-fill
-                class="w-4 h-4"
-              />
-              <span>Vaciar</span>
-            </button>
+              <template #icon>
+                <i-iconamoon-trash-fill class="w-4 h-4" />
+              </template>
+              Vaciar
+            </a-button>
           </div>
         </div>
       </div>
 
       <div
-        class="vm-side-nav z-50 text-sm flex flex-col space-y-10 justify-between items-center bg-gray-100 fullheight"
+        class="vm-side-nav z-50 text-sm flex flex-col space-y-10 justify-between items-center fullheight"
       >
         <div class="flex flex-col w-full">
           <div
@@ -3327,8 +3327,33 @@ table tr td.ant-table-cell {
   display: block;
 }
 
+.playlist-quick-action.ant-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+}
+
+.playlist-quick-action.ant-btn > span {
+  display: inline-flex !important;
+  align-items: center !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+}
+
+.playlist-quick-action.ant-btn .ant-btn-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+}
+
 .playlist-row-selected {
-  background-color: color-mix(in srgb, var(--vm-player-wave-a) 40%, transparent);
+  background-color: color-mix(in srgb, var(--vm-player-wave-a) 58%, transparent) !important;
+}
+
+#app .vmusic-app .playlist-list-container td.playlist-row-selected:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--vm-player-wave-a) 80%, #ffffff 20%);
 }
 
 .vm-item-selected {
@@ -3375,12 +3400,16 @@ table tr td.ant-table-cell {
 }
 
 #app .vmusic-app .vm-side-nav {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+  color: #ffffff !important;
+}
+
+#app .vmusic-app {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--vm-player-wave-a) 45%, black 55%) 0%,
-    color-mix(in srgb, var(--vm-player-wave-b) 45%, black 55%) 100%
+    color-mix(in srgb, var(--vm-player-wave-a) 35%, black 65%) 0%,
+    color-mix(in srgb, var(--vm-player-wave-b) 35%, black 65%) 100%
   ) !important;
-  color: #ffffff !important;
 }
 
 #app .vmusic-app .vm-side-nav svg {
@@ -3394,6 +3423,10 @@ table tr td.ant-table-cell {
 
 #app .vmusic-app .vm-side-nav .vm-item-selected {
   background-color: color-mix(in srgb, #d6d3d1 93%, var(--vm-player-wave-b) 7%) !important;
+}
+
+#app .vmusic-app .playlist-list-container {
+  background-color: transparent !important;
 }
 
 </style>
