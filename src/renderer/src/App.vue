@@ -1,70 +1,71 @@
 <template>
-  <!-- Overlay to close the menu -->
-  <div
-    v-if="showMenu"
-    class="overlay"
-    @click="closeContextMenu"
-    @click.right="closeContextMenu"
-  />
-
-  <div
-    v-if="currentSelectedOption"
-    class="backdrop bg-black bg-opacity-70 z-50 fixed w-full h-full"
-    @click="hideMenu"
-  >
+  <a-config-provider :theme="antTheme">
+    <!-- Overlay to close the menu -->
     <div
-      :class="{
-        'w-9/12': currentSelectedOption === options.library || currentSelectedOption === options.history,
-        'w-11/12': currentSelectedOption === options.wave,
-        'w-2/5': currentSelectedOption !== options.wave && currentSelectedOption !== options.library && currentSelectedOption !== options.history
-      }"
-      class="right-[40px] fixed flex h-full flex-col min-h-[0] bg-gray-300 p-6 text-black"
+      v-if="showMenu"
+      class="overlay"
+      @click="closeContextMenu"
+      @click.right="closeContextMenu"
+    />
+
+    <div
+      v-if="currentSelectedOption"
+      class="backdrop bg-black bg-opacity-70 z-50 fixed w-full h-full"
       @click="hideMenu"
     >
-      <Edit
-        v-if="currentSelectedOption && currentSelectedOption === options.edit"
-        :id="selectedSongs.length > 0 ? selectedSongs[0] : 0"
-        :tags="tags.filter(t => t.id != 9998)"
-        :artists="artists"
-        @updated="updated"
-      />
-
-      <Download
-        v-if="currentSelectedOption && currentSelectedOption === options.download"
-        :tags="tags.filter(t => t.id != 9998)"
-        :artists="artists"
-        :selected-artist="downloadSelectedArtist"
-        @downloaded="downloaded"
-        @artists-updated="artistsUpdated"
-      />
-
-      <Settings
-        v-if="currentSelectedOption && currentSelectedOption === options.settings"
-        @saved="settingsSaved"
-      />
-
-      <Artists v-if="currentSelectedOption && currentSelectedOption === options.artists" />
-
-      <Tags
-        v-if="currentSelectedOption && currentSelectedOption === options.tags"
-        :tags="tags.filter(t => t.id != 9998)"
-        @added="getTags"
-      />
-
-      <Wave
-        v-if="currentSelectedOption && currentSelectedOption === options.wave"
-        :id="selectedSongs.length > 0 ? selectedSongs[0] : 0"
-        :preview-sink-id="previewSinkId"
-        @wave-updated="waveUpdated"
-      />
       <div
-        v-if="currentSelectedOption && currentSelectedOption === options.library"
-        class="flex flex-col space-y-4 flex-1 min-h-[0]"
+        :class="{
+          'w-9/12': currentSelectedOption === options.library || currentSelectedOption === options.history,
+          'w-11/12': currentSelectedOption === options.wave,
+          'w-2/5': currentSelectedOption !== options.wave && currentSelectedOption !== options.library && currentSelectedOption !== options.history
+        }"
+        class="right-[40px] fixed flex h-full flex-col min-h-[0] bg-gray-300 p-6 text-black"
+        @click="hideMenu"
       >
-        <div class="library-filters flex items-start h-[200px] space-x-4">
-          <div class="h-full flex-1 flex flex-col min-h-[0]">
-            <div class="flex items-center space-x-2 text-xs text-white mb-2">
-              <!--button
+        <Edit
+          v-if="currentSelectedOption && currentSelectedOption === options.edit"
+          :id="selectedSongs.length > 0 ? selectedSongs[0] : 0"
+          :tags="tags.filter(t => t.id != 9998)"
+          :artists="artists"
+          @updated="updated"
+        />
+
+        <Download
+          v-if="currentSelectedOption && currentSelectedOption === options.download"
+          :tags="tags.filter(t => t.id != 9998)"
+          :artists="artists"
+          :selected-artist="downloadSelectedArtist"
+          @downloaded="downloaded"
+          @artists-updated="artistsUpdated"
+        />
+
+        <Settings
+          v-if="currentSelectedOption && currentSelectedOption === options.settings"
+          @saved="settingsSaved"
+        />
+
+        <Artists v-if="currentSelectedOption && currentSelectedOption === options.artists" />
+
+        <Tags
+          v-if="currentSelectedOption && currentSelectedOption === options.tags"
+          :tags="tags.filter(t => t.id != 9998)"
+          @added="getTags"
+        />
+
+        <Wave
+          v-if="currentSelectedOption && currentSelectedOption === options.wave"
+          :id="selectedSongs.length > 0 ? selectedSongs[0] : 0"
+          :preview-sink-id="previewSinkId"
+          @wave-updated="waveUpdated"
+        />
+        <div
+          v-if="currentSelectedOption && currentSelectedOption === options.library"
+          class="flex flex-col space-y-4 flex-1 min-h-[0]"
+        >
+          <div class="library-filters flex items-start h-[200px] space-x-4">
+            <div class="h-full flex-1 flex flex-col min-h-[0]">
+              <div class="flex items-center space-x-2 text-xs text-white mb-2">
+                <!--button
                 class="px-2 py-1 bg-gray-700 flex items-center space-x-1"
                 @click="selectAllArtists"
               >
@@ -75,19 +76,19 @@
                 <span>Todos</span>
               </button-->
 
-              <a-button
-                size="small"
-                type="primary"
-                class="flex items-center space-x-1 pl-1.5"
-                @click="selectAllArtists"
-              >
-                <i-ri-checkbox-line
-                  class="w-4 h-4"
-                />
-                Todos
-              </a-button>
+                <a-button
+                  size="small"
+                  type="primary"
+                  class="flex items-center space-x-1 pl-1.5"
+                  @click="selectAllArtists"
+                >
+                  <i-ri-checkbox-line
+                    class="w-4 h-4"
+                  />
+                  Todos
+                </a-button>
 
-              <!--button
+                <!--button
                 class="px-2 py-1 bg-gray-700 flex items-center space-x-1"
                 @click="selectNoneArtists"
               >
@@ -98,72 +99,72 @@
                 <span>Ninguno</span>
               </button-->
 
-              <a-button
-                type="primary"
-                size="small"
-                class="flex items-center space-x-1 pl-1.5"
-                @click="selectNoneArtists"
-              >
-                <i-carbon-checkbox
-                  class="w-4 h-4"
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="flex items-center space-x-1 pl-1.5"
+                  @click="selectNoneArtists"
+                >
+                  <i-carbon-checkbox
+                    class="w-4 h-4"
+                  />
+                  Ninguno
+                </a-button>
+              </div>
+
+              <div class="overflow-y-scroll bg-gray-300 flex-1">
+                <multiselect
+                  ref="artistMultiSelect"
+                  name="artists"
+                  :list="artists"
+                  :selected-default="selectedArtists"
+                  @changed="artistsChanged"
                 />
-                Ninguno
-              </a-button>
+              </div>
             </div>
 
-            <div class="overflow-y-scroll bg-gray-300 flex-1">
-              <multiselect
-                ref="artistMultiSelect"
-                name="artists"
-                :list="artists"
-                :selected-default="selectedArtists"
-                @changed="artistsChanged"
-              />
+            <div class="h-full flex-1 flex flex-col min-h-[0]">
+              <div class="flex items-center space-x-2 text-xs text-white mb-2">
+                <a-button
+                  size="small"
+                  type="primary"
+                  class="flex items-center space-x-1 pl-1.5"
+                  @click="selectAllTags($event)"
+                >
+                  <i-ri-checkbox-line
+                    class="w-4 h-4"
+                  />
+                  Todos
+                </a-button>
+
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="flex items-center space-x-1 pl-1.5"
+                  @click="selectNoneTags"
+                >
+                  <i-carbon-checkbox
+                    class="w-4 h-4"
+                  />
+                  Ninguno
+                </a-button>
+              </div>
+
+              <div class="overflow-y-scroll bg-gray-300 flex-1">
+                <multiselect
+                  ref="tagMultiSelect"
+                  name="tags"
+                  :list="tags"
+                  :selected-default="selectedTags"
+                  @changed="tagsChanged"
+                />
+              </div>
             </div>
           </div>
 
-          <div class="h-full flex-1 flex flex-col min-h-[0]">
-            <div class="flex items-center space-x-2 text-xs text-white mb-2">
-              <a-button
-                size="small"
-                type="primary"
-                class="flex items-center space-x-1 pl-1.5"
-                @click="selectAllTags($event)"
-              >
-                <i-ri-checkbox-line
-                  class="w-4 h-4"
-                />
-                Todos
-              </a-button>
-
-              <a-button
-                type="primary"
-                size="small"
-                class="flex items-center space-x-1 pl-1.5"
-                @click="selectNoneTags"
-              >
-                <i-carbon-checkbox
-                  class="w-4 h-4"
-                />
-                Ninguno
-              </a-button>
-            </div>
-
-            <div class="overflow-y-scroll bg-gray-300 flex-1">
-              <multiselect
-                ref="tagMultiSelect"
-                name="tags"
-                :list="tags"
-                :selected-default="selectedTags"
-                @changed="tagsChanged"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between space-x-3">
-          <div class="flex items-center space-x-3">
-            <!--button
+          <div class="flex items-center justify-between space-x-3">
+            <div class="flex items-center space-x-3">
+              <!--button
               v-if="playlistDetails.length === 0"
               :disabled="selectedSongs.length <= 0 || player1.status === playerStatuses.Cambiando || player2.status
                 === playerStatuses.Cambiando"
@@ -178,20 +179,20 @@
               <span>Agregar</span>
             </button-->
 
-            <a-button
-              v-if="playlistDetails.length === 0"
-              :disabled="addButtonDisabled"
-              type="primary"
-              class="flex items-center space-x-1 pl-2.5"
-              @click="addToPlaylist(0, false, { ignoreMarks: $event.altKey })"
-            >
-              <i-mdi-plus
-                class="w-5 h-5"
-              />
-              Agregar
-            </a-button>
+              <a-button
+                v-if="playlistDetails.length === 0"
+                :disabled="addButtonDisabled"
+                type="primary"
+                class="flex items-center space-x-1 pl-2.5"
+                @click="addToPlaylist(0, false, { ignoreMarks: $event.altKey })"
+              >
+                <i-mdi-plus
+                  class="w-5 h-5"
+                />
+                Agregar
+              </a-button>
 
-            <!--button
+              <!--button
               v-if="playlistDetails.length === 0"
               :disabled="addRandomButtonDisabled"
               type="button"
@@ -205,22 +206,22 @@
               <span>Aleatorio</span>
             </button-->
 
-            <a-button
-              v-if="playlistDetails.length === 0"
-              :disabled="addRandomButtonDisabled"
-              type="primary"
-              class="flex items-center space-x-1 pl-2.5"
-              @click="addToPlaylist(3)"
-            >
-              <i-mdi-shuffle
-                class="w-4 h-4"
-              />
-              Aleatorio
-            </a-button>
+              <a-button
+                v-if="playlistDetails.length === 0"
+                :disabled="addRandomButtonDisabled"
+                type="primary"
+                class="flex items-center space-x-1 pl-2.5"
+                @click="addToPlaylist(3)"
+              >
+                <i-mdi-shuffle
+                  class="w-4 h-4"
+                />
+                Aleatorio
+              </a-button>
 
 
-            <template v-if="playlistDetails.length > 0">
-              <!--button
+              <template v-if="playlistDetails.length > 0">
+                <!--button
                 :disabled="selectedSongs.length <= 0"
                 type="button"
                 class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
@@ -233,19 +234,19 @@
                 <span>Al comienzo</span>
               </button-->
 
-              <a-button
-                :disabled="selectedSongs.length <= 0"
-                type="primary"
-                class="flex items-center space-x-1 pl-2.5"
-                @click="addToPlaylist(1, false, { ignoreMarks: $event.altKey })"
-              >
-                <i-ic-baseline-move-up
-                  class="w-5 h-5"
-                />
-                Al comienzo
-              </a-button>
+                <a-button
+                  :disabled="selectedSongs.length <= 0"
+                  type="primary"
+                  class="flex items-center space-x-1 pl-2.5"
+                  @click="addToPlaylist(1, false, { ignoreMarks: $event.altKey })"
+                >
+                  <i-ic-baseline-move-up
+                    class="w-5 h-5"
+                  />
+                  Al comienzo
+                </a-button>
 
-              <!--button
+                <!--button
                 :disabled="selectedSongs.length <= 0"
                 type="button"
                 class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
@@ -258,20 +259,20 @@
                 <span>Al final</span>
               </button-->
 
-              <a-button
-                :disabled="selectedSongs.length <= 0"
-                type="primary"
-                class="flex items-center space-x-1 pl-2.5"
-                @click="addToPlaylist(2, false, { ignoreMarks: $event.altKey })"
-              >
-                <i-ic-baseline-move-down
-                  class="w-5 h-5"
-                />
-                Al final
-              </a-button>
-            </template>
+                <a-button
+                  :disabled="selectedSongs.length <= 0"
+                  type="primary"
+                  class="flex items-center space-x-1 pl-2.5"
+                  @click="addToPlaylist(2, false, { ignoreMarks: $event.altKey })"
+                >
+                  <i-ic-baseline-move-down
+                    class="w-5 h-5"
+                  />
+                  Al final
+                </a-button>
+              </template>
 
-            <!--button
+              <!--button
               :disabled="selectedSongs.length !== 1"
               type="button"
               class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
@@ -284,18 +285,18 @@
               <span>Info</span>
             </button-->
 
-            <a-button
-              :disabled="selectedSongs.length !== 1"
-              class="flex items-center space-x-1 pl-2.5"
-              @click="currentSelectedOption = options.edit"
-            >
-              <i-material-symbols-info-outline
-                class="w-5 h-5"
-              />
-              Info
-            </a-button>
+              <a-button
+                :disabled="selectedSongs.length !== 1"
+                class="flex items-center space-x-1 pl-2.5"
+                @click="currentSelectedOption = options.edit"
+              >
+                <i-material-symbols-info-outline
+                  class="w-5 h-5"
+                />
+                Info
+              </a-button>
 
-            <!--button
+              <!--button
               :disabled="selectedSongs.length !== 1"
               type="button"
               class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
@@ -308,18 +309,18 @@
               <span>Onda</span>
             </button-->
 
-            <a-button
-              :disabled="selectedSongs.length !== 1"
-              class="flex items-center space-x-1 pl-2.5"
-              @click="currentSelectedOption = options.wave"
-            >
-              <i-mdi-sine-wave
-                class="w-5 h-5"
-              />
-              Onda
-            </a-button>
+              <a-button
+                :disabled="selectedSongs.length !== 1"
+                class="flex items-center space-x-1 pl-2.5"
+                @click="currentSelectedOption = options.wave"
+              >
+                <i-mdi-sine-wave
+                  class="w-5 h-5"
+                />
+                Onda
+              </a-button>
 
-            <!--button
+              <!--button
               :disabled="selectedSongs.length !== 1"
               type="button"
               class="text-sm whitespace-nowrap px-2 py-2 bg-red-600 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
@@ -332,720 +333,721 @@
               <span>Eliminar</span>
             </button-->
 
-            <a-button
-              danger
-              :disabled="selectedSongs.length !== 1"
-              class="flex items-center space-x-1 pl-2.5"
-              @click="deleteSong"
-            >
-              <i-iwwa-delete
-                class="w-4 h-4"
+              <a-button
+                danger
+                :disabled="selectedSongs.length !== 1"
+                class="flex items-center space-x-1 pl-2.5"
+                @click="deleteSong"
+              >
+                <i-iwwa-delete
+                  class="w-4 h-4"
+                />
+                Eliminar
+              </a-button>
+              <a-button
+                v-if="false"
+                :disabled="isExportingM3U || filteredSongs2.length === 0"
+                class="flex items-center space-x-1 pl-2.5"
+                @click="exportM3U"
+              >
+                <i-mdi-file-export-outline
+                  class="w-4 h-4"
+                />
+                {{ isExportingM3U ? 'Exportando...' : 'Exportar' }}
+              </a-button>
+            </div>
+
+            <div class="flex items-center space-x-3">
+              <a-input
+                v-model:value="filterQuery"
+                :disabled="isLoadingLibrary"
+                placeholder="Filtrar por título o artista"
+                style="width: 300px"
+                class="vm-filter-input"
+                allow-clear
+                @blur="onSearchBlur"
               />
-              Eliminar
-            </a-button>
-            <a-button
-              v-if="false"
-              :disabled="isExportingM3U || filteredSongs2.length === 0"
-              class="flex items-center space-x-1 pl-2.5"
-              @click="exportM3U"
-            >
-              <i-mdi-file-export-outline
-                class="w-4 h-4"
-              />
-              {{ isExportingM3U ? 'Exportando...' : 'Exportar' }}
-            </a-button>
+              <a-dropdown>
+                <a-button class="flex items-center space-x-1 pl-2.5">
+                  <span>{{ m3uSourceLabel }}</span>
+                  <i-mdi-menu-down class="w-4 h-4" />
+                </a-button>
+                <template #overlay>
+                  <a-menu
+                    :selected-keys="[m3uExportSourceFilter]"
+                    @click="onM3uSourceSelect"
+                  >
+                    <a-menu-item key="any">
+                      Cualquier fuente
+                    </a-menu-item>
+                    <a-menu-item key="apple">
+                      Apple Music
+                    </a-menu-item>
+                    <a-menu-item key="youtube">
+                      Youtube
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </div>
           </div>
 
-          <div class="flex items-center space-x-3">
-            <a-input
-              v-model:value="filterQuery"
-              :disabled="isLoadingLibrary"
-              placeholder="Filtrar por título o artista"
-              style="width: 300px"
-              allow-clear
-              @blur="onSearchBlur"
-            />
-            <a-dropdown>
-              <a-button class="flex items-center space-x-1 pl-2.5">
-                <span>{{ m3uSourceLabel }}</span>
-                <i-mdi-menu-down class="w-4 h-4" />
-              </a-button>
-              <template #overlay>
-                <a-menu
-                  :selected-keys="[m3uExportSourceFilter]"
-                  @click="onM3uSourceSelect"
-                >
-                  <a-menu-item key="any">
-                    Cualquier fuente
-                  </a-menu-item>
-                  <a-menu-item key="apple">
-                    Apple Music
-                  </a-menu-item>
-                  <a-menu-item key="youtube">
-                    Youtube
-                  </a-menu-item>
-                </a-menu>
+          <div class="flex-1 overflow-y-auto">
+            <a-table
+              class="ant-table-striped"
+              :animate-rows="false"
+              :row-key="record => record.id"
+              :row-class-name="(_record, index) => (deletedSongs.includes(_record.id) ? 'table-deleted' : index % 2 === 1 ? 'table-striped' : null)"
+              :show-sorter-tooltip="false"
+              :loading="isLoadingLibrary"
+              :pagination="{ current: libraryState.page, hideOnSinglePage: false, total: filteredSongs2.length, 'show-total': (total) => `${selectedSongs.length} seleccionadas / ${total} canciones`, defaultPageSize: 24, pageSize: pageSizeRef, showSizeChanger: false }"
+              :row-selection="{ selectedRowKeys: selectedSongs, onChange: onSelectChange, onSelectAll: onSelectAll }"
+              sticky
+              size="small"
+              :data-source="filteredSongs2"
+              :columns="columns"
+              @change="onTableChange"
+            >
+              <template #emptyText>
+                <div class="min-h-[40px] leading-[40px]">
+                  No hay canciones que mostrar.
+                </div>
               </template>
-            </a-dropdown>
+              <template #bodyCell="{text, record, column}">
+                <template v-if="column.dataIndex === 'preview'">
+                  <a-button
+                    class="flex items-center justify-center w-8 h-8 p-0"
+                    size="small"
+                    :type="previewSongId === record.id && previewStatus === 'playing' ? 'primary' : 'default'"
+                    :loading="isPreviewLoading && previewSongId === record.id"
+                    @mousedown.stop.prevent="startPreview(record)"
+                    @mouseup.stop="stopPreview()"
+                    @mouseleave.stop="stopPreview()"
+                    @touchstart.stop.prevent="startPreview(record)"
+                    @touchend.stop="stopPreview()"
+                  >
+                    <i-mdi-headphones
+                      class="w-4 h-4"
+                    />
+                  </a-button>
+                </template>
+                <template v-else-if="column.dataIndex === 'name'">
+                  <div class="flex items-center space-x-2">
+                    <span>{{ text }}</span>
+                    <span
+                      v-if="record.Tags.some(tag => tag.id === 9998)"
+                      class="px-[10px] py-[1px] rounded-full bg-yellow-200 text-yellow-00 text-xs"
+                    >Reciente</span>
+                  </div>
+                </template>
+                <template v-else-if="column.dataIndex === 'artistsJoined'">
+                  <div class="flex flex-wrap gap-x-3 gap-y-1">
+                    <div
+                      v-for="artist in record.Artists"
+                      :key="artist.id"
+                      class="flex items-center space-x-1 text-[13px]"
+                    >
+                      <button
+                        type="button"
+                        class="text-left hover:underline cursor-pointer"
+                        title="Ver canciones de este artista"
+                        @click.stop="quickFilterByArtist(artist.id)"
+                      >
+                        {{ artist.name }}
+                      </button>
+                    </div>
+                  </div>
+                </template>
+                <template v-else-if="column.dataIndex === 'source'">
+                  <i-ic-baseline-apple
+                    v-if="record.isAppleMusic"
+                    class="mx-auto w-5 h-5"
+                  />
+                  <i-mingcute-youtube-fill
+                    v-else
+                    class="mx-auto w-5 h-5"
+                  />
+                </template>
+                <template v-else-if="column.dataIndex === 'decks'">
+                  <div class="flex items-center justify-center space-x-2">
+                    <button
+                      :disabled="isDeckManualLoadDisabled('A')"
+                      type="button"
+                      class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
+                      @click.stop="loadLibrarySongToDeck(record, 'A')"
+                    >
+                      <i-ic-baseline-download
+                        class="w-6 h-6 deck-a-indicator"
+                      />
+                      <span class="inline-block p-1 leading-none deck-a-badge">A</span>
+                    </button>
+
+                    <button
+                      :disabled="isDeckManualLoadDisabled('B')"
+                      type="button"
+                      class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
+                      @click.stop="loadLibrarySongToDeck(record, 'B')"
+                    >
+                      <i-ic-baseline-download
+                        class="w-6 h-6 deck-b-indicator"
+                      />
+                      <span class="inline-block p-1 leading-none deck-b-badge">B</span>
+                    </button>
+                  </div>
+                </template>
+              </template>
+            </a-table>
           </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto">
-          <a-table
-            class="ant-table-striped"
-            :animate-rows="false"
-            :row-key="record => record.id"
-            :row-class-name="(_record, index) => (deletedSongs.includes(_record.id) ? 'table-deleted' : index % 2 === 1 ? 'table-striped' : null)"
-            :show-sorter-tooltip="false"
-            :loading="isLoadingLibrary"
-            :pagination="{ current: libraryState.page, hideOnSinglePage: false, total: filteredSongs2.length, 'show-total': (total) => `${selectedSongs.length} seleccionadas / ${total} canciones`, defaultPageSize: 24, pageSize: pageSizeRef, showSizeChanger: false }"
-            :row-selection="{ selectedRowKeys: selectedSongs, onChange: onSelectChange, onSelectAll: onSelectAll }"
-            sticky
-            size="small"
-            :data-source="filteredSongs2"
-            :columns="columns"
-            @change="onTableChange"
-          >
-            <template #emptyText>
-              <div class="min-h-[40px] leading-[40px]">
-                No hay canciones que mostrar.
-              </div>
-            </template>
-            <template #bodyCell="{text, record, column}">
-              <template v-if="column.dataIndex === 'preview'">
+        <div
+          v-if="currentSelectedOption && currentSelectedOption === options.history"
+          class="flex flex-col space-y-4 flex-1 min-h-[0]"
+        >
+          <div class="flex items-center justify-between space-x-3">
+            <div class="flex items-center space-x-3">
+              <a-button
+                v-if="playlistDetails.length === 0"
+                :disabled="historySelectedRows.length <= 0"
+                type="primary"
+                class="flex items-center space-x-1 pl-2.5"
+                @click="addHistoryToPlaylist(0, { ignoreMarks: $event.altKey })"
+              >
+                <i-mdi-plus class="w-5 h-5" />
+                Agregar
+              </a-button>
+
+              <a-button
+                v-if="playlistDetails.length === 0"
+                :disabled="historySelectedRows.length <= 1"
+                type="primary"
+                class="flex items-center space-x-1 pl-2.5"
+                @click="addHistoryToPlaylist(3)"
+              >
+                <i-mdi-shuffle class="w-4 h-4" />
+                Aleatorio
+              </a-button>
+
+              <template v-if="playlistDetails.length > 0">
                 <a-button
-                  class="flex items-center justify-center w-8 h-8 p-0"
-                  size="small"
-                  :type="previewSongId === record.id && previewStatus === 'playing' ? 'primary' : 'default'"
-                  :loading="isPreviewLoading && previewSongId === record.id"
-                  @mousedown.stop.prevent="startPreview(record)"
-                  @mouseup.stop="stopPreview()"
-                  @mouseleave.stop="stopPreview()"
-                  @touchstart.stop.prevent="startPreview(record)"
-                  @touchend.stop="stopPreview()"
+                  :disabled="historySelectedRows.length <= 0"
+                  type="primary"
+                  class="flex items-center space-x-1 pl-2.5"
+                  @click="addHistoryToPlaylist(1, { ignoreMarks: $event.altKey })"
                 >
-                  <i-mdi-headphones
-                    class="w-4 h-4"
-                  />
+                  <i-ic-baseline-move-up class="w-5 h-5" />
+                  Al comienzo
+                </a-button>
+
+                <a-button
+                  :disabled="historySelectedRows.length <= 0"
+                  type="primary"
+                  class="flex items-center space-x-1 pl-2.5"
+                  @click="addHistoryToPlaylist(2, { ignoreMarks: $event.altKey })"
+                >
+                  <i-ic-baseline-move-down class="w-5 h-5" />
+                  Al final
                 </a-button>
               </template>
-              <template v-else-if="column.dataIndex === 'name'">
-                <div class="flex items-center space-x-2">
-                  <span>{{ text }}</span>
-                  <span
-                    v-if="record.Tags.some(tag => tag.id === 9998)"
-                    class="px-[10px] py-[1px] rounded-full bg-yellow-200 text-yellow-00 text-xs"
-                  >Reciente</span>
+            </div>
+
+            <div class="text-sm text-gray-700">
+              {{ recentSongHistory.length }} canciones recientes
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto">
+            <a-table
+              class="ant-table-striped"
+              :animate-rows="false"
+              :row-key="record => record.historyId"
+              :row-class-name="(_record, index) => (index % 2 === 1 ? 'table-striped' : null)"
+              :show-sorter-tooltip="false"
+              :pagination="false"
+              sticky
+              size="small"
+              :data-source="recentSongHistory"
+              :columns="historyColumns"
+              :row-selection="{ selectedRowKeys: historySelectedRows, onChange: onHistorySelectChange }"
+            >
+              <template #emptyText>
+                <div class="min-h-[40px] leading-[40px]">
+                  No hay canciones en historial.
                 </div>
               </template>
-              <template v-else-if="column.dataIndex === 'artistsJoined'">
-                <div class="flex flex-wrap gap-x-3 gap-y-1">
-                  <div
-                    v-for="artist in record.Artists"
-                    :key="artist.id"
-                    class="flex items-center space-x-1 text-[13px]"
-                  >
-                    <button
-                      type="button"
-                      class="text-left hover:underline cursor-pointer"
-                      title="Ver canciones de este artista"
-                      @click.stop="quickFilterByArtist(artist.id)"
+              <template #bodyCell="{ record, column }">
+                <template v-if="column.dataIndex === 'artistsJoined'">
+                  <div class="flex flex-wrap gap-x-3 gap-y-1">
+                    <div
+                      v-for="artist in record.Artists"
+                      :key="artist.id"
+                      class="flex items-center space-x-1 text-[13px]"
                     >
-                      {{ artist.name }}
+                      <button
+                        type="button"
+                        class="text-left hover:underline cursor-pointer"
+                        title="Ver canciones de este artista"
+                        @click.stop="quickFilterByArtist(artist.id)"
+                      >
+                        {{ artist.name }}
+                      </button>
+                    </div>
+                  </div>
+                </template>
+                <template v-else-if="column.dataIndex === 'source'">
+                  <i-ic-baseline-apple
+                    v-if="record.isAppleMusic"
+                    class="mx-auto w-5 h-5"
+                  />
+                  <i-mingcute-youtube-fill
+                    v-else
+                    class="mx-auto w-5 h-5"
+                  />
+                </template>
+                <template v-else-if="column.dataIndex === 'decks'">
+                  <div class="flex items-center justify-center space-x-2">
+                    <button
+                      :disabled="isDeckManualLoadDisabled('A')"
+                      type="button"
+                      class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
+                      @click.stop="loadLibrarySongToDeck(record, 'A')"
+                    >
+                      <i-ic-baseline-download class="w-6 h-6 deck-a-indicator" />
+                      <span class="inline-block p-1 leading-none deck-a-badge">A</span>
+                    </button>
+
+                    <button
+                      :disabled="isDeckManualLoadDisabled('B')"
+                      type="button"
+                      class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
+                      @click.stop="loadLibrarySongToDeck(record, 'B')"
+                    >
+                      <i-ic-baseline-download class="w-6 h-6 deck-b-indicator" />
+                      <span class="inline-block p-1 leading-none deck-b-badge">B</span>
                     </button>
                   </div>
-                </div>
+                </template>
               </template>
-              <template v-else-if="column.dataIndex === 'source'">
-                <i-ic-baseline-apple
-                  v-if="record.isAppleMusic"
-                  class="mx-auto w-5 h-5"
-                />
-                <i-mingcute-youtube-fill
-                  v-else
-                  class="mx-auto w-5 h-5"
-                />
-              </template>
-              <template v-else-if="column.dataIndex === 'decks'">
-                <div class="flex items-center justify-center space-x-2">
-                  <button
-                    :disabled="isDeckManualLoadDisabled('A')"
-                    type="button"
-                    class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
-                    @click.stop="loadLibrarySongToDeck(record, 'A')"
-                  >
-                    <i-ic-baseline-download
-                      class="w-6 h-6 deck-a-indicator"
-                    />
-                    <span class="inline-block p-1 leading-none deck-a-badge">A</span>
-                  </button>
+            </a-table>
+          </div>
+        </div>
+      </div>
+    </div>
 
-                  <button
-                    :disabled="isDeckManualLoadDisabled('B')"
-                    type="button"
-                    class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
-                    @click.stop="loadLibrarySongToDeck(record, 'B')"
-                  >
-                    <i-ic-baseline-download
-                      class="w-6 h-6 deck-b-indicator"
-                    />
-                    <span class="inline-block p-1 leading-none deck-b-badge">B</span>
-                  </button>
-                </div>
-              </template>
-            </template>
-          </a-table>
+    <div class="vmusic-app flex items-stretch">
+      <div class="flex-[5] flex flex-col justify-between">
+        <Player
+          ref="player1"
+          :class="{
+            'opacity-40': !player1 || player1.status !== playerStatuses.Reproduciendo
+          }"
+          :statuses="playerStatuses"
+          position="top"
+          :output-sink-id="deckSinkId"
+          class="transition-opacity duration-300"
+          @artist-click="openLibraryForArtist"
+          @preview-start="previewStartFromPlayer"
+          @preview-stop="stopPreview"
+          @loaded="checkPlayers(player1)"
+          @stopped="checkPlayers(player1)"
+          @finished="onSongFinished"
+          @fading="songFading(player1)"
+          @speed="saveSpeed(player1)"
+        />
+        <div class="p-6">
+          <div class="relative">
+            <div
+              id="logo"
+              class="vm-logo w-full h-auto select-none"
+              role="img"
+              aria-label="Salsamanía por Rogers Vizcaino"
+              v-html="logoSvgMarkup"
+            />
+          </div>
+        </div>
+        <Player
+          ref="player2"
+          :class="{
+            'opacity-40': !player2 || player2.status !== playerStatuses.Reproduciendo
+          }"
+          :statuses="playerStatuses"
+          position="bottom"
+          :output-sink-id="deckSinkId"
+          class="transition-opacity duration-300"
+          @artist-click="openLibraryForArtist"
+          @preview-start="previewStartFromPlayer"
+          @preview-stop="stopPreview"
+          @loaded="checkPlayers(player2)"
+          @stopped="checkPlayers(player2)"
+          @finished="onSongFinished"
+          @fading="songFading(player2)"
+          @speed="saveSpeed(player2)"
+        />
+      </div>
+
+      <div class="flex-[6] flex flex-col p-4 space-y-2">
+        <div class="flex items-center space-x-10 justify-between">
+          <div class="control-buttons flex items-center space-x-3">
+            <button
+              v-if="
+                (player1 &&
+                  (player1.status === playerStatuses.Reproduciendo ||
+                    player1.status === playerStatuses.Cambiando ||
+                    player1.status === playerStatuses.Nivelando)) ||
+                  (player2 &&
+                    (player2.status === playerStatuses.Reproduciendo ||
+                      player2.status === playerStatuses.Cambiando ||
+                      player2.status === playerStatuses.Nivelando))
+              "
+              :disabled="
+                (player1 && player1.status === playerStatuses.Cambiando) ||
+                  (player2 && player2.status === playerStatuses.Cambiando)
+              "
+              type="button"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              @click="pause"
+            >
+              <i-material-symbols-pause
+                class="w-10 h-10 text-white"
+              />
+            </button>
+
+            <button
+              v-else
+              :disabled="
+                (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
+                  playerStatuses['Sin Carga'])
+                  && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
+                    player2.status === playerStatuses.Cambiando)
+              "
+              type="button"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              @click="play"
+            >
+              <i-mdi-play
+                class="w-10 h-10 text-white"
+              />
+            </button>
+
+            <button
+              :disabled="
+                (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
+                  playerStatuses['Sin Carga'])
+                  && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
+                    player2.status === playerStatuses.Cambiando)
+              "
+              type="button"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              @click="next"
+            >
+              <i-material-symbols-skip-next
+                class="w-6 h-6 text-white"
+              />
+            </button>
+
+            <div class="flex items-center">
+              <a-checkbox
+                v-if="player1 && player2 && (player1.status === playerStatuses.Reproduciendo || player2.status === playerStatuses.Reproduciendo)"
+                v-model:checked="autopause"
+                class="text-white"
+              >
+                Autopausa
+              </a-checkbox>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <button
+              :disabled="selectedRows.length <= 0"
+              type="button"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              @click="moveFirst(playlistDetails, selectedRows[0])"
+            >
+              <i-ic-baseline-move-up
+                class="w-6 h-6 text-white"
+              />
+            </button>
+
+            <button
+              :disabled="selectedRows.length <= 0"
+              type="button"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              @click="moveUp(playlistDetails, selectedRows[0])"
+            >
+              <i-teenyicons-up-solid
+                class="w-6 h-6 text-white"
+              />
+            </button>
+
+            <button
+              :disabled="selectedRows.length <= 0"
+              type="button"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
+              @click="moveDown(playlistDetails, selectedRows[0])"
+            >
+              <i-teenyicons-down-solid
+                class="w-6 h-6 text-white"
+              />
+            </button>
+
+            <button
+              :disabled="selectedRows.length <= 0"
+              type="button"
+              class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 text-white p-2"
+              @click="remove(playlistDetails, selectedRows[0])"
+            >
+              <i-mdi-remove-bold
+                class="w-6 h-6 text-white"
+              />
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <button
+              :disabled="!player1 || selectedRows.length <= 0 || player1.status === playerStatuses.Reproduciendo ||
+                player1.status === playerStatuses.Cambiando"
+              type="button"
+              class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 text-white p-2"
+              @click="loadDeck('A')"
+            >
+              <i-ic-baseline-download class="w-6 h-6 deck-a-indicator" />
+              <span class="inline-block p-1 leading-none deck-a-badge">A</span>
+            </button>
+
+            <button
+              :disabled="!player2 || selectedRows.length <= 0 || player2.status === playerStatuses.Reproduciendo ||
+                player2.status === playerStatuses.Cambiando"
+              type="button"
+              class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 text-white p-2"
+              @click="loadDeck('B')"
+            >
+              <i-ic-baseline-download class="w-6 h-6 deck-b-indicator" />
+              <span class="inline-block p-1 leading-none deck-b-badge">B</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-gray-900 flex-1 overflow-y-auto basis-0">
+          <table class="dark border-collapse w-full text-sm">
+            <tr
+              v-for="(s, index) in playlistDetails"
+              :key="s.entryId"
+              :data-entry-id="s.entryId"
+              @click="selectRow($event, s.entryId)"
+              @mousedown.left="onPlaylistRowPressStart(s, $event)"
+              @mouseup.left="onPlaylistRowPressEnd()"
+              @mouseleave="onPlaylistRowPressEnd()"
+              @touchstart.stop.prevent="onPlaylistRowPressStart(s)"
+              @touchend.stop="onPlaylistRowPressEnd()"
+              @touchcancel.stop="onPlaylistRowPressEnd()"
+            >
+              <td
+                class="cursor-pointer"
+                :class="{ 'playlist-row-selected': selectedRows.includes(s.entryId) }"
+              >
+                {{ s.name }}
+              </td>
+              <td
+                class="cursor-pointer"
+                :class="{ 'playlist-row-selected': selectedRows.includes(s.entryId) }"
+              >
+                {{ s.Artists.map((i) => i.name).join(', ') }}
+              </td>
+              <td
+                class="text-center w-[32px]"
+                :class="{ 'playlist-row-selected': selectedRows.includes(s.entryId) }"
+              >
+                <i-mdi-headphones
+                  v-if="isPlaylistEntryPreviewing(s)"
+                  class="w-4 h-4 text-gray-400 mx-auto"
+                  title="Previsualizando en audífonos"
+                />
+                <i-mdi-alert
+                  v-else-if="hasRecentArtistMatch(s, index)"
+                  class="w-4 h-4 text-yellow-500 mx-auto"
+                  title="Artista se reprodujo recientemente"
+                />
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="play-next-status text-xs text-white">
+            <span v-if="playlistDetails.length <= 0">No hay más canciones</span>
+            <span v-else-if="playlistDetails.length > 1">{{ playlistDetails.length }} canciones</span>
+            <span v-else>1 canción restante</span>
+            <span
+              v-if="playlistEtaText"
+              class="text-lime-500"
+            >. {{ playlistEtaText }}</span>
+            <span v-else>.</span>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <div
+              v-if="playlistDetails.length > 3"
+              class="flex items-center space-x-2 mr-4"
+            >
+              <input
+                v-model="playlistSearchQuery"
+                type="text"
+                class="bg-gray-600 text-white text-xs px-2 py-1 w-40 outline-none"
+                placeholder="Buscar en lista"
+                @input="onPlaylistSearchInput"
+              >
+              <span class="text-white text-xs whitespace-nowrap">
+                {{ playlistSearchResults.length > 0 ? playlistSearchIndex + 1 : 0 }}/{{ playlistSearchResults.length }}
+              </span>
+              <div class="flex items-center space-x-1">
+                <button
+                  :disabled="playlistSearchResults.length <= 1"
+                  class="text-white bg-gray-500 disabled:opacity-40 text-xs px-1"
+                  @click="prevPlaylistResult"
+                >
+                  ←
+                </button>
+                <button
+                  :disabled="playlistSearchResults.length <= 1"
+                  class="text-white bg-gray-500 disabled:opacity-40 text-xs px-1"
+                  @click="nextPlaylistResult"
+                >
+                  →
+                </button>
+              </div>
+            </div>
+
+            <input
+              v-if="false"
+              ref="m3uInput"
+              type="file"
+              accept=".m3u"
+              class="hidden"
+              @change="onM3UFileChange"
+            >
+            <button
+              v-if="false"
+              :disabled="isImportingM3U"
+              type="button"
+              class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
+              @click="openM3UPicker"
+            >
+              <i-mdi-file-music-outline
+                class="w-4 h-4"
+              />
+              <span>{{ isImportingM3U ? 'Cargando...' : 'Cargar' }}</span>
+            </button>
+            <button
+              :disabled="playlistDetails.length <= 1"
+              type="button"
+              class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
+              @click="shufflePlaylist"
+            >
+              <i-ic-baseline-shuffle
+                class="w-4 h-4"
+              />
+              <span>Revolver</span>
+            </button>
+
+            <button
+              :disabled="playlistDetails.length <= 0"
+              type="button"
+              class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
+              @click="removeAll(playlistDetails)"
+            >
+              <i-iconamoon-trash-fill
+                class="w-4 h-4"
+              />
+              <span>Vaciar</span>
+            </button>
+          </div>
         </div>
       </div>
 
       <div
-        v-if="currentSelectedOption && currentSelectedOption === options.history"
-        class="flex flex-col space-y-4 flex-1 min-h-[0]"
+        class="z-50 text-sm flex flex-col space-y-10 justify-between items-center bg-gray-100 fullheight"
       >
-        <div class="flex items-center justify-between space-x-3">
-          <div class="flex items-center space-x-3">
-            <a-button
-              v-if="playlistDetails.length === 0"
-              :disabled="historySelectedRows.length <= 0"
-              type="primary"
-              class="flex items-center space-x-1 pl-2.5"
-              @click="addHistoryToPlaylist(0, { ignoreMarks: $event.altKey })"
-            >
-              <i-mdi-plus class="w-5 h-5" />
-              Agregar
-            </a-button>
-
-            <a-button
-              v-if="playlistDetails.length === 0"
-              :disabled="historySelectedRows.length <= 1"
-              type="primary"
-              class="flex items-center space-x-1 pl-2.5"
-              @click="addHistoryToPlaylist(3)"
-            >
-              <i-mdi-shuffle class="w-4 h-4" />
-              Aleatorio
-            </a-button>
-
-            <template v-if="playlistDetails.length > 0">
-              <a-button
-                :disabled="historySelectedRows.length <= 0"
-                type="primary"
-                class="flex items-center space-x-1 pl-2.5"
-                @click="addHistoryToPlaylist(1, { ignoreMarks: $event.altKey })"
-              >
-                <i-ic-baseline-move-up class="w-5 h-5" />
-                Al comienzo
-              </a-button>
-
-              <a-button
-                :disabled="historySelectedRows.length <= 0"
-                type="primary"
-                class="flex items-center space-x-1 pl-2.5"
-                @click="addHistoryToPlaylist(2, { ignoreMarks: $event.altKey })"
-              >
-                <i-ic-baseline-move-down class="w-5 h-5" />
-                Al final
-              </a-button>
-            </template>
-          </div>
-
-          <div class="text-sm text-gray-700">
-            {{ recentSongHistory.length }} canciones recientes
-          </div>
-        </div>
-
-        <div class="flex-1 overflow-y-auto">
-          <a-table
-            class="ant-table-striped"
-            :animate-rows="false"
-            :row-key="record => record.historyId"
-            :row-class-name="(_record, index) => (index % 2 === 1 ? 'table-striped' : null)"
-            :show-sorter-tooltip="false"
-            :pagination="false"
-            sticky
-            size="small"
-            :data-source="recentSongHistory"
-            :columns="historyColumns"
-            :row-selection="{ selectedRowKeys: historySelectedRows, onChange: onHistorySelectChange }"
-          >
-            <template #emptyText>
-              <div class="min-h-[40px] leading-[40px]">
-                No hay canciones en historial.
-              </div>
-            </template>
-            <template #bodyCell="{ record, column }">
-              <template v-if="column.dataIndex === 'artistsJoined'">
-                <div class="flex flex-wrap gap-x-3 gap-y-1">
-                  <div
-                    v-for="artist in record.Artists"
-                    :key="artist.id"
-                    class="flex items-center space-x-1 text-[13px]"
-                  >
-                    <button
-                      type="button"
-                      class="text-left hover:underline cursor-pointer"
-                      title="Ver canciones de este artista"
-                      @click.stop="quickFilterByArtist(artist.id)"
-                    >
-                      {{ artist.name }}
-                    </button>
-                  </div>
-                </div>
-              </template>
-              <template v-else-if="column.dataIndex === 'source'">
-                <i-ic-baseline-apple
-                  v-if="record.isAppleMusic"
-                  class="mx-auto w-5 h-5"
-                />
-                <i-mingcute-youtube-fill
-                  v-else
-                  class="mx-auto w-5 h-5"
-                />
-              </template>
-              <template v-else-if="column.dataIndex === 'decks'">
-                <div class="flex items-center justify-center space-x-2">
-                  <button
-                    :disabled="isDeckManualLoadDisabled('A')"
-                    type="button"
-                    class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
-                    @click.stop="loadLibrarySongToDeck(record, 'A')"
-                  >
-                    <i-ic-baseline-download class="w-6 h-6 deck-a-indicator" />
-                    <span class="inline-block p-1 leading-none deck-a-badge">A</span>
-                  </button>
-
-                  <button
-                    :disabled="isDeckManualLoadDisabled('B')"
-                    type="button"
-                    class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
-                    @click.stop="loadLibrarySongToDeck(record, 'B')"
-                  >
-                    <i-ic-baseline-download class="w-6 h-6 deck-b-indicator" />
-                    <span class="inline-block p-1 leading-none deck-b-badge">B</span>
-                  </button>
-                </div>
-              </template>
-            </template>
-          </a-table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="vmusic-app flex items-stretch">
-    <div class="flex-[5] flex flex-col justify-between">
-      <Player
-        ref="player1"
-        :class="{
-          'opacity-40': !player1 || player1.status !== playerStatuses.Reproduciendo
-        }"
-        :statuses="playerStatuses"
-        position="top"
-        :output-sink-id="deckSinkId"
-        class="transition-opacity duration-300"
-        @artist-click="openLibraryForArtist"
-        @preview-start="previewStartFromPlayer"
-        @preview-stop="stopPreview"
-        @loaded="checkPlayers(player1)"
-        @stopped="checkPlayers(player1)"
-        @finished="onSongFinished"
-        @fading="songFading(player1)"
-        @speed="saveSpeed(player1)"
-      />
-      <div class="p-6">
-        <div class="relative">
+        <div class="flex flex-col w-full">
           <div
-            id="logo"
-            class="vm-logo w-full h-auto select-none"
-            role="img"
-            aria-label="Salsamanía por Rogers Vizcaino"
-            v-html="logoSvgMarkup"
-          />
-        </div>
-      </div>
-      <Player
-        ref="player2"
-        :class="{
-          'opacity-40': !player2 || player2.status !== playerStatuses.Reproduciendo
-        }"
-        :statuses="playerStatuses"
-        position="bottom"
-        :output-sink-id="deckSinkId"
-        class="transition-opacity duration-300"
-        @artist-click="openLibraryForArtist"
-        @preview-start="previewStartFromPlayer"
-        @preview-stop="stopPreview"
-        @loaded="checkPlayers(player2)"
-        @stopped="checkPlayers(player2)"
-        @finished="onSongFinished"
-        @fading="songFading(player2)"
-        @speed="saveSpeed(player2)"
-      />
-    </div>
-
-    <div class="flex-[6] flex flex-col p-4 space-y-2">
-      <div class="flex items-center space-x-10 justify-between">
-        <div class="control-buttons flex items-center space-x-3">
-          <button
-            v-if="
-              (player1 &&
-                (player1.status === playerStatuses.Reproduciendo ||
-                  player1.status === playerStatuses.Cambiando ||
-                  player1.status === playerStatuses.Nivelando)) ||
-                (player2 &&
-                  (player2.status === playerStatuses.Reproduciendo ||
-                    player2.status === playerStatuses.Cambiando ||
-                    player2.status === playerStatuses.Nivelando))
-            "
-            :disabled="
-              (player1 && player1.status === playerStatuses.Cambiando) ||
-                (player2 && player2.status === playerStatuses.Cambiando)
-            "
-            type="button"
-            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
-            @click="pause"
+            :class="{
+              'bg-gray-300':
+                currentSelectedOption === options.library || currentSelectedOption === options.wave
+            }"
+            class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
+            @click="setOption(options.library)"
           >
-            <i-material-symbols-pause
-              class="w-10 h-10 text-white"
-            />
-          </button>
-
-          <button
-            v-else
-            :disabled="
-              (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
-                playerStatuses['Sin Carga'])
-                && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
-                  player2.status === playerStatuses.Cambiando)
-            "
-            type="button"
-            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
-            @click="play"
-          >
-            <i-mdi-play
-              class="w-10 h-10 text-white"
-            />
-          </button>
-
-          <button
-            :disabled="
-              (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
-                playerStatuses['Sin Carga'])
-                && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
-                  player2.status === playerStatuses.Cambiando)
-            "
-            type="button"
-            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
-            @click="next"
-          >
-            <i-material-symbols-skip-next
-              class="w-6 h-6 text-white"
-            />
-          </button>
-
-          <div class="flex items-center">
-            <a-checkbox
-              v-if="player1 && player2 && (player1.status === playerStatuses.Reproduciendo || player2.status === playerStatuses.Reproduciendo)"
-              v-model:checked="autopause"
-              class="text-white"
-            >
-              Autopausa
-            </a-checkbox>
-          </div>
-        </div>
-
-        <div class="flex items-center space-x-3">
-          <button
-            :disabled="selectedRows.length <= 0"
-            type="button"
-            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
-            @click="moveFirst(playlistDetails, selectedRows[0])"
-          >
-            <i-ic-baseline-move-up
-              class="w-6 h-6 text-white"
-            />
-          </button>
-
-          <button
-            :disabled="selectedRows.length <= 0"
-            type="button"
-            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
-            @click="moveUp(playlistDetails, selectedRows[0])"
-          >
-            <i-teenyicons-up-solid
-              class="w-6 h-6 text-white"
-            />
-          </button>
-
-          <button
-            :disabled="selectedRows.length <= 0"
-            type="button"
-            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 p-2"
-            @click="moveDown(playlistDetails, selectedRows[0])"
-          >
-            <i-teenyicons-down-solid
-              class="w-6 h-6 text-white"
-            />
-          </button>
-
-          <button
-            :disabled="selectedRows.length <= 0"
-            type="button"
-            class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-gray-600 text-white p-2"
-            @click="remove(playlistDetails, selectedRows[0])"
-          >
-            <i-mdi-remove-bold
-              class="w-6 h-6 text-white"
-            />
-          </button>
-        </div>
-
-        <div class="flex items-center space-x-3">
-          <button
-            :disabled="!player1 || selectedRows.length <= 0 || player1.status === playerStatuses.Reproduciendo ||
-              player1.status === playerStatuses.Cambiando"
-            type="button"
-            class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 text-white p-2"
-            @click="loadDeck('A')"
-          >
-            <i-ic-baseline-download class="w-6 h-6 deck-a-indicator" />
-            <span class="inline-block p-1 leading-none deck-a-badge">A</span>
-          </button>
-
-          <button
-            :disabled="!player2 || selectedRows.length <= 0 || player2.status === playerStatuses.Reproduciendo ||
-              player2.status === playerStatuses.Cambiando"
-            type="button"
-            class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 text-white p-2"
-            @click="loadDeck('B')"
-          >
-            <i-ic-baseline-download class="w-6 h-6 deck-b-indicator" />
-            <span class="inline-block p-1 leading-none deck-b-badge">B</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="bg-gray-900 flex-1 overflow-y-auto basis-0">
-        <table class="dark border-collapse w-full text-sm">
-          <tr
-            v-for="(s, index) in playlistDetails"
-            :key="s.entryId"
-            :data-entry-id="s.entryId"
-            @click="selectRow($event, s.entryId)"
-            @mousedown.left="onPlaylistRowPressStart(s, $event)"
-            @mouseup.left="onPlaylistRowPressEnd()"
-            @mouseleave="onPlaylistRowPressEnd()"
-            @touchstart.stop.prevent="onPlaylistRowPressStart(s)"
-            @touchend.stop="onPlaylistRowPressEnd()"
-            @touchcancel.stop="onPlaylistRowPressEnd()"
-          >
-            <td
-              class="cursor-pointer"
-              :class="{ 'bg-pink-500': selectedRows.includes(s.entryId) }"
-            >
-              {{ s.name }}
-            </td>
-            <td
-              class="cursor-pointer"
-              :class="{ 'bg-pink-500': selectedRows.includes(s.entryId) }"
-            >
-              {{ s.Artists.map((i) => i.name).join(', ') }}
-            </td>
-            <td
-              class="text-center w-[32px]"
-              :class="{ 'bg-pink-500': selectedRows.includes(s.entryId) }"
-            >
-              <i-mdi-headphones
-                v-if="isPlaylistEntryPreviewing(s)"
-                class="w-4 h-4 text-blue-400 mx-auto"
-                title="Previsualizando en audífonos"
+            <div>
+              <i-material-symbols-library-music-outline-sharp
+                class="w-7 h-7"
               />
-              <i-mdi-alert
-                v-else-if="hasRecentArtistMatch(s, index)"
-                class="w-4 h-4 text-yellow-500 mx-auto"
-                title="Artista se reprodujo recientemente"
-              />
-            </td>
-          </tr>
-        </table>
-      </div>
-
-      <div class="flex items-center justify-between">
-        <div class="play-next-status text-xs text-white">
-          <span v-if="playlistDetails.length <= 0">No hay más canciones</span>
-          <span v-else-if="playlistDetails.length > 1">{{ playlistDetails.length }} canciones</span>
-          <span v-else>1 canción restante</span>
-          <span
-            v-if="playlistEtaText"
-            class="text-lime-500"
-          >. {{ playlistEtaText }}</span>
-          <span v-else>.</span>
-        </div>
-
-        <div class="flex items-center space-x-2">
-          <div
-            v-if="playlistDetails.length > 3"
-            class="flex items-center space-x-2 mr-4"
-          >
-            <input
-              v-model="playlistSearchQuery"
-              type="text"
-              class="bg-gray-600 text-white text-xs px-2 py-1 w-40 outline-none"
-              placeholder="Buscar en lista"
-              @input="onPlaylistSearchInput"
-            >
-            <span class="text-white text-xs whitespace-nowrap">
-              {{ playlistSearchResults.length > 0 ? playlistSearchIndex + 1 : 0 }}/{{ playlistSearchResults.length }}
-            </span>
-            <div class="flex items-center space-x-1">
-              <button
-                :disabled="playlistSearchResults.length <= 1"
-                class="text-white bg-gray-500 disabled:opacity-40 text-xs px-1"
-                @click="prevPlaylistResult"
-              >
-                ←
-              </button>
-              <button
-                :disabled="playlistSearchResults.length <= 1"
-                class="text-white bg-gray-500 disabled:opacity-40 text-xs px-1"
-                @click="nextPlaylistResult"
-              >
-                →
-              </button>
             </div>
           </div>
 
-          <input
-            v-if="false"
-            ref="m3uInput"
-            type="file"
-            accept=".m3u"
-            class="hidden"
-            @change="onM3UFileChange"
+          <div
+            :class="{ 'bg-gray-300': currentSelectedOption === options.download }"
+            class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
+            @click="setOption(options.download)"
           >
-          <button
-            v-if="false"
-            :disabled="isImportingM3U"
-            type="button"
-            class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
-            @click="openM3UPicker"
+            <div class="relative">
+              <i-ic-sharp-download
+                class="w-8 h-8"
+              />
+              <span
+                v-if="downloadTasksCount > 0"
+                class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[16px] text-center"
+              >
+                {{ downloadTasksCount }}
+              </span>
+            </div>
+          </div>
+
+          <div
+            :class="{ 'bg-gray-300': currentSelectedOption === options.history }"
+            class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
+            @click="setOption(options.history)"
           >
-            <i-mdi-file-music-outline
-              class="w-4 h-4"
-            />
-            <span>{{ isImportingM3U ? 'Cargando...' : 'Cargar' }}</span>
-          </button>
-          <button
-            :disabled="playlistDetails.length <= 1"
-            type="button"
-            class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
-            @click="shufflePlaylist"
+            <div>
+              <i-mdi-clock-outline class="w-7 h-7" />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col w-full">
+          <div
+            :class="{ 'bg-gray-300': currentSelectedOption === options.artists }"
+            class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
+            @click="setOption(options.artists)"
           >
-            <i-ic-baseline-shuffle
-              class="w-4 h-4"
-            />
-            <span>Revolver</span>
-          </button>
+            <div>
+              <i-material-symbols-artist
+                class="w-8 h-8"
+              />
+            </div>
+          </div>
 
-          <button
-            :disabled="playlistDetails.length <= 0"
-            type="button"
-            class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-gray-600 p-1 px-2"
-            @click="removeAll(playlistDetails)"
+          <div
+            :class="{ 'bg-gray-300': currentSelectedOption === options.tags }"
+            class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
+            @click="setOption(options.tags)"
           >
-            <i-iconamoon-trash-fill
-              class="w-4 h-4"
-            />
-            <span>Vaciar</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="z-50 text-sm flex flex-col space-y-10 justify-between items-center bg-gray-100 fullheight"
-    >
-      <div class="flex flex-col w-full">
-        <div
-          :class="{
-            'bg-gray-300':
-              currentSelectedOption === options.library || currentSelectedOption === options.wave
-          }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
-          @click="setOption(options.library)"
-        >
-          <div>
-            <i-material-symbols-library-music-outline-sharp
-              class="w-7 h-7"
-            />
+            <div>
+              <i-mdi-tags
+                class="w-8 h-8"
+              />
+            </div>
           </div>
-        </div>
 
-        <div
-          :class="{ 'bg-gray-300': currentSelectedOption === options.download }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
-          @click="setOption(options.download)"
-        >
-          <div class="relative">
-            <i-ic-sharp-download
-              class="w-8 h-8"
-            />
-            <span
-              v-if="downloadTasksCount > 0"
-              class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[16px] text-center"
-            >
-              {{ downloadTasksCount }}
-            </span>
+          <div
+            :class="{ 'bg-gray-300': currentSelectedOption === options.settings }"
+            class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
+            @click="setOption(options.settings)"
+          >
+            <div>
+              <i-mdi-settings
+                class="w-8 h-8"
+              />
+            </div>
           </div>
-        </div>
-
-        <div
-          :class="{ 'bg-gray-300': currentSelectedOption === options.history }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
-          @click="setOption(options.history)"
-        >
-          <div>
-            <i-mdi-clock-outline class="w-7 h-7" />
-          </div>
-        </div>
-      </div>
-
-      <div class="flex flex-col w-full">
-        <div
-          :class="{ 'bg-gray-300': currentSelectedOption === options.artists }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
-          @click="setOption(options.artists)"
-        >
-          <div>
-            <i-material-symbols-artist
-              class="w-8 h-8"
-            />
-          </div>
-        </div>
-
-        <div
-          :class="{ 'bg-gray-300': currentSelectedOption === options.tags }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
-          @click="setOption(options.tags)"
-        >
-          <div>
-            <i-mdi-tags
-              class="w-8 h-8"
-            />
-          </div>
-        </div>
-
-        <div
-          :class="{ 'bg-gray-300': currentSelectedOption === options.settings }"
-          class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
-          @click="setOption(options.settings)"
-        >
-          <div>
-            <i-mdi-settings
-              class="w-8 h-8"
-            />
-          </div>
-        </div>
 
         <!--div
           :class="{ 'bg-gray-300': currentSelectedOption === options.settings }"
@@ -1057,9 +1059,10 @@
           </div>
           <div class="text-center font-bold">Ajustes</div>
         </div-->
+        </div>
       </div>
     </div>
-  </div>
+  </a-config-provider>
 </template>
 
 <script setup>
@@ -1107,6 +1110,25 @@ const COLOR_SCHEMA_TRANSITION_MS = 1000
 let colorSchemaTransitionTimer = null
 let colorSchemaTransitionRaf = null
 const SONG_HISTORY_STORAGE_KEY = 'vmusic_song_history'
+const antTheme = {
+  token: {
+    colorPrimary: '#3f4754',
+    colorInfo: '#3f4754',
+    colorLink: '#3f4754',
+    colorPrimaryHover: '#4e5766',
+    colorPrimaryActive: '#2a323f',
+    colorPrimaryBorder: '#3f4754',
+    controlOutline: 'rgba(148, 163, 184, 0.25)',
+    controlItemBgActive: '#2a323f'
+  },
+  components: {
+    Table: {
+      rowHoverBg: '#d7deea',
+      rowSelectedBg: '#c2cbd8',
+      rowSelectedHoverBg: '#c2cbd8'
+    }
+  }
+}
 
 function normalizeHistoryLimit(limit) {
   const parsed = Number(limit)
@@ -3192,5 +3214,9 @@ table tr td.ant-table-cell {
   width: 100%;
   height: auto;
   display: block;
+}
+
+.playlist-row-selected {
+  background-color: color-mix(in srgb, var(--vm-player-wave-a) 40%, transparent);
 }
 </style>

@@ -38,6 +38,12 @@ body,
 
 :root,
 html[data-color-schema='default'] {
+  --vm-neutral-accent: #3f4754;
+  --vm-neutral-accent-hover: #4e5766;
+  --vm-neutral-accent-soft: #2a323f;
+  --vm-neutral-accent-ring: rgba(148, 163, 184, 0.25);
+  --vm-neutral-row-selected: #c2cbd8;
+  --vm-neutral-row-hover: #d7deea;
   --vm-bg-body: #1f2937;
   --vm-bg-surface: #d1d5db;
   --vm-bg-panel: #f3f4f6;
@@ -322,14 +328,15 @@ table.dark {
   }
 
   tr:nth-child(even) {
-    @apply bg-gray-950;
+    background-color: rgba(0, 0, 0, 0.22);
   }
 }
 
 table.library {
   tr {
     td.selected-row {
-      @apply text-white bg-indigo-600 !important;
+      @apply text-white !important;
+      background-color: var(--vm-neutral-row-selected) !important;
 
       span {
         @apply text-white !important;
@@ -490,11 +497,11 @@ iframe {
 }
 
 .vmusic-app .bg-pink-500 {
-  background-color: var(--vm-bg-selected) !important;
+  background-color: var(--vm-neutral-row-selected) !important;
 }
 
 .vmusic-app .text-lime-500 {
-  color: var(--vm-text-accent) !important;
+  color: #cbd5e1 !important;
 }
 
 .vmusic-app .text-gray-500 {
@@ -505,9 +512,104 @@ iframe {
   color: var(--vm-text-on-dark) !important;
 }
 
-.vmusic-app .ant-btn-primary,
-.vmusic-app .ant-btn-primary:hover,
-.vmusic-app .ant-btn-primary:focus {
-  border-color: var(--vm-ant-primary) !important;
-  background-color: var(--vm-ant-primary) !important;
+#app .ant-btn-primary,
+#app .ant-btn-primary:hover,
+#app .ant-btn-primary:focus {
+  border-color: var(--vm-neutral-accent) !important;
+  background-color: var(--vm-neutral-accent) !important;
+}
+
+#app .ant-btn-primary:hover,
+#app .ant-btn-primary:focus-visible,
+#app .ant-btn-primary:active {
+  border-color: var(--vm-neutral-accent-hover) !important;
+  background-color: var(--vm-neutral-accent-hover) !important;
+}
+
+#app .ant-btn-primary:disabled,
+#app .ant-btn-primary[disabled],
+#app .ant-btn-primary.ant-btn-disabled {
+  border-color: var(--vm-bg-control) !important;
+  background-color: var(--vm-bg-control) !important;
+  color: var(--vm-text-on-dark) !important;
+  box-shadow: none !important;
+  opacity: 0.3 !important;
+}
+
+#app .ant-checkbox-checked .ant-checkbox-inner,
+#app .ant-checkbox-indeterminate .ant-checkbox-inner {
+  border-color: var(--vm-neutral-accent) !important;
+  background-color: var(--vm-neutral-accent) !important;
+}
+
+#app .ant-checkbox-wrapper:hover .ant-checkbox-inner,
+#app .ant-checkbox:hover .ant-checkbox-inner {
+  border-color: var(--vm-neutral-accent-hover) !important;
+}
+
+#app .ant-pagination .ant-pagination-item-active {
+  border-color: var(--vm-neutral-accent) !important;
+  background-color: var(--vm-neutral-accent-soft) !important;
+}
+
+#app .ant-pagination .ant-pagination-item-active a {
+  color: #e5e7eb !important;
+}
+
+#app .ant-select-focused .ant-select-selector,
+#app .ant-select-open .ant-select-selector,
+#app .ant-input:focus,
+#app .ant-input-focused,
+#app .ant-input-affix-wrapper:focus,
+#app .ant-input-affix-wrapper-focused {
+  border-color: var(--vm-neutral-accent) !important;
+  box-shadow: 0 0 0 2px var(--vm-neutral-accent-ring) !important;
+}
+
+#app .vm-filter-input.ant-input,
+#app .vm-filter-input.ant-input:focus,
+#app .vm-filter-input.ant-input-focused,
+#app .vm-filter-input.ant-input-affix-wrapper,
+#app .vm-filter-input.ant-input-affix-wrapper:focus,
+#app .vm-filter-input.ant-input-affix-wrapper-focused,
+#app .vm-filter-input .ant-input,
+#app .vm-filter-input .ant-input:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#app .ant-table-striped .table-striped:not(.ant-table-row-selected):not(:hover) > td {
+  background-color: #e7edf5 !important;
+  color: #0f172a !important;
+}
+
+#app
+  .ant-table-wrapper
+  .ant-table-tbody
+  > tr.ant-table-row:hover:not(.ant-table-row-selected)
+  > td.ant-table-cell {
+  background-color: var(--vm-neutral-row-hover) !important;
+  color: #0f172a !important;
+}
+
+#app
+  .ant-table-wrapper
+  .ant-table-tbody
+  > tr.ant-table-row.ant-table-row-selected
+  > td.ant-table-cell,
+#app
+  .ant-table-wrapper
+  .ant-table-tbody
+  > tr.ant-table-row.ant-table-row-selected:hover
+  > td.ant-table-cell {
+  background-color: var(--vm-neutral-row-selected) !important;
+  color: #0f172a !important;
+}
+
+/* Hard override Ant runtime tokens for table row colors */
+#app .ant-table-wrapper {
+  --ant-table-row-hover-bg: var(--vm-neutral-row-hover);
+  --ant-table-selected-row-bg: var(--vm-neutral-row-selected);
+  --ant-table-selected-row-hover-bg: var(--vm-neutral-row-selected);
 }
