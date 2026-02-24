@@ -42,8 +42,8 @@ html[data-color-schema='default'] {
   --vm-neutral-accent-hover: #4e5766;
   --vm-neutral-accent-soft: #2a323f;
   --vm-neutral-accent-ring: rgba(148, 163, 184, 0.25);
-  --vm-neutral-row-selected: #c2cbd8;
-  --vm-neutral-row-hover: #d7deea;
+  --vm-neutral-row-selected: #d6d3d1;
+  --vm-neutral-row-hover: #d6d3d1;
   --vm-bg-body: #1f2937;
   --vm-bg-surface: #d1d5db;
   --vm-bg-panel: #f3f4f6;
@@ -595,8 +595,24 @@ iframe {
 }
 
 #app .ant-table-striped .table-striped:not(.ant-table-row-selected):not(:hover) > td {
-  background-color: #e7edf5 !important;
+  background-color: var(--vm-table-stripe) !important;
   color: #0f172a !important;
+}
+
+#app
+  .vm-secondary-panel
+  .ant-table-tbody
+  > tr:not(.table-striped):not(.ant-table-row-selected):not(:hover)
+  > td.ant-table-cell {
+  background-color: #f0edeb !important;
+}
+
+#app
+  .vm-secondary-panel
+  .ant-table-striped
+  .table-striped:not(.ant-table-row-selected):not(:hover)
+  > td {
+  background-color: #ede9e6 !important;
 }
 
 #app

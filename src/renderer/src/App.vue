@@ -19,7 +19,7 @@
           'w-11/12': currentSelectedOption === options.wave,
           'w-2/5': currentSelectedOption !== options.wave && currentSelectedOption !== options.library && currentSelectedOption !== options.history
         }"
-        class="right-[40px] fixed flex h-full flex-col min-h-[0] bg-gray-300 p-6 text-black"
+        class="vm-secondary-panel right-[40px] fixed flex h-full flex-col min-h-[0] bg-gray-300 p-6 text-black"
         @click="hideMenu"
       >
         <Edit
@@ -970,7 +970,7 @@
         <div class="flex flex-col w-full">
           <div
             :class="{
-              'bg-gray-300':
+              'vm-item-selected':
                 currentSelectedOption === options.library || currentSelectedOption === options.wave
             }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
@@ -984,7 +984,7 @@
           </div>
 
           <div
-            :class="{ 'bg-gray-300': currentSelectedOption === options.download }"
+            :class="{ 'vm-item-selected': currentSelectedOption === options.download }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.download)"
           >
@@ -1002,7 +1002,7 @@
           </div>
 
           <div
-            :class="{ 'bg-gray-300': currentSelectedOption === options.history }"
+            :class="{ 'vm-item-selected': currentSelectedOption === options.history }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.history)"
           >
@@ -1014,7 +1014,7 @@
 
         <div class="flex flex-col w-full">
           <div
-            :class="{ 'bg-gray-300': currentSelectedOption === options.artists }"
+            :class="{ 'vm-item-selected': currentSelectedOption === options.artists }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.artists)"
           >
@@ -1026,7 +1026,7 @@
           </div>
 
           <div
-            :class="{ 'bg-gray-300': currentSelectedOption === options.tags }"
+            :class="{ 'vm-item-selected': currentSelectedOption === options.tags }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.tags)"
           >
@@ -1038,7 +1038,7 @@
           </div>
 
           <div
-            :class="{ 'bg-gray-300': currentSelectedOption === options.settings }"
+            :class="{ 'vm-item-selected': currentSelectedOption === options.settings }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.settings)"
           >
@@ -1112,25 +1112,25 @@ let colorSchemaTransitionRaf = null
 const SONG_HISTORY_STORAGE_KEY = 'vmusic_song_history'
 const antTheme = {
   token: {
-    colorPrimary: '#3f4754',
-    colorInfo: '#3f4754',
-    colorLink: '#3f4754',
-    colorPrimaryHover: '#4e5766',
-    colorPrimaryActive: '#2a323f',
-    colorPrimaryBorder: '#3f4754',
-    controlOutline: 'rgba(148, 163, 184, 0.25)',
-    controlItemBgActive: '#2a323f'
+    colorPrimary: '#57534e',
+    colorInfo: '#57534e',
+    colorLink: '#57534e',
+    colorPrimaryHover: '#44403c',
+    colorPrimaryActive: '#292524',
+    colorPrimaryBorder: '#57534e',
+    controlOutline: 'rgba(120, 113, 108, 0.28)',
+    controlItemBgActive: '#d6d3d1'
   },
   components: {
     Select: {
-      optionActiveBg: '#d7deea',
-      optionSelectedBg: '#c2cbd8',
+      optionActiveBg: '#d6d3d1',
+      optionSelectedBg: '#d6d3d1',
       optionSelectedColor: '#0f172a'
     },
     Table: {
-      rowHoverBg: '#d7deea',
-      rowSelectedBg: '#c2cbd8',
-      rowSelectedHoverBg: '#c2cbd8'
+      rowHoverBg: '#d6d3d1',
+      rowSelectedBg: '#d6d3d1',
+      rowSelectedHoverBg: '#d6d3d1'
     }
   }
 }
@@ -3244,4 +3244,42 @@ table tr td.ant-table-cell {
 .playlist-row-selected {
   background-color: color-mix(in srgb, var(--vm-player-wave-a) 40%, transparent);
 }
+
+.vm-item-selected {
+  background-color: var(--vm-neutral-row-selected) !important;
+}
+
+.vm-secondary-panel {
+  --vm-neutral-accent: #57534e;
+  --vm-neutral-accent-hover: #44403c;
+  --vm-neutral-accent-soft: #292524;
+  --vm-neutral-accent-ring: rgba(120, 113, 108, 0.28);
+  --vm-neutral-row-selected: #d6d3d1;
+  --vm-neutral-row-hover: #d6d3d1;
+  --vm-bg-surface: #d6d3d1;
+  --vm-bg-panel: #e7e5e4;
+  --vm-bg-control: #78716c;
+  --vm-bg-control-alt: #a8a29e;
+  --vm-table-stripe: #d8d5d3;
+  background-color: #d6d3d1 !important;
+}
+
+.vm-secondary-panel.bg-gray-300 {
+  background-color: #d6d3d1 !important;
+}
+
+.vm-secondary-panel .bg-gray-300 {
+  background-color: #d6d3d1 !important;
+}
+
+.vm-secondary-panel .bg-gray-100 {
+  background-color: #e7e5e4 !important;
+}
+
+.vm-secondary-panel .bg-gray-700,
+.vm-secondary-panel .bg-gray-600,
+.vm-secondary-panel .bg-gray-500 {
+  background-color: #78716c !important;
+}
+
 </style>
