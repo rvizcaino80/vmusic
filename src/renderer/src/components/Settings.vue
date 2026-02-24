@@ -193,6 +193,7 @@ export default {
       { label: 'Cobre', value: 'tormenta_cobre' },
       { label: 'Deportivo', value: 'monochrome' },
       { label: 'Nocturno', value: 'nocturno' },
+      { label: 'Oceano', value: 'oceano' },
       { label: 'Orquidea', value: 'orquidea' },
       { label: 'Rubí', value: 'coral' }
     ])

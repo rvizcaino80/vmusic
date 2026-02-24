@@ -1096,7 +1096,7 @@ const playerStatuses = {
 }
 const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
 const COLOR_SCHEMA_DEFAULT = 'default'
-const COLOR_SCHEMA_VALUES = ['default', 'monochrome', 'sunset', 'aurora', 'orquidea', 'tormenta_cobre', 'bosque', 'linen', 'coral', 'nocturno', 'ocean']
+const COLOR_SCHEMA_VALUES = ['default', 'monochrome', 'sunset', 'aurora', 'orquidea', 'tormenta_cobre', 'bosque', 'linen', 'coral', 'nocturno', 'ocean', 'oceano']
 const COLOR_SCHEMA_TRANSITION_MS = 1000
 let colorSchemaTransitionTimer = null
 let colorSchemaTransitionRaf = null
@@ -1119,9 +1119,9 @@ const antTheme = {
       optionSelectedColor: '#0f172a'
     },
     Table: {
-      rowHoverBg: '#d6d3d1',
-      rowSelectedBg: '#d6d3d1',
-      rowSelectedHoverBg: '#d6d3d1'
+      rowHoverBg: '#f0eeec',
+      rowSelectedBg: '#e8e4e0',
+      rowSelectedHoverBg: '#ece8e4'
     }
   }
 }
@@ -3336,6 +3336,14 @@ table tr td.ant-table-cell {
   display: block;
 }
 
+#app .vmusic-app .vm-logo stop:first-of-type {
+  stop-color: var(--vm-player-wave-b) !important;
+}
+
+#app .vmusic-app .vm-logo stop:last-of-type {
+  stop-color: var(--vm-player-wave-a) !important;
+}
+
 .playlist-quick-action.ant-btn {
   display: inline-flex !important;
   align-items: center !important;
@@ -3380,8 +3388,8 @@ table tr td.ant-table-cell {
   --vm-secondary-control-alt: color-mix(in srgb, #a8a29e 92%, var(--vm-player-wave-a) 8%);
   --vm-secondary-row-base: color-mix(in srgb, #f0edeb 94%, var(--vm-player-wave-a) 6%);
   --vm-secondary-row-stripe: color-mix(in srgb, #ede9e6 93%, var(--vm-player-wave-a) 7%);
-  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-player-wave-a) 22%, #ffffff 78%);
-  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-player-wave-a) 15%, #ffffff 85%);
+  --vm-neutral-row-selected: color-mix(in srgb, var(--vm-player-wave-a) 12%, #ffffff 88%);
+  --vm-neutral-row-hover: color-mix(in srgb, var(--vm-player-wave-a) 8%, #ffffff 92%);
   --vm-bg-surface: var(--vm-secondary-surface);
   --vm-bg-panel: var(--vm-secondary-panel-bg);
   --vm-bg-control: var(--vm-secondary-control);
