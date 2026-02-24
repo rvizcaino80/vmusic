@@ -634,8 +634,8 @@
       </div>
     </div>
 
-    <div class="vmusic-app flex items-stretch">
-      <div class="flex-[5] flex flex-col justify-between">
+    <div class="vmusic-app flex items-stretch min-w-0">
+      <div class="flex-[5] flex flex-col justify-between min-w-0">
         <Player
           ref="player1"
           :class="{
@@ -685,7 +685,7 @@
         />
       </div>
 
-      <div class="flex-[6] flex flex-col p-4 space-y-2">
+      <div class="flex-[6] flex flex-col p-4 space-y-2 min-w-0">
         <div class="flex items-center space-x-10 justify-between">
           <div class="control-buttons flex items-center space-x-3">
             <button
@@ -1122,6 +1122,11 @@ const antTheme = {
     controlItemBgActive: '#2a323f'
   },
   components: {
+    Select: {
+      optionActiveBg: '#d7deea',
+      optionSelectedBg: '#c2cbd8',
+      optionSelectedColor: '#0f172a'
+    },
     Table: {
       rowHoverBg: '#d7deea',
       rowSelectedBg: '#c2cbd8',
@@ -1260,6 +1265,7 @@ const m3uSourceLabel = computed(() => {
 const player1 = ref(null)
 const player2 = ref(null)
 const isFirstPlay = ref(true)
+let playersResizeRafId = null
 const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
 const mediaKeyCodes = new Set(['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaStop'])
 
@@ -1604,12 +1610,31 @@ onMounted(() => {
   updateMediaSessionState()
   updateMediaSessionMetadata()
   window.addEventListener('keydown', onHardwareMediaKey)
+  window.addEventListener('resize', onWindowResizeRedrawPlayers)
+  window.addEventListener('fullscreenchange', onWindowResizeRedrawPlayers)
 })
 
 onUnmounted(() => {
   clearMediaSessionHandlers()
   window.removeEventListener('keydown', onHardwareMediaKey)
+  window.removeEventListener('resize', onWindowResizeRedrawPlayers)
+  window.removeEventListener('fullscreenchange', onWindowResizeRedrawPlayers)
+  if (playersResizeRafId) {
+    cancelAnimationFrame(playersResizeRafId)
+    playersResizeRafId = null
+  }
 })
+
+function onWindowResizeRedrawPlayers() {
+  if (playersResizeRafId) {
+    cancelAnimationFrame(playersResizeRafId)
+  }
+  playersResizeRafId = requestAnimationFrame(() => {
+    playersResizeRafId = null
+    player1.value?.refreshWaveform?.()
+    player2.value?.refreshWaveform?.()
+  })
+}
 
 watch(autopause, (newValue) => {
   if (newValue) {

@@ -3,7 +3,7 @@
     :class="{
       'flex-col-reverse': props.position === 'top'
     }"
-    class="justify-end player p-6 flex flex-col flex-1 max-h-[550px]"
+    class="justify-end player p-6 flex flex-col flex-1 max-h-[550px] min-w-0"
   >
     <div class="flex justify-between space-x-3">
       <div class="flex space-x-3">
@@ -134,7 +134,7 @@
       v-show="status !== props.statuses['Sin Carga']"
       :id="playerId"
       :class="{ 'mb-3': props.position === 'top', 'mt-3': props.position === 'bottom' }"
-      class="wavesurfer flex-1"
+      class="wavesurfer flex-1 min-w-0 w-full overflow-hidden"
     />
   </div>
 </template>
@@ -186,6 +186,10 @@ let originalOptions = {}
 let crossfaderOptions = {}
 let resizeObserver = null
 let resizeRafId = null
+let resizeTimeoutIds = []
+let hardRebuildTimeoutId = null
+let isRebuildingWaveform = false
+let pendingRestoreState = null
 const regionColor = ref('rgba(114,0,0,0.64)')
 const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
 
@@ -308,6 +312,26 @@ function init() {
     duration.value = d
     status.value = props.statuses.Listo
     setInitialSpeed(speed_added.value)
+
+    if (pendingRestoreState) {
+      const restore = pendingRestoreState
+      pendingRestoreState = null
+
+      if (typeof restore.speedAdded === 'number') {
+        setInitialSpeed(restore.speedAdded)
+      }
+      if (typeof restore.volume === 'number') {
+        player.setVolume(restore.volume)
+      }
+      if (typeof restore.time === 'number' && Number.isFinite(restore.time)) {
+        player.setTime(Math.max(0, restore.time))
+      }
+      if (restore.shouldPlay) {
+        player.play()
+      }
+    }
+
+    isRebuildingWaveform = false
   })
 
   player.on('play', () => {
@@ -578,6 +602,38 @@ function getCurrentWaveColor() {
   return getThemeColor(props.position === 'top' ? '--vm-player-wave-a' : '--vm-player-wave-b', props.position === 'top' ? '#EAB308' : '#EC4899')
 }
 
+function forceWaveContainerFit() {
+  const mount = document.getElementById(playerId.value)
+  if (!mount) return
+  mount.style.overflow = 'hidden'
+
+  const waveHost = Array.from(mount.children)
+    .find((node) => node && node.shadowRoot)
+  const shadow = waveHost?.shadowRoot
+  if (!shadow) return
+
+  const scroll = shadow.querySelector('.scroll')
+  const wrapper = shadow.querySelector('.wrapper')
+  const canvases = shadow.querySelector('.canvases')
+  const progress = shadow.querySelector('.progress')
+
+  if (scroll) {
+    scroll.style.width = '100%'
+    scroll.style.maxWidth = '100%'
+    scroll.style.overflowX = 'hidden'
+  }
+  if (wrapper) {
+    wrapper.style.width = '100%'
+    wrapper.style.maxWidth = '100%'
+  }
+  if (canvases) {
+    canvases.style.maxWidth = '100%'
+  }
+  if (progress) {
+    progress.style.maxWidth = '100%'
+  }
+}
+
 function redrawWaveform() {
   if (!player) return
 
@@ -587,9 +643,69 @@ function redrawWaveform() {
   player.setOptions({
     waveColor,
     cursorColor,
+    width: '100%',
+    minPxPerSec: 0,
     height: 'auto',
     fillParent: true
   })
+
+  // Ensure WaveSurfer collapses to the new container width after fullscreen restore.
+  if (typeof player.zoom === 'function') {
+    player.zoom(0)
+  }
+
+  // Force renderer layout recomputation on window restore/fullscreen transitions.
+  const renderer = typeof player.getRenderer === 'function' ? player.getRenderer() : null
+  if (renderer && typeof renderer.reRender === 'function') {
+    renderer.reRender()
+  }
+
+  forceWaveContainerFit()
+}
+
+function hardRebuildWaveform() {
+  if (!player || isRebuildingWaveform) return
+  if (!songFull.value?.id) return
+
+  isRebuildingWaveform = true
+
+  const shouldPlay = [
+    props.statuses.Reproduciendo,
+    props.statuses.Cambiando,
+    props.statuses.Nivelando,
+    props.statuses.Placa
+  ].includes(status.value)
+
+  const restoreSong = { ...songFull.value }
+  const restoreState = {
+    time: typeof player.getCurrentTime === 'function' ? player.getCurrentTime() : 0,
+    shouldPlay,
+    speedAdded: speed_added.value,
+    volume: typeof player.getVolume === 'function' ? player.getVolume() : volume.value
+  }
+
+  pendingRestoreState = restoreState
+
+  try {
+    player.stop()
+  } catch (error) {
+    // ignore
+  }
+
+  try {
+    player.destroy()
+  } catch (error) {
+    // ignore
+  }
+
+  init()
+  setSong(restoreSong)
+
+  setTimeout(() => {
+    if (isRebuildingWaveform) {
+      isRebuildingWaveform = false
+    }
+  }, 5000)
 }
 
 function scheduleWaveformRedraw() {
@@ -603,7 +719,7 @@ function scheduleWaveformRedraw() {
 }
 
 function onViewportResize() {
-  scheduleWaveformRedraw()
+  refreshWaveform()
 }
 
 function setupResizeObserver() {
@@ -612,9 +728,36 @@ function setupResizeObserver() {
   if (!container) return
 
   resizeObserver = new ResizeObserver(() => {
-    scheduleWaveformRedraw()
+    refreshWaveform()
   })
   resizeObserver.observe(container)
+}
+
+function refreshWaveform() {
+  scheduleWaveformRedraw()
+  if (resizeTimeoutIds.length > 0) {
+    resizeTimeoutIds.forEach((id) => clearTimeout(id))
+    resizeTimeoutIds = []
+  }
+  if (hardRebuildTimeoutId) {
+    clearTimeout(hardRebuildTimeoutId)
+    hardRebuildTimeoutId = null
+  }
+
+  // Multiple passes to catch Electron fullscreen restore timing.
+  [120, 260, 520].forEach((delay) => {
+    const timeoutId = setTimeout(() => {
+      redrawWaveform()
+      forceWaveContainerFit()
+    }, delay)
+    resizeTimeoutIds.push(timeoutId)
+  })
+
+  // Nuclear fallback: recreate WaveSurfer instance after resize settles.
+  hardRebuildTimeoutId = setTimeout(() => {
+    hardRebuildTimeoutId = null
+    hardRebuildWaveform()
+  }, 750)
 }
 
 function syncWaveColor() {
@@ -671,6 +814,14 @@ onBeforeUnmount(() => {
     cancelAnimationFrame(resizeRafId)
     resizeRafId = null
   }
+  if (resizeTimeoutIds.length > 0) {
+    resizeTimeoutIds.forEach((id) => clearTimeout(id))
+    resizeTimeoutIds = []
+  }
+  if (hardRebuildTimeoutId) {
+    clearTimeout(hardRebuildTimeoutId)
+    hardRebuildTimeoutId = null
+  }
 })
 
 defineExpose({
@@ -693,6 +844,7 @@ defineExpose({
     updateBaseSpeed()
     applySpeed()
   },
+  refreshWaveform,
   setSinkId
 })
 </script>
@@ -712,5 +864,16 @@ defineExpose({
 
 .player-preview-btn:hover {
   color: var(--vm-player-preview-hover);
+}
+
+.wavesurfer::part(scroll) {
+  overflow-x: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.wavesurfer::part(wrapper) {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 </style>

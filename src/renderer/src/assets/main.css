@@ -566,6 +566,21 @@ iframe {
   box-shadow: 0 0 0 2px var(--vm-neutral-accent-ring) !important;
 }
 
+.ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background-color: var(--vm-neutral-row-selected) !important;
+  color: #0f172a !important;
+}
+
+.ant-select-dropdown .ant-select-item-option-selected .ant-select-item-option-content,
+.ant-select-dropdown .ant-select-item-option-active .ant-select-item-option-content {
+  color: #0f172a !important;
+}
+
+.ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background-color: var(--vm-neutral-row-hover) !important;
+  color: #0f172a !important;
+}
+
 #app .vm-filter-input.ant-input,
 #app .vm-filter-input.ant-input:focus,
 #app .vm-filter-input.ant-input-focused,
