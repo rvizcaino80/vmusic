@@ -162,7 +162,7 @@ defineExpose({
 }
 
 .multiselect-row {
-  border-bottom: 1px solid #c4c4c4;
+  border-bottom: 1px solid color-mix(in srgb, #9ca3af 18%, transparent);
   padding: 2px 0;
 }
 

@@ -833,50 +833,58 @@
 
         <div
           v-bind="playlistContainerProps"
-          class="playlist-list-container bg-gray-900 flex-1 basis-0"
+          class="playlist-list-container bg-gray-900 flex-1 overflow-y-auto basis-0"
         >
           <div v-bind="playlistWrapperProps">
-            <div
-              v-for="row in playlistRows"
-              :key="row.data.entryId"
-              :data-entry-id="row.data.entryId"
-              class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px] text-sm"
-              @click="selectRow($event, row.data.entryId)"
-              @mousedown.left="onPlaylistRowPressStart(row.data, $event)"
-              @mouseup.left="onPlaylistRowPressEnd()"
-              @mouseleave="onPlaylistRowPressEnd()"
-              @touchstart.stop.prevent="onPlaylistRowPressStart(row.data)"
-              @touchend.stop="onPlaylistRowPressEnd()"
-              @touchcancel.stop="onPlaylistRowPressEnd()"
-            >
-              <div
-                class="cursor-pointer px-2 py-[2px] truncate"
-                :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
-              >
-                {{ row.data.name }}
-              </div>
-              <div
-                class="cursor-pointer px-2 py-[2px] truncate"
-                :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
-              >
-                {{ row.data.Artists.map((i) => i.name).join(', ') }}
-              </div>
-              <div
-                class="text-center w-[32px] px-1 py-[2px]"
-                :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
-              >
-                <i-mdi-headphones
-                  v-if="isPlaylistEntryPreviewing(row.data)"
-                  class="w-4 h-4 text-gray-400 mx-auto"
-                  title="Previsualizando en audífonos"
-                />
-                <i-mdi-alert
-                  v-else-if="hasRecentArtistMatch(row.data, row.index)"
-                  class="w-4 h-4 text-yellow-500 mx-auto"
-                  title="Artista se reprodujo recientemente"
-                />
-              </div>
-            </div>
+            <table class="dark playlist-table border-collapse w-full text-sm table-fixed">
+              <colgroup>
+                <col style="width: calc((100% - 32px) / 2)">
+                <col style="width: calc((100% - 32px) / 2)">
+                <col style="width: 32px">
+              </colgroup>
+              <tbody>
+                <tr
+                  v-for="row in playlistRows"
+                  :key="row.data.entryId"
+                  :data-entry-id="row.data.entryId"
+                  @click="selectRow($event, row.data.entryId)"
+                  @mousedown.left="onPlaylistRowPressStart(row.data, $event)"
+                  @mouseup.left="onPlaylistRowPressEnd()"
+                  @mouseleave="onPlaylistRowPressEnd()"
+                  @touchstart.stop.prevent="onPlaylistRowPressStart(row.data)"
+                  @touchend.stop="onPlaylistRowPressEnd()"
+                  @touchcancel.stop="onPlaylistRowPressEnd()"
+                >
+                  <td
+                    class="cursor-pointer"
+                    :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
+                  >
+                    {{ row.data.name }}
+                  </td>
+                  <td
+                    class="cursor-pointer playlist-artist-cell"
+                    :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
+                  >
+                    {{ row.data.Artists.map((i) => i.name).join(', ') }}
+                  </td>
+                  <td
+                    class="text-center w-[32px]"
+                    :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
+                  >
+                    <i-mdi-headphones
+                      v-if="isPlaylistEntryPreviewing(row.data)"
+                      class="w-4 h-4 text-white mx-auto"
+                      title="Previsualizando en audífonos"
+                    />
+                    <i-mdi-alert
+                      v-else-if="hasRecentArtistMatch(row.data, row.index)"
+                      class="w-4 h-4 text-yellow-500 mx-auto"
+                      title="Artista se reprodujo recientemente"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -3008,7 +3016,7 @@ function focusPlaylistResult(targetIndex) {
   scrollPlaylistTo(result.index)
 
   nextTick(() => {
-    const row = document.querySelector(`[data-entry-id="${result.entryId}"]`)
+    const row = document.querySelector(`tr[data-entry-id="${result.entryId}"]`)
     if (row) {
       row.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
@@ -3514,7 +3522,27 @@ table tr td.ant-table-cell {
   background-color: color-mix(in srgb, var(--vm-player-wave-a) 58%, transparent) !important;
 }
 
-#app .vmusic-app .playlist-list-container .playlist-row-selected:first-child {
+#app .vmusic-app .playlist-list-container tr:hover > td:not(.playlist-row-selected) {
+  background-color: color-mix(in srgb, var(--vm-player-wave-a) 29%, transparent) !important;
+}
+
+#app .vmusic-app .playlist-list-container table.playlist-table tr:nth-child(even) {
+  background-color: transparent !important;
+}
+
+#app .vmusic-app .playlist-list-container table.playlist-table tbody tr td {
+  border-bottom: 1px solid color-mix(in srgb, #ffffff 6%, transparent);
+}
+
+#app .vmusic-app .playlist-list-container table.playlist-table tbody tr td.playlist-artist-cell {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+#app .vmusic-app .playlist-list-container table.playlist-table tbody tr:last-child td {
+  border-bottom-color: transparent;
+}
+
+#app .vmusic-app .playlist-list-container td.playlist-row-selected:first-child {
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--vm-player-wave-a) 80%, #ffffff 20%);
 }
 
@@ -3527,12 +3555,12 @@ table tr td.ant-table-cell {
   --vm-neutral-accent-hover: color-mix(in srgb, var(--vm-ant-primary) 84%, black 16%);
   --vm-neutral-accent-soft: color-mix(in srgb, var(--vm-ant-primary) 22%, black 78%);
   --vm-neutral-accent-ring: color-mix(in srgb, var(--vm-ant-primary) 28%, transparent);
-  --vm-secondary-surface: color-mix(in srgb, #d6d3d1 93%, var(--vm-player-wave-a) 7%);
-  --vm-secondary-panel-bg: color-mix(in srgb, #e7e5e4 93%, var(--vm-player-wave-a) 7%);
+  --vm-secondary-surface: color-mix(in srgb, #f1efed 97%, var(--vm-player-wave-a) 3%);
+  --vm-secondary-panel-bg: color-mix(in srgb, #fbfaf8 98%, var(--vm-player-wave-a) 2%);
   --vm-secondary-control: color-mix(in srgb, #78716c 92%, var(--vm-player-wave-a) 8%);
   --vm-secondary-control-alt: color-mix(in srgb, #a8a29e 92%, var(--vm-player-wave-a) 8%);
-  --vm-secondary-row-base: color-mix(in srgb, #f0edeb 94%, var(--vm-player-wave-a) 6%);
-  --vm-secondary-row-stripe: color-mix(in srgb, #ede9e6 93%, var(--vm-player-wave-a) 7%);
+  --vm-secondary-row-base: color-mix(in srgb, #fbfaf8 98%, var(--vm-player-wave-a) 2%);
+  --vm-secondary-row-stripe: color-mix(in srgb, #faf8f6 98%, var(--vm-player-wave-a) 2%);
   --vm-neutral-row-selected: color-mix(in srgb, var(--vm-ant-primary) 14%, #ffffff 86%);
   --vm-neutral-row-hover: color-mix(in srgb, var(--vm-ant-primary) 9%, #ffffff 91%);
   --vm-bg-surface: var(--vm-secondary-surface);
