@@ -676,6 +676,13 @@ function redrawWaveform() {
     fillParent: true
   })
 
+  const decodedData = typeof player.getDecodedData === 'function' ? player.getDecodedData() : null
+  if (!decodedData) {
+    forceWaveContainerFit()
+
+    return
+  }
+
   // Ensure WaveSurfer collapses to the new container width after fullscreen restore.
   if (typeof player.zoom === 'function') {
     player.zoom(0)

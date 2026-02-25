@@ -100,6 +100,14 @@
                 >
                   Ninguno
                 </a-button>
+
+                <a-switch
+                  size="small"
+                  :checked="artistFilterMode === 'all'"
+                  checked-children="Intersección"
+                  un-checked-children="Unión"
+                  @change="artistFilterModeToggled"
+                />
               </div>
 
               <div class="overflow-y-scroll bg-gray-300 flex-1">
@@ -128,6 +136,14 @@
                 >
                   Ninguno
                 </a-button>
+
+                <a-switch
+                  size="small"
+                  :checked="tagFilterMode === 'all'"
+                  checked-children="Intersección"
+                  un-checked-children="Unión"
+                  @change="tagFilterModeToggled"
+                />
               </div>
 
               <div class="overflow-y-scroll bg-gray-300 flex-1">
@@ -1196,6 +1212,8 @@ const songs = ref([])
 const filteredSongs = ref([])
 const selectedTags = ref([])
 const selectedArtists = ref([])
+const artistFilterMode = ref('any')
+const tagFilterMode = ref('any')
 const selectedSongs = ref([])
 const filterQuery = ref('')
 const deletedSongs = ref([])
@@ -1286,7 +1304,9 @@ const pageSizeRef = ref(24)
 const libraryState = ref({
   artists: [],
   tags: [],
-  page: 1
+  page: 1,
+  artistMode: 'any',
+  tagMode: 'any'
 })
 
 const downloadSelectedArtist = ref(null)
@@ -2004,6 +2024,8 @@ function saveLibraryView(currentPage = null, sorter = null) {
   libraryState.value = {
     tags: selectedTags.value,
     artists: selectedArtists.value,
+    artistMode: artistFilterMode.value,
+    tagMode: tagFilterMode.value,
     page: p,
     search: filterQuery.value,
     sort: s
@@ -2030,6 +2052,12 @@ async function setOption(option, extraArtists = [], recent = false) {
     }
     if (!libraryState.value.page) {
       libraryState.value.page = 1
+    }
+    if (!libraryState.value.artistMode) {
+      libraryState.value.artistMode = 'any'
+    }
+    if (!libraryState.value.tagMode) {
+      libraryState.value.tagMode = 'any'
     }
 
     const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
@@ -2061,6 +2089,9 @@ async function setOption(option, extraArtists = [], recent = false) {
         selectedArtists.value = artists.value.map((a) => (a.id))
       }
     }
+
+    artistFilterMode.value = libraryState.value.artistMode === 'all' ? 'all' : 'any'
+    tagFilterMode.value = libraryState.value.tagMode === 'all' ? 'all' : 'any'
 
     if (extraArtists.length > 0) {
       selectedArtists.value.push(...extraArtists)
@@ -2166,8 +2197,9 @@ async function filterSongs() {
 
   const response = await fetch('http://localhost:3000/songs/filter', options)
   const data = await response.json()
-
-  songs.value = data.map((item) => ({
+  const artistModeAdjustedSongs = applyArtistModeFilter(Array.isArray(data) ? data : [])
+  const modeAdjustedSongs = applyTagModeFilter(artistModeAdjustedSongs)
+  songs.value = modeAdjustedSongs.map((item) => ({
     ...item,
     key: item.id,
     artistsJoined: item.Artists.map((artist) => artist.name).join(', '),
@@ -2191,6 +2223,46 @@ async function filterSongs() {
 
   saveLibraryView()
   isLoadingLibrary.value = false
+}
+
+function applyArtistModeFilter(items) {
+  if (artistFilterMode.value !== 'all') {
+    return items
+  }
+
+  const requiredArtistIds = selectedArtists.value
+    .filter((id) => id !== null && id !== undefined)
+    .map((id) => String(id))
+
+  if (requiredArtistIds.length <= 1) {
+    return items
+  }
+
+  return items.filter((song) => {
+    const songArtistIds = new Set((song.Artists || []).map((artist) => String(artist.id)))
+
+    return requiredArtistIds.every((artistId) => songArtistIds.has(artistId))
+  })
+}
+
+function applyTagModeFilter(items) {
+  if (tagFilterMode.value !== 'all') {
+    return items
+  }
+
+  const requiredTagIds = selectedTags.value
+    .filter((id) => id !== null && id !== undefined)
+    .map((id) => String(id))
+
+  if (requiredTagIds.length <= 1) {
+    return items
+  }
+
+  return items.filter((song) => {
+    const songTagIds = new Set((song.Tags || []).map((tag) => String(tag.id)))
+
+    return requiredTagIds.every((tagId) => songTagIds.has(tagId))
+  })
 }
 
 /*
@@ -3172,6 +3244,28 @@ function tagsChanged(data) {
   selectedTags.value = data
   filterSongs()
   saveLibraryView()
+}
+
+function artistFilterModeChanged() {
+  libraryState.value.page = 1
+  filterSongs()
+  saveLibraryView()
+}
+
+function artistFilterModeToggled(checked) {
+  artistFilterMode.value = checked ? 'all' : 'any'
+  artistFilterModeChanged()
+}
+
+function tagFilterModeChanged() {
+  libraryState.value.page = 1
+  filterSongs()
+  saveLibraryView()
+}
+
+function tagFilterModeToggled(checked) {
+  tagFilterMode.value = checked ? 'all' : 'any'
+  tagFilterModeChanged()
 }
 
 function quickFilterByArtist(artistId) {
