@@ -110,7 +110,7 @@
                 />
               </div>
 
-              <div class="overflow-y-scroll bg-gray-300 flex-1">
+              <div class="bg-gray-300 flex-1 min-h-0">
                 <multiselect
                   ref="artistMultiSelect"
                   name="artists"
@@ -146,7 +146,7 @@
                 />
               </div>
 
-              <div class="overflow-y-scroll bg-gray-300 flex-1">
+              <div class="bg-gray-300 flex-1 min-h-0">
                 <multiselect
                   ref="tagMultiSelect"
                   name="tags"
@@ -393,7 +393,7 @@
               class="ant-table-striped"
               :animate-rows="false"
               :row-key="record => record.id"
-              :row-class-name="(_record, index) => (deletedSongs.includes(_record.id) ? 'table-deleted' : index % 2 === 1 ? 'table-striped' : null)"
+              :row-class-name="(_record, index) => (deletedSongsSet.has(_record.id) ? 'table-deleted' : index % 2 === 1 ? 'table-striped' : null)"
               :show-sorter-tooltip="false"
               :loading="isLoadingLibrary"
               :pagination="{ current: libraryState.page, hideOnSinglePage: false, total: filteredSongs2.length, 'show-total': (total) => `${selectedSongs.length} seleccionadas / ${total} canciones`, defaultPageSize: 24, pageSize: pageSizeRef, showSizeChanger: false }"
@@ -831,49 +831,53 @@
           </div>
         </div>
 
-        <div class="playlist-list-container bg-gray-900 flex-1 overflow-y-auto basis-0">
-          <table class="dark border-collapse w-full text-sm">
-            <tr
-              v-for="(s, index) in playlistDetails"
-              :key="s.entryId"
-              :data-entry-id="s.entryId"
-              @click="selectRow($event, s.entryId)"
-              @mousedown.left="onPlaylistRowPressStart(s, $event)"
+        <div
+          v-bind="playlistContainerProps"
+          class="playlist-list-container bg-gray-900 flex-1 basis-0"
+        >
+          <div v-bind="playlistWrapperProps">
+            <div
+              v-for="row in playlistRows"
+              :key="row.data.entryId"
+              :data-entry-id="row.data.entryId"
+              class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px] text-sm"
+              @click="selectRow($event, row.data.entryId)"
+              @mousedown.left="onPlaylistRowPressStart(row.data, $event)"
               @mouseup.left="onPlaylistRowPressEnd()"
               @mouseleave="onPlaylistRowPressEnd()"
-              @touchstart.stop.prevent="onPlaylistRowPressStart(s)"
+              @touchstart.stop.prevent="onPlaylistRowPressStart(row.data)"
               @touchend.stop="onPlaylistRowPressEnd()"
               @touchcancel.stop="onPlaylistRowPressEnd()"
             >
-              <td
-                class="cursor-pointer"
-                :class="{ 'playlist-row-selected': selectedRows.includes(s.entryId) }"
+              <div
+                class="cursor-pointer px-2 py-[2px] truncate"
+                :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
               >
-                {{ s.name }}
-              </td>
-              <td
-                class="cursor-pointer"
-                :class="{ 'playlist-row-selected': selectedRows.includes(s.entryId) }"
+                {{ row.data.name }}
+              </div>
+              <div
+                class="cursor-pointer px-2 py-[2px] truncate"
+                :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
               >
-                {{ s.Artists.map((i) => i.name).join(', ') }}
-              </td>
-              <td
-                class="text-center w-[32px]"
-                :class="{ 'playlist-row-selected': selectedRows.includes(s.entryId) }"
+                {{ row.data.Artists.map((i) => i.name).join(', ') }}
+              </div>
+              <div
+                class="text-center w-[32px] px-1 py-[2px]"
+                :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
               >
                 <i-mdi-headphones
-                  v-if="isPlaylistEntryPreviewing(s)"
+                  v-if="isPlaylistEntryPreviewing(row.data)"
                   class="w-4 h-4 text-gray-400 mx-auto"
                   title="Previsualizando en audífonos"
                 />
                 <i-mdi-alert
-                  v-else-if="hasRecentArtistMatch(s, index)"
+                  v-else-if="hasRecentArtistMatch(row.data, row.index)"
                   class="w-4 h-4 text-yellow-500 mx-auto"
                   title="Artista se reprodujo recientemente"
                 />
-              </td>
-            </tr>
-          </table>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div
@@ -1075,6 +1079,7 @@
 <script setup>
 import axios from 'axios'
 import { onMounted, onUnmounted, computed, ref, watch, reactive, nextTick } from 'vue'
+import { useVirtualList } from '@vueuse/core'
 import dayjs from 'dayjs'
 import logoSvgMarkup from './assets/logo.svg?raw'
 
@@ -1217,6 +1222,8 @@ const tagFilterMode = ref('any')
 const selectedSongs = ref([])
 const filterQuery = ref('')
 const deletedSongs = ref([])
+const debouncedFilterQuery = ref('')
+let filterQueryDebounceTimer = null
 const isLoadingLibrary = ref(true)
 const autopause = ref(false)
 const previewAudio = ref(null)
@@ -1274,6 +1281,7 @@ const playlistSearchQuery = ref('')
 const playlistSearchResults = ref([])
 const playlistSearchIndex = ref(0)
 const PLAYLIST_PREVIEW_HOLD_MS = 500
+const PLAYLIST_ROW_HEIGHT = 26
 let playlistPreviewPressTimer = null
 let isPlaylistPressPreviewActive = false
 const m3uExportSourceFilter = ref('any')
@@ -1326,8 +1334,20 @@ const createPlaylistEntry = (song, options = {}) => {
   return entry
 }
 
+const {
+  list: playlistVirtualRows,
+  containerProps: playlistContainerProps,
+  wrapperProps: playlistWrapperProps,
+  scrollTo: scrollPlaylistTo
+} = useVirtualList(playlistDetails, {
+  itemHeight: PLAYLIST_ROW_HEIGHT,
+  overscan: 14
+})
+
+const playlistRows = computed(() => playlistVirtualRows.value)
+
 const filteredSongs2 = computed(() => {
-  const normalizedQuery = removeAccents((filterQuery.value || '').toLowerCase())
+  const normalizedQuery = removeAccents((debouncedFilterQuery.value || '').toLowerCase())
 
   let filtered = songs.value
 
@@ -1342,9 +1362,9 @@ const filteredSongs2 = computed(() => {
   }
 
   return filtered.filter((item) => {
-    const normalizedName = removeAccents(item.name.toLowerCase())
-    const normalizedArtists = removeAccents(item.Artists.map((a) => a.name)
-      .join('')
+    const normalizedName = item.nameNorm || removeAccents((item.name || '').toLowerCase())
+    const normalizedArtists = item.artistsNorm || removeAccents((item.Artists || []).map((a) => a.name)
+      .join(' ')
       .toLowerCase())
 
     return (
@@ -1352,6 +1372,9 @@ const filteredSongs2 = computed(() => {
     )
   })
 })
+
+const deletedSongsSet = computed(() => new Set(deletedSongs.value))
+const selectedRowsSet = computed(() => new Set(selectedRows.value))
 
 const columns = computed(() => {
   let cols = [
@@ -1444,7 +1467,7 @@ const historyColumns = computed(() => ([
 ]))
 
 const recentSongHistory = computed(() => {
-  const limit = normalizeHistoryLimit(JSON.parse(localStorage.getItem('vmusic_settings'))?.historyLimit)
+  const limit = normalizeHistoryLimit(savedSettingsRef.historyLimit)
 
   return [...songHistory.value]
     .sort((a, b) => (b.playedAt || 0) - (a.playedAt || 0))
@@ -1613,7 +1636,6 @@ onMounted(() => {
   }, 10000)
 })
 
-let downloadCountInterval = null
 function refreshDownloadCount() {
   const stored = localStorage.getItem(DOWNLOAD_TASKS_STORAGE_KEY)
   if (!stored) {
@@ -1649,17 +1671,6 @@ function refreshDownloadCount() {
 
 onMounted(() => {
   refreshDownloadCount()
-  downloadCountInterval = setInterval(refreshDownloadCount, 1000)
-})
-
-onUnmounted(() => {
-  if (downloadCountInterval) {
-    clearInterval(downloadCountInterval)
-    downloadCountInterval = null
-  }
-})
-
-onMounted(() => {
   setupMediaSessionHandlers()
   updateMediaSessionState()
   updateMediaSessionMetadata()
@@ -1673,10 +1684,16 @@ onMounted(() => {
   window.addEventListener('keydown', onHardwareMediaKey)
   window.addEventListener('resize', onWindowResizeRedrawPlayers)
   window.addEventListener('fullscreenchange', onWindowResizeRedrawPlayers)
+  window.addEventListener('storage', onDownloadTasksStorageChanged)
+  window.addEventListener('vmusic-download-tasks-changed', onDownloadTasksStorageChanged)
 })
 
 onUnmounted(() => {
   clearMediaSessionHandlers()
+  if (filterQueryDebounceTimer) {
+    clearTimeout(filterQueryDebounceTimer)
+    filterQueryDebounceTimer = null
+  }
   if (window.electron2?.ipcRenderer?.removeListener) {
     window.electron2.ipcRenderer.removeListener('window-display-mode-changed', onWindowDisplayModeChanged)
     window.electron2.ipcRenderer.removeListener('window-fullscreen-changed', onFullscreenChanged)
@@ -1684,11 +1701,18 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onHardwareMediaKey)
   window.removeEventListener('resize', onWindowResizeRedrawPlayers)
   window.removeEventListener('fullscreenchange', onWindowResizeRedrawPlayers)
+  window.removeEventListener('storage', onDownloadTasksStorageChanged)
+  window.removeEventListener('vmusic-download-tasks-changed', onDownloadTasksStorageChanged)
   if (playersResizeRafId) {
     cancelAnimationFrame(playersResizeRafId)
     playersResizeRafId = null
   }
 })
+
+function onDownloadTasksStorageChanged(event) {
+  if (event?.type === 'storage' && event.key && event.key !== DOWNLOAD_TASKS_STORAGE_KEY) return
+  refreshDownloadCount()
+}
 
 function onFullscreenChanged(_event, isFullscreen) {
   isWindowFullscreen.value = Boolean(isFullscreen)
@@ -1733,6 +1757,18 @@ watch(playlistDetails, () => {
   }
 })
 
+watch(filterQuery, (value) => {
+  if (filterQueryDebounceTimer) {
+    clearTimeout(filterQueryDebounceTimer)
+    filterQueryDebounceTimer = null
+  }
+
+  filterQueryDebounceTimer = setTimeout(() => {
+    debouncedFilterQuery.value = value || ''
+    filterQueryDebounceTimer = null
+  }, 160)
+}, { immediate: true })
+
 watch(recentSongHistory, (rows) => {
   const validIds = new Set(rows.map((row) => row.historyId))
   historySelectedRows.value = historySelectedRows.value.filter((key) => validIds.has(key))
@@ -1748,7 +1784,8 @@ watch(() => [
   updateMediaSessionMetadata()
 })
 
-const removeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+const removeAccents = (str) => String(str || '').normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
 
 function onSearchBlur(searchValue) {
   saveLibraryView()
@@ -1996,6 +2033,7 @@ function moveDown(array, element) {
 
 function reset() {
   filterQuery.value = ''
+  debouncedFilterQuery.value = ''
   selectedSongs.value = []
   filteredSongs.value = []
   songs.value = []
@@ -2203,11 +2241,15 @@ async function filterSongs() {
     ...item,
     key: item.id,
     artistsJoined: item.Artists.map((artist) => artist.name).join(', '),
-    composersJoined: item.Composers.map((composer) => composer.name).join(', ')
+    composersJoined: item.Composers.map((composer) => composer.name).join(', '),
+    nameNorm: removeAccents((item.name || '').toLowerCase()),
+    artistsNorm: removeAccents((item.Artists || []).map((artist) => artist.name).join(' ')
+      .toLowerCase())
   }))
 
   if (libraryState.value && libraryState.value.search?.length > 0) {
     filterQuery.value = libraryState.value.search
+    debouncedFilterQuery.value = libraryState.value.search
 
     // searchManually()
   }
@@ -2963,9 +3005,10 @@ function focusPlaylistResult(targetIndex) {
 
   const result = playlistSearchResults.value[normalizedIndex]
   selectedRows.value = [result.entryId]
+  scrollPlaylistTo(result.index)
 
   nextTick(() => {
-    const row = document.querySelector(`tr[data-entry-id="${result.entryId}"]`)
+    const row = document.querySelector(`[data-entry-id="${result.entryId}"]`)
     if (row) {
       row.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
@@ -3061,7 +3104,10 @@ async function refreshSongInLibrary(id) {
       ...updatedSong,
       key: updatedSong.id,
       artistsJoined: updatedSong.Artists.map((artist) => artist.name).join(', '),
-      composersJoined: updatedSong.Composers.map((composer) => composer.name).join(', ')
+      composersJoined: updatedSong.Composers.map((composer) => composer.name).join(', '),
+      nameNorm: removeAccents((updatedSong.name || '').toLowerCase()),
+      artistsNorm: removeAccents((updatedSong.Artists || []).map((artist) => artist.name).join(' ')
+        .toLowerCase())
     }
 
     const index = songs.value.findIndex((song) => song.id === id)
@@ -3274,6 +3320,7 @@ function quickFilterByArtist(artistId) {
   selectedArtists.value = [artistId]
   selectedTags.value = tags.value.map((tag) => tag.id)
   filterQuery.value = ''
+  debouncedFilterQuery.value = ''
   m3uExportSourceFilter.value = 'any'
   filterSongs()
   saveLibraryView()
@@ -3323,6 +3370,7 @@ async function openLibraryForSong(songData) {
   selectedArtists.value = artists.value.map((a) => a.id)
   selectedTags.value = tags.value.map((tag) => tag.id)
   filterQuery.value = songName || ''
+  debouncedFilterQuery.value = songName || ''
   m3uExportSourceFilter.value = 'any'
   libraryState.value.page = 1
   await filterSongs()
@@ -3466,7 +3514,7 @@ table tr td.ant-table-cell {
   background-color: color-mix(in srgb, var(--vm-player-wave-a) 58%, transparent) !important;
 }
 
-#app .vmusic-app .playlist-list-container td.playlist-row-selected:first-child {
+#app .vmusic-app .playlist-list-container .playlist-row-selected:first-child {
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--vm-player-wave-a) 80%, #ffffff 20%);
 }
 

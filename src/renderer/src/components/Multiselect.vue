@@ -1,28 +1,33 @@
 <template>
-  <div>
-    <div
-      v-for="item in filteredList"
-      :key="item.id"
-      class="multiselect-row flex items-center justify-between"
-      @mouseenter="onRowEnter(item.id)"
-      @mouseleave="onRowLeave"
-    >
-      <a-checkbox
-        :checked="selected.includes(item.id)"
-        :value="item.id"
-        @change="onCheckboxChange(item.id, $event.target.checked)"
+  <div
+    v-bind="containerProps"
+    class="multiselect-list"
+  >
+    <div v-bind="wrapperProps">
+      <div
+        v-for="row in virtualRows"
+        :key="row.data.id"
+        class="multiselect-row flex items-center justify-between"
+        @mouseenter="onRowEnter(row.data.id)"
+        @mouseleave="onRowLeave"
       >
-        {{ item.name }}
-      </a-checkbox>
+        <a-checkbox
+          :checked="selectedSet.has(row.data.id)"
+          :value="row.data.id"
+          @change="onCheckboxChange(row.data.id, $event.target.checked)"
+        >
+          {{ row.data.name }}
+        </a-checkbox>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useVirtualList } from '@vueuse/core'
 
 const selected = ref([])
-const filteredList = ref([])
 const altPressed = ref(false)
 const soloHintId = ref(null)
 
@@ -44,12 +49,17 @@ const props = defineProps({
 
 const emit = defineEmits(['changed'])
 
-watch(() => props.list,
-  (newValue = []) => {
-    const sorted = [...newValue].sort((a, b) => a.name.localeCompare(b.name))
-    filteredList.value = sorted
-  },
-  { immediate: true })
+const sortedList = computed(() => [...(props.list || [])].sort((a, b) => a.name.localeCompare(b.name)))
+const selectedSet = computed(() => new Set(selected.value))
+
+const {
+  list: virtualRows,
+  containerProps,
+  wrapperProps
+} = useVirtualList(sortedList, {
+  itemHeight: 26,
+  overscan: 10
+})
 
 watch(() => props.selectedDefault,
   (newValue = []) => {
@@ -144,6 +154,11 @@ defineExpose({
 <style>
 .ant-checkbox-wrapper {
   flex: 1;
+}
+
+.multiselect-list {
+  height: 100%;
+  overflow-y: auto;
 }
 
 .multiselect-row {

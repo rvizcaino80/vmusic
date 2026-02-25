@@ -194,7 +194,8 @@ let originalOptions = {}
 let crossfaderOptions = {}
 let resizeObserver = null
 let resizeRafId = null
-let resizeTimeoutIds = []
+let resizeThrottleTimeoutId = null
+let resizeLastRun = 0
 let hardRebuildTimeoutId = null
 let isRebuildingWaveform = false
 let pendingRestoreState = null
@@ -767,31 +768,67 @@ function setupResizeObserver() {
   resizeObserver.observe(container)
 }
 
-function refreshWaveform() {
-  scheduleWaveformRedraw()
-  if (resizeTimeoutIds.length > 0) {
-    resizeTimeoutIds.forEach((id) => clearTimeout(id))
-    resizeTimeoutIds = []
-  }
+function shouldHardRebuildWaveform() {
+  if (!player || !songFull.value?.id) return false
+  if (isRebuildingWaveform) return false
+
+  const decodedData = typeof player.getDecodedData === 'function' ? player.getDecodedData() : null
+  if (!decodedData) return false
+
+  const mount = document.getElementById(playerId.value)
+  if (!mount || mount.clientWidth <= 0) return false
+
+  const waveHost = Array.from(mount.children)
+    .find((node) => node && node.shadowRoot)
+  const shadow = waveHost?.shadowRoot
+  if (!shadow) return false
+
+  const scroll = shadow.querySelector('.scroll')
+  const wrapper = shadow.querySelector('.wrapper')
+  const widths = [scroll?.clientWidth, wrapper?.clientWidth].filter((value) => Number.isFinite(value) && value > 0)
+  if (widths.length <= 0) return false
+
+  return widths.some((width) => Math.abs(width - mount.clientWidth) > 4)
+}
+
+function scheduleHardRebuildCheck() {
   if (hardRebuildTimeoutId) {
     clearTimeout(hardRebuildTimeoutId)
     hardRebuildTimeoutId = null
   }
 
-  // Multiple passes to catch Electron fullscreen restore timing.
-  [120, 260, 520].forEach((delay) => {
-    const timeoutId = setTimeout(() => {
-      redrawWaveform()
-      forceWaveContainerFit()
-    }, delay)
-    resizeTimeoutIds.push(timeoutId)
-  })
-
-  // Nuclear fallback: recreate WaveSurfer instance after resize settles.
   hardRebuildTimeoutId = setTimeout(() => {
     hardRebuildTimeoutId = null
-    hardRebuildWaveform()
-  }, 750)
+    if (shouldHardRebuildWaveform()) {
+      hardRebuildWaveform()
+    }
+  }, 320)
+}
+
+function runThrottledWaveformRefresh() {
+  scheduleWaveformRedraw()
+  scheduleHardRebuildCheck()
+}
+
+function refreshWaveform() {
+  const now = Date.now()
+  const waitMs = 150
+  const remaining = waitMs - (now - resizeLastRun)
+
+  if (remaining <= 0) {
+    resizeLastRun = now
+    runThrottledWaveformRefresh()
+
+    return
+  }
+
+  if (resizeThrottleTimeoutId) return
+
+  resizeThrottleTimeoutId = setTimeout(() => {
+    resizeThrottleTimeoutId = null
+    resizeLastRun = Date.now()
+    runThrottledWaveformRefresh()
+  }, remaining)
 }
 
 function syncWaveColor() {
@@ -854,9 +891,9 @@ onBeforeUnmount(() => {
     cancelAnimationFrame(resizeRafId)
     resizeRafId = null
   }
-  if (resizeTimeoutIds.length > 0) {
-    resizeTimeoutIds.forEach((id) => clearTimeout(id))
-    resizeTimeoutIds = []
+  if (resizeThrottleTimeoutId) {
+    clearTimeout(resizeThrottleTimeoutId)
+    resizeThrottleTimeoutId = null
   }
   if (hardRebuildTimeoutId) {
     clearTimeout(hardRebuildTimeoutId)

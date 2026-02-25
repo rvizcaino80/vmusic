@@ -407,6 +407,7 @@ function normalizeTask(task) {
 
 function syncTasksToStorage() {
   localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(downloadTasks.value))
+  window.dispatchEvent(new CustomEvent('vmusic-download-tasks-changed'))
 }
 
 function setTaskStatus(task, status, statusLabel) {
