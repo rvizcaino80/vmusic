@@ -5,13 +5,14 @@
       @submit.prevent="saveSong"
     >
       <div>
-        <a-typography-link
-          class="mb-3 block"
+        <a-button
+          type="default"
+          class="mb-3"
           :href="url"
           target="_blank"
         >
           {{ isAppleMusic ? 'Ver original en Apple Music' : 'Ver original en Youtube' }}
-        </a-typography-link>
+        </a-button>
 
         <label class="text-sm text-gray-500 block">Artista</label>
         <div
