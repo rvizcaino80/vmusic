@@ -1309,6 +1309,8 @@ const player1 = ref(null)
 const player2 = ref(null)
 const isFirstPlay = ref(true)
 let playersResizeRafId = null
+let playersResizeTimeoutIds = []
+let playersFullscreenRecoverTimeoutIds = []
 const isWindowFullscreen = ref(false)
 const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
 const mediaKeyCodes = new Set(['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaStop'])
@@ -1715,6 +1717,14 @@ onUnmounted(() => {
     cancelAnimationFrame(playersResizeRafId)
     playersResizeRafId = null
   }
+  if (playersResizeTimeoutIds.length > 0) {
+    playersResizeTimeoutIds.forEach((id) => clearTimeout(id))
+    playersResizeTimeoutIds = []
+  }
+  if (playersFullscreenRecoverTimeoutIds.length > 0) {
+    playersFullscreenRecoverTimeoutIds.forEach((id) => clearTimeout(id))
+    playersFullscreenRecoverTimeoutIds = []
+  }
 })
 
 function onDownloadTasksStorageChanged(event) {
@@ -1722,27 +1732,86 @@ function onDownloadTasksStorageChanged(event) {
   refreshDownloadCount()
 }
 
+function schedulePlayersFullscreenExitRecovery() {
+  if (playersFullscreenRecoverTimeoutIds.length > 0) {
+    playersFullscreenRecoverTimeoutIds.forEach((id) => clearTimeout(id))
+    playersFullscreenRecoverTimeoutIds = []
+  }
+
+  const refreshPlayers = () => {
+    player1.value?.refreshWaveform?.()
+    player2.value?.refreshWaveform?.()
+  }
+
+  const forceRebuildPlayers = () => {
+    player1.value?.forceWaveformRebuild?.()
+    player2.value?.forceWaveformRebuild?.()
+  };
+  [80, 240].forEach((delay) => {
+    const timeoutId = setTimeout(() => {
+      refreshPlayers()
+    }, delay)
+    playersFullscreenRecoverTimeoutIds.push(timeoutId)
+  })
+
+  const rebuildTimeoutId = setTimeout(() => {
+    forceRebuildPlayers()
+  }, 480)
+  playersFullscreenRecoverTimeoutIds.push(rebuildTimeoutId)
+}
+
 function onFullscreenChanged(_event, isFullscreen) {
+  const wasFullscreen = isWindowFullscreen.value
   isWindowFullscreen.value = Boolean(isFullscreen)
   pageSizeRef.value = getRowsPerPageByMode()
+  onWindowResizeRedrawPlayers()
+  if (wasFullscreen && !isWindowFullscreen.value) {
+    schedulePlayersFullscreenExitRecovery()
+  }
 }
 
 function onWindowDisplayModeChanged(_event, mode) {
+  const wasFullscreen = isWindowFullscreen.value
   isWindowFullscreen.value = Boolean(mode?.isFullScreen)
   pageSizeRef.value = getRowsPerPageByMode()
+  onWindowResizeRedrawPlayers()
+  if (wasFullscreen && !isWindowFullscreen.value) {
+    schedulePlayersFullscreenExitRecovery()
+  }
 }
 
 function onWindowResizeRedrawPlayers() {
+  const wasFullscreen = isWindowFullscreen.value
   syncWindowDisplayMode().finally(() => {
     pageSizeRef.value = getRowsPerPageByMode()
+    if (wasFullscreen && !isWindowFullscreen.value) {
+      schedulePlayersFullscreenExitRecovery()
+    }
   })
   if (playersResizeRafId) {
     cancelAnimationFrame(playersResizeRafId)
   }
-  playersResizeRafId = requestAnimationFrame(() => {
-    playersResizeRafId = null
+  if (playersResizeTimeoutIds.length > 0) {
+    playersResizeTimeoutIds.forEach((id) => clearTimeout(id))
+    playersResizeTimeoutIds = []
+  }
+
+  const refreshPlayers = () => {
     player1.value?.refreshWaveform?.()
     player2.value?.refreshWaveform?.()
+  }
+
+  playersResizeRafId = requestAnimationFrame(() => {
+    playersResizeRafId = null
+    refreshPlayers()
+  })
+
+  // Electron may settle window bounds after resize/fullscreenchange.
+  ;[140, 320, 620].forEach((delay) => {
+    const timeoutId = setTimeout(() => {
+      refreshPlayers()
+    }, delay)
+    playersResizeTimeoutIds.push(timeoutId)
   })
 }
 
@@ -3604,15 +3673,17 @@ table tr td.ant-table-cell {
 
 #app .vmusic-app .vm-side-nav svg {
   color: #ffffff !important;
+  opacity: 0.6;
 }
 
 #app .vmusic-app .vm-side-nav .vm-item-selected,
 #app .vmusic-app .vm-side-nav .vm-item-selected svg {
   color: #000000 !important;
+  opacity: 1;
 }
 
 #app .vmusic-app .vm-side-nav .vm-item-selected {
-  background-color: color-mix(in srgb, #d6d3d1 93%, var(--vm-player-wave-a) 7%) !important;
+  background-color: color-mix(in srgb, #f1efed 97%, var(--vm-player-wave-a) 3%) !important;
 }
 
 #app .vmusic-app .playlist-list-container {

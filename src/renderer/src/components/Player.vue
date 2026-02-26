@@ -86,7 +86,7 @@
               <i-mdi-headphones class="w-6 h-6" />
             </button>
           </div>
-          <div class="text-sm text-gray-500 select-none">
+          <div class="text-sm text-gray-300 select-none">
             <span>Status: {{ getStatusName(status) }}</span>
             <span
               v-if="
@@ -194,8 +194,7 @@ let originalOptions = {}
 let crossfaderOptions = {}
 let resizeObserver = null
 let resizeRafId = null
-let resizeThrottleTimeoutId = null
-let resizeLastRun = 0
+let resizeFollowupTimeoutId = null
 let hardRebuildTimeoutId = null
 let isRebuildingWaveform = false
 let pendingRestoreState = null
@@ -646,22 +645,37 @@ function forceWaveContainerFit() {
   if (scroll) {
     scroll.style.width = '100%'
     scroll.style.maxWidth = '100%'
+    scroll.style.height = '100%'
+    scroll.style.maxHeight = '100%'
     scroll.style.overflowX = 'hidden'
+    scroll.style.overflowY = 'hidden'
   }
   if (wrapper) {
     wrapper.style.width = '100%'
     wrapper.style.maxWidth = '100%'
+    wrapper.style.height = '100%'
+    wrapper.style.maxHeight = '100%'
   }
   if (canvases) {
+    canvases.style.width = '100%'
     canvases.style.maxWidth = '100%'
+    canvases.style.height = '100%'
+    canvases.style.maxHeight = '100%'
   }
   if (progress) {
+    progress.style.width = '100%'
     progress.style.maxWidth = '100%'
+    progress.style.height = '100%'
+    progress.style.maxHeight = '100%'
   }
 }
 
 function redrawWaveform() {
   if (!player) return
+  const mount = document.getElementById(playerId.value)
+  const mountWidth = mount?.clientWidth || 0
+  const mountHeight = mount?.clientHeight || 0
+  const renderHeight = mountHeight > 0 ? mountHeight : 'auto'
 
   const waveColor = getCurrentWaveColor()
   const progressColor = getCurrentProgressColor()
@@ -673,9 +687,15 @@ function redrawWaveform() {
     cursorColor,
     width: '100%',
     minPxPerSec: 0,
-    height: 'auto',
+    height: renderHeight,
     fillParent: true
   })
+  if (mountWidth > 0) {
+    player.setOptions({ width: mountWidth })
+  }
+  if (mountHeight > 0) {
+    player.setOptions({ height: mountHeight })
+  }
 
   const decodedData = typeof player.getDecodedData === 'function' ? player.getDecodedData() : null
   if (!decodedData) {
@@ -786,9 +806,15 @@ function shouldHardRebuildWaveform() {
   const scroll = shadow.querySelector('.scroll')
   const wrapper = shadow.querySelector('.wrapper')
   const widths = [scroll?.clientWidth, wrapper?.clientWidth].filter((value) => Number.isFinite(value) && value > 0)
+  const heights = [scroll?.clientHeight, wrapper?.clientHeight].filter((value) => Number.isFinite(value) && value > 0)
   if (widths.length <= 0) return false
 
-  return widths.some((width) => Math.abs(width - mount.clientWidth) > 4)
+  const widthMismatch = widths.some((width) => Math.abs(width - mount.clientWidth) > 4)
+  const heightMismatch = heights.length > 0 ? heights.some((height) => Math.abs(height - mount.clientHeight) > 4) : false
+  const scrollOversized = scroll && Number.isFinite(scroll.scrollWidth) ? (scroll.scrollWidth - mount.clientWidth) > 4 : false
+  const scrollOversizedY = scroll && Number.isFinite(scroll.scrollHeight) ? (scroll.scrollHeight - mount.clientHeight) > 4 : false
+
+  return widthMismatch || heightMismatch || scrollOversized || scrollOversizedY
 }
 
 function scheduleHardRebuildCheck() {
@@ -805,30 +831,23 @@ function scheduleHardRebuildCheck() {
   }, 320)
 }
 
-function runThrottledWaveformRefresh() {
+function runWaveformRefreshPass() {
   scheduleWaveformRedraw()
   scheduleHardRebuildCheck()
 }
 
 function refreshWaveform() {
-  const now = Date.now()
-  const waitMs = 150
-  const remaining = waitMs - (now - resizeLastRun)
-
-  if (remaining <= 0) {
-    resizeLastRun = now
-    runThrottledWaveformRefresh()
-
-    return
+  runWaveformRefreshPass()
+  if (resizeFollowupTimeoutId) {
+    clearTimeout(resizeFollowupTimeoutId)
+    resizeFollowupTimeoutId = null
   }
 
-  if (resizeThrottleTimeoutId) return
-
-  resizeThrottleTimeoutId = setTimeout(() => {
-    resizeThrottleTimeoutId = null
-    resizeLastRun = Date.now()
-    runThrottledWaveformRefresh()
-  }, remaining)
+  // Follow-up pass catches Electron fullscreen/restore layout timing.
+  resizeFollowupTimeoutId = setTimeout(() => {
+    resizeFollowupTimeoutId = null
+    runWaveformRefreshPass()
+  }, 180)
 }
 
 function syncWaveColor() {
@@ -891,9 +910,9 @@ onBeforeUnmount(() => {
     cancelAnimationFrame(resizeRafId)
     resizeRafId = null
   }
-  if (resizeThrottleTimeoutId) {
-    clearTimeout(resizeThrottleTimeoutId)
-    resizeThrottleTimeoutId = null
+  if (resizeFollowupTimeoutId) {
+    clearTimeout(resizeFollowupTimeoutId)
+    resizeFollowupTimeoutId = null
   }
   if (hardRebuildTimeoutId) {
     clearTimeout(hardRebuildTimeoutId)
@@ -922,6 +941,7 @@ defineExpose({
     applySpeed()
   },
   refreshWaveform,
+  forceWaveformRebuild: hardRebuildWaveform,
   setSinkId
 })
 </script>
