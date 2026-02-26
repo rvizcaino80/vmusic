@@ -1344,17 +1344,33 @@ const createPlaylistEntry = (song, options = {}) => {
   return entry
 }
 
+const playlistSource = computed(() => playlistDetails.value.slice())
+
 const {
   list: playlistVirtualRows,
   containerProps: playlistContainerProps,
   wrapperProps: playlistWrapperProps,
   scrollTo: scrollPlaylistTo
-} = useVirtualList(playlistDetails, {
+} = useVirtualList(playlistSource, {
   itemHeight: PLAYLIST_ROW_HEIGHT,
   overscan: 14
 })
 
 const playlistRows = computed(() => playlistVirtualRows.value)
+const repeatedArtistWarningSet = computed(() => {
+  const set = new Set()
+  for (let index = 1; index < playlistDetails.value.length; index++) {
+    const song = playlistDetails.value[index]
+    const prev = playlistDetails.value[index - 1]
+    if (!song || !prev || !Array.isArray(song.Artists) || !Array.isArray(prev.Artists)) continue
+    const prevIds = new Set(prev.Artists.map((artist) => artist.id))
+    if (song.Artists.some((artist) => prevIds.has(artist.id))) {
+      set.add(song.entryId)
+    }
+  }
+
+  return set
+})
 
 const filteredSongs2 = computed(() => {
   const normalizedQuery = removeAccents((debouncedFilterQuery.value || '').toLowerCase())
@@ -2061,17 +2077,16 @@ function isPlaylistEntryPreviewing(song) {
   return previewPlaylistEntryId.value === song.entryId && previewStatus.value === 'playing'
 }
 
+function syncPlaylistStateFromDetails() {
+  playlist.value = playlistDetails.value.map((item) => item.id)
+}
+
 function remove(array, element) {
   const index = array.findIndex((item) => item.entryId === element)
   if (index === -1) return
 
-  const entry = array[index]
   array.splice(index, 1)
-
-  const playlistIndex = playlist.value.findIndex((songId) => songId === entry.id)
-  if (playlistIndex !== -1) {
-    playlist.value.splice(playlistIndex, 1)
-  }
+  syncPlaylistStateFromDetails()
 
   selectedRows.value = []
 }
@@ -2088,6 +2103,7 @@ function move(array, index, delta) {
   if (newIndex < 0 || newIndex == array.length) return
   let indexes = [index, newIndex].sort((a, b) => a - b)
   array.splice(indexes[0], 2, array[indexes[1]], array[indexes[0]])
+  syncPlaylistStateFromDetails()
 }
 
 function moveFirst(array, element) {
@@ -2096,6 +2112,7 @@ function moveFirst(array, element) {
 
   const [found] = array.splice(index, 1)
   array.unshift(found)
+  syncPlaylistStateFromDetails()
 }
 
 function moveUp(array, element) {
@@ -2481,7 +2498,7 @@ function shufflePlaylist() {
   }
 
   playlistDetails.value = shuffled
-  playlist.value = shuffled.map((item) => item.id)
+  syncPlaylistStateFromDetails()
 
   if (selectedRows.value.length > 0) {
     const stillPresent = selectedRows.value.filter((entryId) => shuffled.some((item) => item.entryId === entryId))
@@ -2894,6 +2911,7 @@ function loadDeck(deck) {
     playlistDetails.value.splice(index, 0, found)
   }
 
+  syncPlaylistStateFromDetails()
   selectedRows.value = []
 }
 
@@ -3103,12 +3121,9 @@ function prevPlaylistResult() {
 }
 
 function hasRecentArtistMatch(song, index) {
-  if (!song || index <= 0) return false
-  const prev = playlistDetails.value[index - 1]
-  if (!prev || !Array.isArray(song.Artists) || !Array.isArray(prev.Artists)) return false
-  const prevIds = new Set(prev.Artists.map((artist) => artist.id))
+  if (!song?.entryId) return false
 
-  return song.Artists.some((artist) => prevIds.has(artist.id))
+  return repeatedArtistWarningSet.value.has(song.entryId)
 }
 
 async function artistsUpdated(id) {
