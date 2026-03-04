@@ -57,7 +57,14 @@ function getTags() {
   axios
     .get('http://localhost:3000/tags')
     .then(function(response) {
-      tags.value = response.data.sort((a, b) => a.name.localeCompare(b.name)).filter((t) => t.id !== 9998)
+      const indexedData = response.data?.data && typeof response.data.data === 'object' && !Array.isArray(response.data.data) && Object.keys(response.data.data)
+        .every((key) => (/^\d+$/).test(key))
+? Object.keys(response.data.data).map((key) => Number(key))
+          .sort((a, b) => a - b)
+          .map((index) => response.data.data[String(index)])
+: []
+      const payload = Array.isArray(response.data) ? response.data : Array.isArray(response.data?.data) ? response.data.data : indexedData
+      tags.value = payload.sort((a, b) => a.name.localeCompare(b.name)).filter((t) => t.id !== 9998)
     })
     .catch(function(error) {
       // handle error

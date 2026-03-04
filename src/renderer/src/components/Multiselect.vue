@@ -12,7 +12,7 @@
         @mouseleave="onRowLeave"
       >
         <a-checkbox
-          :checked="selectedSet.has(row.data.id)"
+          :checked="selectedSet.has(String(row.data.id))"
           :value="row.data.id"
           @change="onCheckboxChange(row.data.id, $event.target.checked)"
         >
@@ -50,7 +50,7 @@ const props = defineProps({
 const emit = defineEmits(['changed'])
 
 const sortedList = computed(() => [...(props.list || [])].sort((a, b) => a.name.localeCompare(b.name)))
-const selectedSet = computed(() => new Set(selected.value))
+const selectedSet = computed(() => new Set((selected.value || []).map((value) => String(value))))
 
 const {
   list: virtualRows,
@@ -63,8 +63,9 @@ const {
 
 watch(() => props.selectedDefault,
   (newValue = []) => {
+    const normalized = normalizeIds(newValue)
     if (newValue.length > 0 || selected.value.length === 0) {
-      selected.value = [...newValue]
+      selected.value = normalized
     }
   },
   { immediate: true })
@@ -74,6 +75,8 @@ function selectionChanged() {
 }
 
 function onCheckboxChange(id, checked) {
+  const idKey = String(id)
+
   if (altPressed.value) {
     selectOnly(id)
     soloHintId.value = id
@@ -82,11 +85,11 @@ function onCheckboxChange(id, checked) {
   }
 
   if (checked) {
-    if (!selected.value.includes(id)) {
+    if (!selectedSet.value.has(idKey)) {
       selected.value = [...selected.value, id]
     }
   } else {
-    selected.value = selected.value.filter((value) => value !== id)
+    selected.value = selected.value.filter((value) => String(value) !== idKey)
   }
   selectionChanged()
 }
@@ -125,7 +128,7 @@ function selectAll() {
 }
 
 function setSelected(ids = []) {
-  selected.value = [...ids]
+  selected.value = normalizeIds(ids)
   selectionChanged()
 }
 
@@ -143,6 +146,12 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
   window.removeEventListener('keyup', handleKeyUp)
 })
+
+function normalizeIds(ids = []) {
+  return (Array.isArray(ids) ? ids : [])
+    .map((value) => (value && typeof value === 'object' ? value.id : value))
+    .filter((value) => value !== null && value !== undefined)
+}
 
 defineExpose({
   selectAll,

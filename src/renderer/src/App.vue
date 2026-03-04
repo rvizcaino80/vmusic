@@ -762,10 +762,11 @@
               :disabled="selectedRows.length <= 0"
               type="button"
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
-              @click="moveFirst(playlistDetails, selectedRows[0])"
+              @click="moveFirstControlClicked($event)"
             >
               <i-ic-baseline-move-up
                 class="w-6 h-6 text-white"
+                :style="isAltPressed ? { transform: 'scaleY(-1)' } : null"
               />
             </button>
 
@@ -1234,6 +1235,7 @@ const debouncedFilterQuery = ref('')
 let filterQueryDebounceTimer = null
 const isLoadingLibrary = ref(true)
 const autopause = ref(false)
+const isAltPressed = ref(false)
 const previewAudio = ref(null)
 const previewSongId = ref(null)
 const previewStatus = ref('idle')
@@ -1512,9 +1514,11 @@ const addButtonDisabled = computed(() => {
 const addRandomButtonDisabled = computed(() => {
   const player1Status = player1.value?.status
   const player2Status = player2.value?.status
+  const selectedCount = selectedSongs.value.length
+  const candidateCount = selectedCount > 0 ? selectedCount : filteredSongs2.value.length
 
   return (
-    selectedSongs.value.length <= 1 || player1Status === playerStatuses.Cambiando || player2Status === playerStatuses.Cambiando
+    candidateCount <= 1 || player1Status === playerStatuses.Cambiando || player2Status === playerStatuses.Cambiando
   )
 })
 
@@ -1708,6 +1712,9 @@ onMounted(() => {
     window.electron2.ipcRenderer.on('window-fullscreen-changed', onFullscreenChanged)
   }
   window.addEventListener('keydown', onHardwareMediaKey)
+  window.addEventListener('keydown', onModifierKeyDown)
+  window.addEventListener('keyup', onModifierKeyUp)
+  window.addEventListener('blur', onWindowBlurResetModifiers)
   window.addEventListener('resize', onWindowResizeRedrawPlayers)
   window.addEventListener('fullscreenchange', onWindowResizeRedrawPlayers)
   window.addEventListener('storage', onDownloadTasksStorageChanged)
@@ -1725,6 +1732,9 @@ onUnmounted(() => {
     window.electron2.ipcRenderer.removeListener('window-fullscreen-changed', onFullscreenChanged)
   }
   window.removeEventListener('keydown', onHardwareMediaKey)
+  window.removeEventListener('keydown', onModifierKeyDown)
+  window.removeEventListener('keyup', onModifierKeyUp)
+  window.removeEventListener('blur', onWindowBlurResetModifiers)
   window.removeEventListener('resize', onWindowResizeRedrawPlayers)
   window.removeEventListener('fullscreenchange', onWindowResizeRedrawPlayers)
   window.removeEventListener('storage', onDownloadTasksStorageChanged)
@@ -2049,7 +2059,11 @@ async function startPreview(song, options = {}) {
     previewSongId.value = song.id
     previewPlaylistEntryId.value = playlistEntryId
     previewStatus.value = 'loading'
-    audio.src = `http://localhost:3000/static/${song.folder}/${song.ytid}.mp3`
+    const mediaUrl = await window.electron2.getMediaUrl({
+      folder: song.folder,
+      ytid: song.ytid
+    })
+    audio.src = mediaUrl
     const startAt = typeof song.start === 'number' ? song.start : 0
     if (startAt > 0) {
       const seekToStart = () => {
@@ -2113,6 +2127,25 @@ function moveFirst(array, element) {
   const [found] = array.splice(index, 1)
   array.unshift(found)
   syncPlaylistStateFromDetails()
+}
+
+function moveLast(array, element) {
+  const index = array.findIndex((item) => item.entryId === element)
+  if (index === -1) return
+
+  const [found] = array.splice(index, 1)
+  array.push(found)
+  syncPlaylistStateFromDetails()
+}
+
+function moveFirstControlClicked(event) {
+  if (selectedRows.value.length <= 0) return
+  if (event?.altKey || isAltPressed.value) {
+    moveLast(playlistDetails.value, selectedRows.value[0])
+
+    return
+  }
+  moveFirst(playlistDetails.value, selectedRows.value[0])
 }
 
 function moveUp(array, element) {
@@ -2255,19 +2288,60 @@ function hideMenu(evt) {
   }
 }
 
+function toArrayPayload(payload) {
+  const fromIndexedObject = (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+    const keys = Object.keys(value)
+    if (keys.length === 0) return []
+    if (!keys.every((key) => (/^\d+$/).test(key))) return null
+
+    return keys
+      .map((key) => Number(key))
+      .sort((a, b) => a - b)
+      .map((index) => value[String(index)])
+  }
+
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.data)) return payload.data
+  const indexedData = fromIndexedObject(payload?.data)
+  if (indexedData) return indexedData
+  const indexedPayload = fromIndexedObject(payload)
+  if (indexedPayload) return indexedPayload
+
+  return []
+}
+
 /* Tags*/
 async function getTags() {
   const response = await fetch('http://localhost:3000/tags')
   const data = await response.json()
+  const normalized = toArrayPayload(data)
+  console.log('[vmusic][getTags]', {
+    status: response.status,
+    dataType: typeof data,
+    isArray: Array.isArray(data),
+    keys: data && typeof data === 'object' ? Object.keys(data).slice(0, 10) : [],
+    normalizedLength: normalized.length,
+    sample: normalized[0]
+  })
 
-  return data.sort((a, b) => a.name.localeCompare(b.name))
+  return normalized.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 async function getArtists(filter = false) {
   const response = await fetch('http://localhost:3000/artists')
   const data = await response.json()
+  const normalized = toArrayPayload(data)
+  console.log('[vmusic][getArtists]', {
+    status: response.status,
+    dataType: typeof data,
+    isArray: Array.isArray(data),
+    keys: data && typeof data === 'object' ? Object.keys(data).slice(0, 10) : [],
+    normalizedLength: normalized.length,
+    sample: normalized[0]
+  })
 
-  return data.sort((a, b) => a.name.localeCompare(b.name))
+  return normalized.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 /*
@@ -2314,9 +2388,12 @@ async function filterSongs() {
    *searchManually()
    *}
    */
+  const effectiveArtists = artists.value.map((artist) => artist.id)
+  const effectiveTags = tags.value.map((tag) => tag.id)
+
   const params = {
-    artists: selectedArtists.value,
-    tags: selectedTags.value
+    artists: effectiveArtists,
+    tags: effectiveTags
   }
 
   const options = {
@@ -2329,15 +2406,28 @@ async function filterSongs() {
 
   const response = await fetch('http://localhost:3000/songs/filter', options)
   const data = await response.json()
-  const artistModeAdjustedSongs = applyArtistModeFilter(Array.isArray(data) ? data : [])
-  const modeAdjustedSongs = applyTagModeFilter(artistModeAdjustedSongs)
+  const normalized = toArrayPayload(data)
+  console.log('[vmusic][filterSongs]', {
+    status: response.status,
+    requestArtists: params.artists?.length || 0,
+    requestTags: params.tags?.length || 0,
+    dataType: typeof data,
+    isArray: Array.isArray(data),
+    keys: data && typeof data === 'object' ? Object.keys(data).slice(0, 10) : [],
+    normalizedLength: normalized.length,
+    sample: normalized[0]
+  })
+  const modeAdjustedSongs = applyCombinedFilters(normalized)
   songs.value = modeAdjustedSongs.map((item) => ({
     ...item,
+    Artists: Array.isArray(item.Artists) ? item.Artists : [],
+    Composers: Array.isArray(item.Composers) ? item.Composers : [],
+    Tags: Array.isArray(item.Tags) ? item.Tags : [],
     key: item.id,
-    artistsJoined: item.Artists.map((artist) => artist.name).join(', '),
-    composersJoined: item.Composers.map((composer) => composer.name).join(', '),
+    artistsJoined: (Array.isArray(item.Artists) ? item.Artists : []).map((artist) => artist.name).join(', '),
+    composersJoined: (Array.isArray(item.Composers) ? item.Composers : []).map((composer) => composer.name).join(', '),
     nameNorm: removeAccents((item.name || '').toLowerCase()),
-    artistsNorm: removeAccents((item.Artists || []).map((artist) => artist.name).join(' ')
+    artistsNorm: removeAccents((Array.isArray(item.Artists) ? item.Artists : []).map((artist) => artist.name).join(' ')
       .toLowerCase())
   }))
 
@@ -2361,43 +2451,43 @@ async function filterSongs() {
   isLoadingLibrary.value = false
 }
 
-function applyArtistModeFilter(items) {
-  if (artistFilterMode.value !== 'all') {
-    return items
-  }
+function normalizeSelectionIds(values) {
+  return (Array.isArray(values) ? values : [])
+    .map((value) => {
+      if (value === null || value === undefined) return null
+      if (typeof value === 'object') return value.id ?? null
 
-  const requiredArtistIds = selectedArtists.value
-    .filter((id) => id !== null && id !== undefined)
-    .map((id) => String(id))
+      return value
+    })
+    .filter((value) => value !== null && value !== undefined)
+    .map((value) => String(value))
+}
 
-  if (requiredArtistIds.length <= 1) {
-    return items
+function applyCombinedFilters(items) {
+  const selectedArtistIds = normalizeSelectionIds(selectedArtists.value)
+  const selectedTagIds = normalizeSelectionIds(selectedTags.value)
+
+  const allArtistIds = normalizeSelectionIds(artists.value.map((artist) => artist.id))
+  const allTagIds = normalizeSelectionIds(tags.value.map((tag) => tag.id))
+
+  const hasArtistFilter = selectedArtistIds.length > 0 && selectedArtistIds.length < allArtistIds.length
+  const hasTagFilter = selectedTagIds.length > 0 && selectedTagIds.length < allTagIds.length
+  const hasNoArtistsSelected = selectedArtistIds.length === 0
+  const hasNoTagsSelected = selectedTagIds.length === 0
+
+  if (hasNoArtistsSelected || hasNoTagsSelected) {
+    return []
   }
 
   return items.filter((song) => {
     const songArtistIds = new Set((song.Artists || []).map((artist) => String(artist.id)))
-
-    return requiredArtistIds.every((artistId) => songArtistIds.has(artistId))
-  })
-}
-
-function applyTagModeFilter(items) {
-  if (tagFilterMode.value !== 'all') {
-    return items
-  }
-
-  const requiredTagIds = selectedTags.value
-    .filter((id) => id !== null && id !== undefined)
-    .map((id) => String(id))
-
-  if (requiredTagIds.length <= 1) {
-    return items
-  }
-
-  return items.filter((song) => {
     const songTagIds = new Set((song.Tags || []).map((tag) => String(tag.id)))
 
-    return requiredTagIds.every((tagId) => songTagIds.has(tagId))
+    const artistMatch = !hasArtistFilter ? true : (artistFilterMode.value === 'all' ? selectedArtistIds.every((artistId) => songArtistIds.has(artistId)) : selectedArtistIds.some((artistId) => songArtistIds.has(artistId)))
+
+    const tagMatch = !hasTagFilter ? true : (tagFilterMode.value === 'all' ? selectedTagIds.every((tagId) => songTagIds.has(tagId)) : selectedTagIds.some((tagId) => songTagIds.has(tagId)))
+
+    return artistMatch && tagMatch
   })
 }
 
@@ -2487,14 +2577,22 @@ const shuffle = (array) => {
   return array.sort(() => Math.random() - 0.5)
 }
 
-function shufflePlaylist() {
+function shufflePlaylist(event) {
   if (playlistDetails.value.length <= 1) return
+
+  const shuffleFromSelectedNext = Boolean(event?.altKey) && selectedRows.value.length > 0
+  const selectedIndex = shuffleFromSelectedNext ? playlistDetails.value.findIndex((item) => item.entryId === selectedRows.value[0]) : -1
+  const startShuffleIndex = selectedIndex >= 0 ? selectedIndex + 1 : 0
+
+  if (startShuffleIndex >= playlistDetails.value.length - 1) return
 
   const shuffled = [...playlistDetails.value]
 
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  for (let i = shuffled.length - 1; i > startShuffleIndex; i--) {
+    const j = startShuffleIndex + Math.floor(Math.random() * (i - startShuffleIndex + 1))
+    const current = shuffled[i]
+    shuffled[i] = shuffled[j]
+    shuffled[j] = current
   }
 
   playlistDetails.value = shuffled
@@ -2833,7 +2931,9 @@ function addSongsToPlaylist(songIds, action, play = false, options = {}) {
 }
 
 function addToPlaylist(action, play = false, options = {}) {
-  addSongsToPlaylist(selectedSongs.value, action, play, options)
+  const useFilteredSongsForRandom = action === 3 && selectedSongs.value.length === 0
+  const songIds = useFilteredSongsForRandom ? filteredSongs2.value.map((song) => song.id) : selectedSongs.value
+  addSongsToPlaylist(songIds, action, play, options)
 }
 
 function getSelectedHistorySongs() {
@@ -3370,6 +3470,22 @@ function onHardwareMediaKey(event) {
   }
 }
 
+function onModifierKeyDown(event) {
+  if (event.key === 'Alt' || event.altKey) {
+    isAltPressed.value = true
+  }
+}
+
+function onModifierKeyUp(event) {
+  if (event.key === 'Alt') {
+    isAltPressed.value = false
+  }
+}
+
+function onWindowBlurResetModifiers() {
+  isAltPressed.value = false
+}
+
 function artistsChanged(data) {
   libraryState.value.page = 1
   selectedArtists.value = data
@@ -3703,6 +3819,13 @@ table tr td.ant-table-cell {
 
 #app .vmusic-app .playlist-list-container {
   background-color: transparent !important;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+#app .vmusic-app .playlist-list-container::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 </style>

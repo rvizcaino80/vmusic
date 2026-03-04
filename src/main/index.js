@@ -2,6 +2,7 @@ import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveB
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import backendService from './backend/service.cjs'
 
 function createWindow() {
   const appTitle = `Salsamanía v${app.getVersion()}`
@@ -88,7 +89,21 @@ app.whenReady().then(() => {
    * see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
    */
   app.on('browser-window-created', (_, window) => {
-    window.webContents.session.webRequest.onHeadersReceived({ urls: ['*://*/*'] },
+    const { session } = window.webContents
+
+    session.webRequest.onBeforeRequest({ urls: ['http://localhost:3000/static/*'] }, (details, callback) => {
+      const staticPrefix = 'http://localhost:3000/static/'
+      if (!details.url.startsWith(staticPrefix)) {
+        callback({ cancel: false })
+
+        return
+      }
+
+      const staticPath = details.url.slice(staticPrefix.length)
+      callback({ redirectURL: backendService.getLocalStaticUrl(staticPath) })
+    })
+
+    session.webRequest.onHeadersReceived({ urls: ['*://*/*'] },
       (d, c) => {
         if (d.responseHeaders['X-Frame-Options']) {
           delete d.responseHeaders['X-Frame-Options']
@@ -124,6 +139,15 @@ app.whenReady().then(() => {
       isMaximized: win.isMaximized()
     }
   })
+
+  ipcMain.handle('backend:request', async(_event, payload) => {
+    return backendService.dispatchRequest(payload)
+  })
+
+  ipcMain.handle('backend:get-media-url', async(_event, payload) => {
+    return backendService.getMediaUrl(payload?.folder, payload?.ytid)
+  })
+
   createWindow()
 
   powerMonitor.on('lock-screen', () => {

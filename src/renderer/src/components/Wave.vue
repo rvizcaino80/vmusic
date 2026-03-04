@@ -88,7 +88,7 @@ function clamp(value, min, max) {
 onMounted(() => {
   axios
     .get('http://localhost:3000/songs/' + props.id)
-    .then(function(response) {
+    .then(async function(response) {
       song.value = response.data
 
       player = WaveSurfer.create({
@@ -164,9 +164,13 @@ onMounted(() => {
         }
       })
 
-      player.setPlaybackRate(1.0)
+      player.setPlaybackRate(1.0, false)
       player.setVolume(1)
-      player.load('http://localhost:3000/static/' + song.value.folder + '/' + song.value.ytid + '.mp3')
+      const mediaUrl = await window.electron2.getMediaUrl({
+        folder: song.value.folder,
+        ytid: song.value.ytid
+      })
+      player.load(mediaUrl)
     })
     .catch(function(error) {
       console.log(error)

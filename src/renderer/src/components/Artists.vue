@@ -71,7 +71,14 @@ function getArtists() {
   axios
     .get('http://localhost:3000/artists')
     .then(function(response) {
-      artists.value = response.data.sort((a, b) => a.name.localeCompare(b.name))
+      const indexedData = response.data?.data && typeof response.data.data === 'object' && !Array.isArray(response.data.data) && Object.keys(response.data.data)
+        .every((key) => (/^\d+$/).test(key))
+? Object.keys(response.data.data).map((key) => Number(key))
+          .sort((a, b) => a - b)
+          .map((index) => response.data.data[String(index)])
+: []
+      const payload = Array.isArray(response.data) ? response.data : Array.isArray(response.data?.data) ? response.data.data : indexedData
+      artists.value = payload.sort((a, b) => a.name.localeCompare(b.name))
     })
     .catch(function(error) {
       // handle error

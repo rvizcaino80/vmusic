@@ -21,6 +21,37 @@
       </div>
     </div>
 
+    <div
+      v-if="failedDownloads.length > 0"
+      class="mb-4"
+    >
+      <a-divider>Errores recientes</a-divider>
+      <div class="space-y-2">
+        <div
+          v-for="task in failedDownloads"
+          :key="task.id"
+          class="flex items-start justify-between bg-red-50 border border-red-200 px-3 py-2 text-sm"
+        >
+          <div class="min-w-0">
+            <div class="truncate text-red-800 font-medium">
+              {{ task.title || task.url }}
+            </div>
+            <div class="text-red-700 break-words">
+              {{ task.errorMessage || 'No se pudo descargar la canción' }}
+            </div>
+          </div>
+          <a-button
+            type="text"
+            size="small"
+            class="text-red-700"
+            @click="removeTask(task.id)"
+          >
+            Cerrar
+          </a-button>
+        </div>
+      </div>
+    </div>
+
     <a-divider>Descargar</a-divider>
     <div
       v-if="isError"
@@ -34,7 +65,7 @@
       :disabled="formDisabled"
       @submit.prevent="saveSong"
     >
-      <a-form-item label="URL de Apple Music / Youtube">
+      <a-form-item label="URL de Apple Music / Youtube / Deezer">
         <a-input
           v-model:value="url"
           class="w-full"
@@ -210,6 +241,7 @@ const formDisabled = ref(true)
 const isInferringGenre = ref(false)
 const downloadTasks = ref([])
 const inProgressDownloads = computed(() => downloadTasks.value.filter((task) => task.status !== 'done' && task.status !== 'error'))
+const failedDownloads = computed(() => downloadTasks.value.filter((task) => task.status === 'error'))
 const isSaving = computed(() => inProgressDownloads.value.length > 0)
 const TASKS_STORAGE_KEY = 'vmusic_download_tasks'
 const COVER_MAP_STORAGE_KEY = 'vmusic_cover_map'
@@ -219,6 +251,13 @@ let downloadTasksWatchdog = null
 
 function now() {
   return Date.now()
+}
+
+function isSupportedSourceUrl(value) {
+  const lower = (value || '').toString().trim()
+    .toLowerCase()
+
+  return lower.includes('music.apple') || lower.includes('youtube.com') || lower.includes('youtu.be') || lower.includes('deezer.com') || lower.includes('deezer.page.link')
 }
 
 function normalizeArtistName(value) {
@@ -400,6 +439,7 @@ function normalizeTask(task) {
     ...task,
     status,
     statusLabel: task?.statusLabel || (status === 'saving' ? 'Guardando...' : 'Descargando...'),
+    errorMessage: task?.errorMessage || '',
     createdAt,
     updatedAt
   }
@@ -413,8 +453,32 @@ function syncTasksToStorage() {
 function setTaskStatus(task, status, statusLabel) {
   task.status = status
   task.statusLabel = statusLabel
+  if (status !== 'error') {
+    task.errorMessage = ''
+  }
   task.updatedAt = now()
   syncTasksToStorage()
+}
+
+function resolveDownloadPayload(rawData) {
+  const raw = rawData
+  const isObject = raw && typeof raw === 'object' && !Array.isArray(raw)
+
+  if (isObject) {
+    if (raw.success === false || raw.ok === false || raw.downloaded === false || raw.error) {
+      const backendMessage = raw.message || raw.error || raw.reason
+      throw new Error(backendMessage || 'La descarga falló')
+    }
+  }
+
+  const rawYtid = isObject ? raw.ytid : raw
+  const ytid = rawYtid !== undefined && rawYtid !== null ? String(rawYtid).trim() : ''
+  if (!ytid) {
+    const backendMessage = isObject ? (raw.message || raw.reason) : ''
+    throw new Error(backendMessage || 'No se recibió el identificador (ytid) de la descarga')
+  }
+
+  return { ytid }
 }
 
 function removeTask(taskId) {
@@ -424,18 +488,23 @@ function removeTask(taskId) {
 
 function cleanupTimedOutTasks() {
   const current = now()
-  const before = downloadTasks.value.length
-
-  downloadTasks.value = downloadTasks.value.filter((task) => {
-    if (task.status === 'done' || task.status === 'error') return true
+  let changed = false
+  downloadTasks.value = downloadTasks.value.map((task) => {
+    if (task.status === 'done' || task.status === 'error') return task
     const age = current - (task.updatedAt || task.createdAt || current)
+    if (age <= DOWNLOAD_TASK_TIMEOUT_MS) return task
+    changed = true
 
-    return age <= DOWNLOAD_TASK_TIMEOUT_MS
+    return {
+      ...task,
+      status: 'error',
+      statusLabel: 'Error',
+      errorMessage: task.errorMessage || 'La descarga excedió el tiempo límite',
+      updatedAt: current
+    }
   })
 
-  if (downloadTasks.value.length !== before) {
-    syncTasksToStorage()
-  }
+  if (changed) syncTasksToStorage()
 }
 
 function saveNoteLocally(ytid, note) {
@@ -495,10 +564,9 @@ watch(() => props.artists, (n, o) => {
 
     window.electron2.getClipboardText().then((text) => {
       const trimmed = (text || '').trim()
-      const isApple = trimmed.includes('music.apple')
-      const isYoutube = trimmed.includes('youtube.com') || trimmed.includes('youtu.be')
+      const isSupported = isSupportedSourceUrl(trimmed)
 
-      if (isApple || isYoutube) {
+      if (isSupported) {
         url.value = text
         const urlObject = { target: { value: url.value } }
         onURLChange(urlObject)
@@ -531,7 +599,7 @@ function saveSong() {
   const trimmedUrl = url.value.trim()
   const trimmedSong = song.value.trim()
 
-  const isValidSource = trimmedUrl.includes('music.apple') || trimmedUrl.includes('youtube.com') || trimmedUrl.includes('youtu.be')
+  const isValidSource = isSupportedSourceUrl(trimmedUrl)
   const normalizedTags = selectedTags.value
     .map((item) => (typeof item === 'string' ? item.trim() : ''))
     .filter((item) => item.length > 0)
@@ -542,7 +610,7 @@ function saveSong() {
     errorMessage.value = 'La información está incompleta'
     isError.value = true
   } else if (!isValidSource) {
-    errorMessage.value = 'La URL principal debe ser de Apple Music o YouTube'
+    errorMessage.value = 'La URL principal debe ser de Apple Music, YouTube o Deezer'
     isError.value = true
   } else {
     const taskId = `${Date.now()}-${Math.random().toString(16)
@@ -576,10 +644,7 @@ function saveSong() {
     axios
       .post('http://localhost:3000/download', { url: payload.url })
       .then(function(response) {
-        const ytid = response.data?.ytid || response.data
-        if (!ytid) {
-          throw new Error('No se recibió el identificador (ytid) de la descarga')
-        }
+        const { ytid } = resolveDownloadPayload(response.data)
         payload.ytid = ytid
         saveNoteLocally(ytid, noteForSong)
         setTaskStatus(task, 'saving', 'Guardando...')
@@ -609,12 +674,17 @@ function saveSong() {
         }
       })
       .catch(function(error) {
+        const detailedMessage = error.response?.data?.error || error.response?.data?.details
+        const genericMessage = error.response?.data?.message
+        const backendMessage = detailedMessage || genericMessage || error.message || 'Error al descargar'
         setTaskStatus(task, 'error', 'Error')
+        task.errorMessage = backendMessage
+        syncTasksToStorage()
         isError.value = true
-        errorMessage.value = error.response?.data?.message || error.message || 'Error al descargar'
+        errorMessage.value = backendMessage
       })
       .finally(function() {
-        if (task.status === 'done' || task.status === 'error') {
+        if (task.status === 'done') {
           removeTask(task.id)
         }
       })
@@ -689,7 +759,7 @@ async function onURLChange(e) {
   coverUrl.value = ''
   isAppleLink.value = e.target.value.includes('music.apple')
 
-  const isValidSource = e.target.value.includes('music.apple') || e.target.value.includes('youtube.com') || e.target.value.includes('youtu.be')
+  const isValidSource = isSupportedSourceUrl(e.target.value)
   if (!isValidSource) {
     formDisabled.value = false
 

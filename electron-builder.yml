@@ -5,11 +5,24 @@ directories:
 files:
   - '!**/.vscode/*'
   - '!src/*'
+  - '!_music{,/**/*}'
+  - '!**/_music{,/**/*}'
+  - '!**/*.mp3'
+  - '!**/*.m4a'
+  - '!**/*.flac'
+  - '!**/*.wav'
+  - '!**/*.ogg'
+  - '!**/*.opus'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
 asarUnpack:
   - resources/**
+extraResources:
+  - from: build/bin
+    to: bin
+    filter:
+      - '**/*'
 win:
   executableName: salsamania
 nsis:

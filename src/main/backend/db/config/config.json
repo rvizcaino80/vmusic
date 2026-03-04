@@ -1,0 +1,6 @@
+{
+  "development": {
+    "storage": "src/main/backend/db/vmusic.sqlite",
+    "dialect": "sqlite"
+  }
+}

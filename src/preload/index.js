@@ -17,6 +17,8 @@ if (process.contextIsolated) {
       getClipboardText: () => ipcRenderer.invoke('get-clipboard-text'),
       emptyClipboard: () => ipcRenderer.invoke('empty-clipboard'),
       getWindowDisplayMode: () => ipcRenderer.invoke('get-window-display-mode'),
+      backendRequest: (payload) => ipcRenderer.invoke('backend:request', payload),
+      getMediaUrl: (payload) => ipcRenderer.invoke('backend:get-media-url', payload),
       ipcRenderer: ipcRenderer
     })
 

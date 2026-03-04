@@ -211,15 +211,29 @@ onMounted(async() => {
 async function getTags() {
   const response = await fetch('http://localhost:3000/tags')
   const data = await response.json()
+  const indexedData = data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data)
+    .every((key) => (/^\d+$/).test(key))
+? Object.keys(data.data).map((key) => Number(key))
+      .sort((a, b) => a - b)
+      .map((index) => data.data[String(index)])
+: []
+  const normalized = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : indexedData
 
-  return data.sort((a, b) => a.name.localeCompare(b.name)).filter((t) => t.id !== 9998)
+  return normalized.sort((a, b) => a.name.localeCompare(b.name)).filter((t) => t.id !== 9998)
 }
 
 async function getArtists() {
   const response = await fetch('http://localhost:3000/artists')
   const data = await response.json()
+  const indexedData = data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data)
+    .every((key) => (/^\d+$/).test(key))
+? Object.keys(data.data).map((key) => Number(key))
+      .sort((a, b) => a - b)
+      .map((index) => data.data[String(index)])
+: []
+  const normalized = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : indexedData
 
-  return data.sort((a, b) => a.name.localeCompare(b.name))
+  return normalized.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 function saveSong() {
