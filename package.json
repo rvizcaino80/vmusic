@@ -4,7 +4,11 @@
   "description": "An Electron application with Vue",
   "main": "./out/main/index.js",
   "author": "Rogers Vizcaino",
-  "homepage": "https://electron-vite.org",
+  "homepage": "https://github.com/rvizcaino80/vmusic",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rvizcaino80/vmusic.git"
+  },
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
@@ -15,7 +19,9 @@
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac --arm64",
-    "build:linux": "npm run build && electron-builder --linux"
+    "build:linux": "npm run build && electron-builder --linux",
+    "release:github:mac": "npm run build && electron-builder --mac --arm64 --publish always",
+    "release:github:win": "npm run build && electron-builder --win --publish always"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.0",
@@ -35,7 +41,6 @@
     "helmet": "^8.1.0",
     "music-metadata": "^11.12.1",
     "sequelize": "^6.37.2",
-    "soundtouchjs": "^0.3.0",
     "sqlite3": "^5.1.7",
     "update-electron-app": "^3.0.0",
     "wavesurfer.js": "^7.9.5"

@@ -164,7 +164,7 @@ onMounted(() => {
         }
       })
 
-      player.setPlaybackRate(1.0, false)
+      player.setPlaybackRate(1.0, true)
       player.setVolume(1)
       const mediaUrl = await window.electron2.getMediaUrl({
         folder: song.value.folder,

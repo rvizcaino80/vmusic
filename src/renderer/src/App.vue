@@ -839,8 +839,9 @@
           <div v-bind="playlistWrapperProps">
             <table class="dark playlist-table border-collapse w-full text-sm table-fixed">
               <colgroup>
-                <col style="width: calc((100% - 32px) / 2)">
-                <col style="width: calc((100% - 32px) / 2)">
+                <col style="width: 56px">
+                <col style="width: calc((100% - 88px) / 2)">
+                <col style="width: calc((100% - 88px) / 2)">
                 <col style="width: 32px">
               </colgroup>
               <tbody>
@@ -857,10 +858,18 @@
                   @touchcancel.stop="onPlaylistRowPressEnd()"
                 >
                   <td
+                    class="playlist-index-cell text-right"
+                    :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
+                  >
+                    {{ row.index + 1 }}
+                  </td>
+                  <td
                     class="cursor-pointer"
                     :class="{ 'playlist-row-selected': selectedRowsSet.has(row.data.entryId) }"
                   >
-                    {{ row.data.name }}
+                    <div class="playlist-title-cell">
+                      <span class="playlist-song-name">{{ row.data.name }}</span>
+                    </div>
                   </td>
                   <td
                     class="cursor-pointer playlist-artist-cell"
@@ -3736,6 +3745,13 @@ table tr td.ant-table-cell {
 
 #app .vmusic-app .playlist-list-container table.playlist-table tbody tr td.playlist-artist-cell {
   color: rgba(255, 255, 255, 0.5) !important;
+}
+
+#app .vmusic-app .playlist-list-container table.playlist-table tbody tr td.playlist-index-cell {
+  width: 56px;
+  min-width: 56px;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.4) !important;
 }
 
 #app .vmusic-app .playlist-list-container table.playlist-table tbody tr:last-child td {

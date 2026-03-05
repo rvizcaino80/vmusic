@@ -151,7 +151,6 @@
 import { onBeforeMount, onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
-import { PitchShifter } from 'soundtouchjs'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
 
@@ -213,19 +212,6 @@ const baseSpeedLabel = computed(() => {
 const canPreview = computed(() => status.value !== props.statuses.Reproduciendo && Boolean(songFull.value?.id))
 const MIN_SPEED_OFFSET = -50
 const MAX_SPEED_OFFSET = 50
-const SOUND_TOUCH_BUFFER_SIZE = 16384
-const SOUND_TOUCH_SYNC_THRESHOLD_SEC = 1.2
-const SOUND_TOUCH_RESYNC_COOLDOWN_MS = 5000
-const ENABLE_SOUND_TOUCH_AUTO_RESYNC = false
-let soundTouchContext = null
-let soundTouchGain = null
-let soundTouchShifter = null
-let soundTouchBuffer = null
-let soundTouchBufferUrl = ''
-let soundTouchLoadingPromise = null
-let soundTouchTimePlayed = 0
-let soundTouchLastResyncAt = 0
-let activeMediaUrl = ''
 
 onBeforeMount(() => {
   status.value = props.statuses['Sin Carga']
@@ -250,9 +236,9 @@ function init() {
   mediaElement = document.createElement('audio')
   mediaElement.preload = 'auto'
   mediaElement.crossOrigin = 'anonymous'
-  mediaElement.preservesPitch = false
-  mediaElement.webkitPreservesPitch = false
-  mediaElement.mozPreservesPitch = false
+  mediaElement.preservesPitch = true
+  mediaElement.webkitPreservesPitch = true
+  mediaElement.mozPreservesPitch = true
 
   originalOptions = {
     normalize: true,
@@ -362,7 +348,6 @@ function init() {
       }
       if (typeof restore.volume === 'number') {
         player.setVolume(restore.volume)
-        syncSoundTouchGain(restore.volume)
       }
       if (typeof restore.time === 'number' && Number.isFinite(restore.time)) {
         player.setTime(Math.max(0, restore.time))
@@ -378,12 +363,10 @@ function init() {
   player.on('play', () => {
     player.toggleInteraction(true)
     status.value = props.statuses.Reproduciendo
-    ensureSoundTouchForCurrentState()
   })
 
   player.on('pause', () => {
     status.value = props.statuses.Pausado
-    stopSoundTouchPlayback()
   })
 
   player.on('finish', () => {
@@ -392,8 +375,7 @@ function init() {
       emit('finished', finishedSong)
     }
     resetSongMetadata()
-    stopSoundTouchPlayback()
-    player.setPlaybackRate(1.0, false)
+    player.setPlaybackRate(1.0, true)
     speed_added.value = 0
 
     player.toggleInteraction(false)
@@ -412,7 +394,6 @@ function init() {
     ) {
       volume.value = player.getVolume()
       calculateVolume(currentTime)
-      maybeResyncSoundTouch(currentTime)
     }
   })
 }
@@ -424,7 +405,6 @@ function next() {
   }
   left.value = 0
   resetSongMetadata()
-  stopSoundTouchPlayback()
   start.value = null
   end.value = null
   player.stop()
@@ -447,7 +427,6 @@ function calculateVolume(ct) {
     }
     left.value = 0
     resetSongMetadata()
-    stopSoundTouchPlayback()
     start.value = null
     end.value = null
     player.stop()
@@ -460,7 +439,6 @@ function calculateVolume(ct) {
     if (left.value > crossfader_time) {
       if (status.value !== props.statuses.Placa && status.value !== props.statuses.Nivelando) {
         player.setVolume(1.0)
-        syncSoundTouchGain(1.0)
       }
     } else {
       if (status.value === props.statuses.Reproduciendo) {
@@ -471,7 +449,6 @@ function calculateVolume(ct) {
         emit('fading')
       }
       player.setVolume(left.value / crossfader_time)
-      syncSoundTouchGain(left.value / crossfader_time)
     }
   }
 }
@@ -481,9 +458,7 @@ function tempFade(duration = 3000) {
   let vol = player.getVolume()
 
   if (vol > 0.6) {
-    const nextVol = vol - 0.1
-    player.setVolume(nextVol)
-    syncSoundTouchGain(nextVol)
+    player.setVolume(vol - 0.1)
     setTimeout(tempFade, 100)
   } else {
     setTimeout(function() {
@@ -501,7 +476,6 @@ function volToNormal() {
   if (vol < 1.0) {
     let new_vol = clamp(vol + 0.05, 0, 1)
     player.setVolume(new_vol)
-    syncSoundTouchGain(new_vol)
     setTimeout(volToNormal, 100)
   } else {
     player.toggleInteraction(true)
@@ -522,7 +496,6 @@ function resetSongMetadata() {
   songFull.value = {}
   songId.value = null
   primaryArtistId.value = null
-  activeMediaUrl = ''
 }
 
 async function setSong(s) {
@@ -542,17 +515,12 @@ async function setSong(s) {
   artist.value = artistsList.value.map((i) => i.name).join(', ')
   primaryArtistId.value = artistsList.value?.[0]?.id || null
   composer.value = s.Composers.map((i) => i.name).join(', ')
-  player.setPlaybackRate(1.0, false)
+  player.setPlaybackRate(1.0, true)
   player.setVolume(1)
-  syncSoundTouchGain(1)
   const mediaUrl = await window.electron2.getMediaUrl({
     folder: s.folder,
     ytid: s.ytid
   })
-  activeMediaUrl = mediaUrl
-
-  // Warm up the decoded buffer so switching to SoundTouch is immediate.
-  loadSoundTouchBuffer(mediaUrl)
   player.load(mediaUrl)
 }
 
@@ -561,12 +529,10 @@ function play() {
 }
 
 function pause() {
-  stopSoundTouchPlayback()
   player.pause()
 }
 
 function stop() {
-  stopSoundTouchPlayback()
   player.stop()
 }
 
@@ -602,11 +568,7 @@ function applySpeed() {
   const totalOffset = normalizeSpeedOffset(speed_added.value) + normalizeSpeedOffset(baseSpeed.value)
   const total = 1 + totalOffset / 100
   speed.value = clamp(Number(total), 0.5, 1.8)
-  player.setPlaybackRate(speed.value, false)
-  if (soundTouchShifter) {
-    soundTouchShifter.tempo = speed.value
-  }
-  ensureSoundTouchForCurrentState()
+  player.setPlaybackRate(speed.value, true)
 }
 
 function normalizeSpeedOffset(value) {
@@ -621,9 +583,9 @@ function applyPreservePitch() {
   const media = player.getMediaElement()
   if (!media) return
 
-  media.preservesPitch = false
-  media.webkitPreservesPitch = false
-  media.mozPreservesPitch = false
+  media.preservesPitch = true
+  media.webkitPreservesPitch = true
+  media.mozPreservesPitch = true
 }
 
 function emitPreviewStart() {
@@ -661,163 +623,15 @@ function setVolume(val) {
 
   volume.value = parseFloat(newVolume)
   player.setVolume(volume.value)
-  syncSoundTouchGain(volume.value)
 }
 
 function setSinkId(sinkId) {
   if (!sinkId || sinkId === 'default' || !player || typeof player.setSinkId !== 'function') return
   try {
     player.setSinkId(sinkId)
-    if (soundTouchContext && typeof soundTouchContext.setSinkId === 'function') {
-      soundTouchContext.setSinkId(sinkId).catch(() => {})
-    }
   } catch (error) {
     console.warn('No se pudo cambiar la salida del deck', error)
   }
-}
-
-function shouldUseSoundTouch() {
-  return Math.abs(speed.value - 1) > 0.0001
-}
-
-function ensureSoundTouchContext() {
-  if (soundTouchContext && soundTouchGain) return true
-  const Ctx = window.AudioContext || window.webkitAudioContext
-  if (!Ctx) return false
-
-  soundTouchContext = new Ctx()
-  soundTouchGain = soundTouchContext.createGain()
-  soundTouchGain.gain.value = clamp(Number(volume.value || 1), 0, 1)
-  soundTouchGain.connect(soundTouchContext.destination)
-
-  return true
-}
-
-async function loadSoundTouchBuffer(mediaUrl) {
-  if (!mediaUrl) return null
-  if (!ensureSoundTouchContext()) return null
-  if (soundTouchBuffer && soundTouchBufferUrl === mediaUrl) return soundTouchBuffer
-  if (soundTouchLoadingPromise && soundTouchBufferUrl === mediaUrl) return soundTouchLoadingPromise
-
-  soundTouchBufferUrl = mediaUrl
-  soundTouchLoadingPromise = (async() => {
-    const response = await fetch(mediaUrl)
-    const bytes = await response.arrayBuffer()
-    const decoded = await soundTouchContext.decodeAudioData(bytes.slice(0))
-    soundTouchBuffer = decoded
-
-    return decoded
-  })()
-    .catch((error) => {
-      if (soundTouchBufferUrl === mediaUrl) {
-        soundTouchBuffer = null
-      }
-      console.warn('No se pudo preparar SoundTouch para el deck', error)
-
-      return null
-    })
-    .finally(() => {
-      if (soundTouchBufferUrl === mediaUrl) {
-        soundTouchLoadingPromise = null
-      }
-    })
-
-  return soundTouchLoadingPromise
-}
-
-function syncSoundTouchGain(nextVolume = null) {
-  if (!soundTouchGain) return
-  const baseVolume = nextVolume == null ? volume.value : nextVolume
-  soundTouchGain.gain.value = clamp(Number(baseVolume || 0), 0, 1)
-}
-
-function stopSoundTouchPlayback() {
-  if (soundTouchShifter) {
-    try {
-      soundTouchShifter.disconnect()
-    } catch (error) {
-      // ignore
-    }
-    soundTouchShifter = null
-  }
-  soundTouchTimePlayed = 0
-  if (player && typeof player.setMuted === 'function') {
-    player.setMuted(false)
-  }
-}
-
-async function startSoundTouchPlayback(fromTime = null) {
-  if (!player || !activeMediaUrl || !shouldUseSoundTouch()) {
-    stopSoundTouchPlayback()
-
-    return
-  }
-  if (!ensureSoundTouchContext()) return
-
-  const buffer = await loadSoundTouchBuffer(activeMediaUrl)
-  if (!buffer) return
-  if (!player || typeof player.isPlaying !== 'function' || !player.isPlaying()) return
-
-  stopSoundTouchPlayback()
-
-  if (soundTouchContext.state === 'suspended') {
-    try {
-      await soundTouchContext.resume()
-    } catch (error) {
-      // ignore
-    }
-  }
-
-  const shifter = new PitchShifter(soundTouchContext, buffer, SOUND_TOUCH_BUFFER_SIZE)
-  shifter.pitch = 1
-  shifter.tempo = speed.value
-  shifter.on('play', (detail) => {
-    soundTouchTimePlayed = Number(detail?.timePlayed || 0)
-  })
-
-  const durationSec = typeof player.getDuration === 'function' ? player.getDuration() : (buffer.duration || 0)
-  const currentTime = Number.isFinite(fromTime) ? fromTime : (typeof player.getCurrentTime === 'function' ? player.getCurrentTime() : 0)
-  if (durationSec > 0) {
-    shifter.percentagePlayed = clamp(currentTime / durationSec, 0, 1)
-  }
-  shifter.connect(soundTouchGain)
-  soundTouchShifter = shifter
-  syncSoundTouchGain()
-
-  if (typeof player.setMuted === 'function') {
-    player.setMuted(true)
-  }
-}
-
-function ensureSoundTouchForCurrentState() {
-  if (!player || typeof player.isPlaying !== 'function' || !player.isPlaying() || !shouldUseSoundTouch()) {
-    stopSoundTouchPlayback()
-
-    return
-  }
-  if (soundTouchShifter) {
-    soundTouchShifter.tempo = speed.value
-    if (typeof player.setMuted === 'function') {
-      player.setMuted(true)
-    }
-    syncSoundTouchGain()
-
-    return
-  }
-  startSoundTouchPlayback()
-}
-
-function maybeResyncSoundTouch(currentTime) {
-  if (!ENABLE_SOUND_TOUCH_AUTO_RESYNC) return
-  if (!soundTouchShifter || !shouldUseSoundTouch()) return
-  if (player && typeof player.isSeeking === 'function' && player.isSeeking()) return
-  const drift = Math.abs(Number(currentTime || 0) - Number(soundTouchTimePlayed || 0))
-  if (drift < SOUND_TOUCH_SYNC_THRESHOLD_SEC) return
-
-  const now = Date.now()
-  if ((now - soundTouchLastResyncAt) < SOUND_TOUCH_RESYNC_COOLDOWN_MS) return
-  soundTouchLastResyncAt = now
-  startSoundTouchPlayback(currentTime)
 }
 
 function loadCoverFromMap() {
@@ -964,7 +778,6 @@ function hardRebuildWaveform() {
   }
 
   pendingRestoreState = restoreState
-  stopSoundTouchPlayback()
 
   try {
     player.stop()
@@ -1143,15 +956,6 @@ onBeforeUnmount(() => {
     clearTimeout(hardRebuildTimeoutId)
     hardRebuildTimeoutId = null
   }
-  stopSoundTouchPlayback()
-  soundTouchBuffer = null
-  soundTouchBufferUrl = ''
-  if (soundTouchContext && typeof soundTouchContext.close === 'function') {
-    soundTouchContext.close().catch(() => {})
-  }
-  soundTouchContext = null
-  soundTouchGain = null
-  soundTouchLoadingPromise = null
 })
 
 defineExpose({

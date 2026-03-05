@@ -1,8 +1,66 @@
 import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveBlocker } from 'electron'
 import { join } from 'path'
+import fs from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { updateElectronApp, UpdateSourceType } from 'update-electron-app'
 import icon from '../../resources/icon.png?asset'
 import backendService from './backend/service.cjs'
+
+function extractGithubRepo(repository) {
+  if (!repository) return null
+
+  const raw = typeof repository === 'string' ? repository : repository.url
+  if (!raw || typeof raw !== 'string') return null
+
+  const trimmed = raw.trim()
+  const match = trimmed.match(/github\.com[:/]([^/]+)\/([^/.]+)(?:\.git)?$/i)
+  if (!match) return null
+
+  return `${match[1]}/${match[2]}`
+}
+
+function resolveGithubRepo() {
+  const repoFromEnv = (process.env.VMUSIC_GH_REPO || '').trim()
+  if (repoFromEnv && repoFromEnv.includes('/')) {
+    return repoFromEnv
+  }
+
+  try {
+    const appPkgPath = join(app.getAppPath(), 'package.json')
+    const appPkgRaw = fs.readFileSync(appPkgPath, 'utf8')
+    const appPkg = JSON.parse(appPkgRaw)
+
+    return extractGithubRepo(appPkg?.repository)
+  } catch {
+    return null
+  }
+}
+
+function configureAutoUpdates() {
+  if (is.dev) return
+  if (!['darwin', 'win32'].includes(process.platform)) return
+
+  const githubRepo = resolveGithubRepo()
+  if (!githubRepo) {
+    console.warn('[vmusic][updates] GitHub repo not found. Set VMUSIC_GH_REPO or package.json.repository.')
+
+    return
+  }
+
+  try {
+    updateElectronApp({
+      updateSource: {
+        type: UpdateSourceType.ElectronPublicUpdateService,
+        repo: githubRepo
+      },
+      updateInterval: '30 minutes',
+      logger: console,
+      notifyUser: true
+    })
+  } catch (error) {
+    console.error('[vmusic][updates] Failed to initialize auto-updates', error)
+  }
+}
 
 function createWindow() {
   const appTitle = `Salsamanía v${app.getVersion()}`
@@ -80,6 +138,8 @@ function createWindow() {
  * Some APIs can only be used after this event occurs.
  */
 app.whenReady().then(() => {
+  configureAutoUpdates()
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
