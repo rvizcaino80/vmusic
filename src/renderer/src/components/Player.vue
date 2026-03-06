@@ -6,7 +6,7 @@
     class="justify-end player p-6 flex flex-col flex-1 max-h-[550px] min-w-0"
   >
     <div class="flex justify-between space-x-3">
-      <div class="flex space-x-3">
+      <div class="flex space-x-3 flex-1 min-w-0">
         <div
           v-if="songImage"
           :class="{
@@ -38,8 +38,8 @@
             class="select-none"
           >B</span>
         </div>
-        <div>
-          <h2 class="text-white text-xl select-none max-w-[420px] truncate">
+        <div class="flex-1 min-w-0">
+          <h2 class="text-white text-xl select-none w-full truncate">
             <template v-if="artistsList.length">
               <template
                 v-for="(a, idx) in artistsList"
@@ -59,8 +59,8 @@
             <span v-else>Sin artista</span>
             <span v-if="artist && composer"> ({{ composer }})</span>
           </h2>
-          <div class="flex items-center space-x-2">
-            <h1 class="text-white text-2xl select-none max-w-[380px] truncate">
+          <div class="flex items-center space-x-2 w-full min-w-0">
+            <h1 class="text-white text-2xl select-none flex-1 min-w-0 truncate">
               <button
                 v-if="songFull?.id"
                 type="button"

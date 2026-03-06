@@ -1245,6 +1245,8 @@ let filterQueryDebounceTimer = null
 const isLoadingLibrary = ref(true)
 const autopause = ref(false)
 const isAltPressed = ref(false)
+const ESC_DOUBLE_PRESS_WINDOW_MS = 1000
+let lastEscapePressAt = 0
 const previewAudio = ref(null)
 const previewSongId = ref(null)
 const previewStatus = ref('idle')
@@ -1721,7 +1723,7 @@ onMounted(() => {
     window.electron2.ipcRenderer.on('window-fullscreen-changed', onFullscreenChanged)
   }
   window.addEventListener('keydown', onHardwareMediaKey)
-  window.addEventListener('keydown', onModifierKeyDown)
+  window.addEventListener('keydown', onModifierKeyDown, true)
   window.addEventListener('keyup', onModifierKeyUp)
   window.addEventListener('blur', onWindowBlurResetModifiers)
   window.addEventListener('resize', onWindowResizeRedrawPlayers)
@@ -1741,7 +1743,7 @@ onUnmounted(() => {
     window.electron2.ipcRenderer.removeListener('window-fullscreen-changed', onFullscreenChanged)
   }
   window.removeEventListener('keydown', onHardwareMediaKey)
-  window.removeEventListener('keydown', onModifierKeyDown)
+  window.removeEventListener('keydown', onModifierKeyDown, true)
   window.removeEventListener('keyup', onModifierKeyUp)
   window.removeEventListener('blur', onWindowBlurResetModifiers)
   window.removeEventListener('resize', onWindowResizeRedrawPlayers)
@@ -2093,6 +2095,7 @@ async function startPreview(song, options = {}) {
     const isAbort = name === 'AbortError' || message.toLowerCase().includes('aborted')
     if (isAbort) {
       resetPreviewState()
+
       return
     }
     console.error(error)
@@ -2191,6 +2194,8 @@ function saveLibraryView(currentPage = null, sorter = null) {
   let p = 1
   if (currentPage) {
     p = currentPage
+  } else if (libraryState.value?.page) {
+    p = libraryState.value.page
   } else if (currentLibraryState.page) {
     p = currentLibraryState.page
   }
@@ -3487,6 +3492,11 @@ function onHardwareMediaKey(event) {
 }
 
 function onModifierKeyDown(event) {
+  if (event.key === 'Escape') {
+    const handled = handleLibraryEscapeShortcut(event)
+    if (handled) return
+  }
+
   if (event.key === 'Alt' || event.altKey) {
     isAltPressed.value = true
   }
@@ -3546,6 +3556,55 @@ function quickFilterByArtist(artistId) {
   filterQuery.value = ''
   debouncedFilterQuery.value = ''
   m3uExportSourceFilter.value = 'any'
+  filterSongs()
+  saveLibraryView()
+}
+
+function handleLibraryEscapeShortcut(event) {
+  if (event.repeat) return false
+  if (currentSelectedOption.value !== options.library) return false
+
+  const now = Date.now()
+  const isDoubleEscape = lastEscapePressAt > 0 && (now - lastEscapePressAt) < ESC_DOUBLE_PRESS_WINDOW_MS
+  lastEscapePressAt = now
+  event.preventDefault()
+  filterQuery.value = ''
+  debouncedFilterQuery.value = ''
+
+  if (isDoubleEscape) {
+    libraryState.value.page = 1
+    selectAllLibraryFilters()
+
+    return true
+  }
+
+  saveLibraryView()
+
+  return true
+}
+
+function selectAllLibraryFilters() {
+  const allArtistIds = artists.value.map((artist) => artist.id)
+  const allowedTagIds = tags.value
+    .filter((tag) => !excludedTags.value.includes(tag.id))
+    .map((tag) => tag.id)
+
+  selectedArtists.value = allArtistIds
+  selectedTags.value = allowedTagIds
+
+  if (artistMultiSelect.value?.setSelected) {
+    artistMultiSelect.value.setSelected(allArtistIds)
+  } else {
+    artistMultiSelect.value?.selectAll?.()
+  }
+
+  if (tagMultiSelect.value?.setSelected) {
+    tagMultiSelect.value.setSelected(allowedTagIds)
+  } else {
+    tagMultiSelect.value?.selectAll?.()
+  }
+
+  libraryState.value.page = 1
   filterSongs()
   saveLibraryView()
 }
