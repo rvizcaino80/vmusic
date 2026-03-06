@@ -87,7 +87,7 @@
             </button>
           </div>
           <div class="text-sm text-gray-300 select-none">
-            <span>Status: {{ getStatusName(status) }}</span>
+            <span>Status: {{ visibleStatusLabel }}</span>
             <span v-if="status !== props.statuses['Sin Carga'] && finalModeLabel !== 'Exacto'"> | Final: {{ finalModeLabel }}</span>
             <span
               v-if="
@@ -101,7 +101,7 @@
         </div>
       </div>
 
-      <div class="flex flex-col items-center text-gray-500">
+      <div class="flex flex-col items-center text-gray-500 translate-y-[6px]">
         <div
           v-if="status !== props.statuses['Sin Carga']"
           class="flex flex-col items-center"
@@ -245,6 +245,7 @@ let speedPreprocessDebounceId = null
 let preprocessRequestSerial = 0
 let volumeAnimationToken = 0
 const isPreprocessingSpeed = ref(false)
+const isInitialSpeedPreprocessPending = ref(false)
 const isUsingProcessedSpeedFile = computed(() => {
   if (ratesMatch(speed.value, 1)) return false
 
@@ -260,6 +261,11 @@ const finalModeLabel = computed(() => {
   if (fadeProfile.value?.hasFade) return 'Automático'
 
   return 'Exacto'
+})
+const visibleStatusLabel = computed(() => {
+  if (isPreprocessingSpeed.value) return 'Procesando velocidad'
+
+  return getStatusName(status.value)
 })
 
 function debugAudio(event, payload = null) {
@@ -508,6 +514,7 @@ function init() {
     clearPreprocessDebounce()
     preprocessRequestSerial += 1
     isPreprocessingSpeed.value = false
+    isInitialSpeedPreprocessPending.value = false
     currentMediaVariant.value = 'original'
     processedSpeedRate.value = null
     fadeProfileRequestSerial += 1
@@ -547,6 +554,7 @@ function next() {
   clearPreprocessDebounce()
   preprocessRequestSerial += 1
   isPreprocessingSpeed.value = false
+  isInitialSpeedPreprocessPending.value = false
   currentMediaVariant.value = 'original'
   processedSpeedRate.value = null
   fadeProfileRequestSerial += 1
@@ -974,8 +982,14 @@ function clearPreprocessDebounce() {
   }
 }
 
-function scheduleSpeedPreprocess() {
+function scheduleSpeedPreprocess(options = {}) {
+  const { immediate = false } = options
   clearPreprocessDebounce()
+  if (immediate) {
+    triggerSpeedPreprocess()
+
+    return
+  }
   speedPreprocessDebounceId = setTimeout(() => {
     speedPreprocessDebounceId = null
     triggerSpeedPreprocess()
@@ -983,11 +997,19 @@ function scheduleSpeedPreprocess() {
 }
 
 async function triggerSpeedPreprocess() {
-  if (!songFull.value?.id) return
+  if (!songFull.value?.id) {
+    isInitialSpeedPreprocessPending.value = false
+
+    return
+  }
 
   const songIdSnapshot = songFull.value.id
   const targetRate = getTargetPlaybackRate()
-  if (ratesMatch(targetRate, 1)) return
+  if (ratesMatch(targetRate, 1)) {
+    isInitialSpeedPreprocessPending.value = false
+
+    return
+  }
 
   preprocessRequestSerial += 1
   const requestSerial = preprocessRequestSerial
@@ -1018,6 +1040,7 @@ async function triggerSpeedPreprocess() {
       console.error('[vmusic][audio-debug][preprocess-failed-json]', JSON.stringify(payload))
     }
     isPreprocessingSpeed.value = false
+    isInitialSpeedPreprocessPending.value = false
 
     return
   }
@@ -1028,6 +1051,7 @@ async function triggerSpeedPreprocess() {
       requestSerial
     })
     isPreprocessingSpeed.value = false
+    isInitialSpeedPreprocessPending.value = false
 
     return
   }
@@ -1038,6 +1062,7 @@ async function triggerSpeedPreprocess() {
       latest: preprocessRequestSerial
     })
     isPreprocessingSpeed.value = false
+    isInitialSpeedPreprocessPending.value = false
 
     return
   }
@@ -1050,6 +1075,7 @@ async function triggerSpeedPreprocess() {
       currentRate: roundRate(currentTargetRate)
     })
     isPreprocessingSpeed.value = false
+    isInitialSpeedPreprocessPending.value = false
 
     return
   }
@@ -1059,6 +1085,7 @@ async function triggerSpeedPreprocess() {
       rate: roundRate(targetRate)
     })
     isPreprocessingSpeed.value = false
+    isInitialSpeedPreprocessPending.value = false
 
     return
   }
@@ -1075,11 +1102,13 @@ async function triggerSpeedPreprocess() {
       rate: roundRate(targetRate)
     })
     isPreprocessingSpeed.value = false
+    isInitialSpeedPreprocessPending.value = false
 
     return
   }
 
   isPreprocessingSpeed.value = false
+  isInitialSpeedPreprocessPending.value = false
   await switchMediaVariant('speed', targetRate, true)
 }
 
@@ -1109,6 +1138,7 @@ async function setSong(s) {
   clearPreprocessDebounce()
   preprocessRequestSerial += 1
   isPreprocessingSpeed.value = false
+  isInitialSpeedPreprocessPending.value = false
   updateBaseSpeed()
   const initialRate = getTargetPlaybackRate()
   const initialVariant = await resolveInitialVariant(s, initialRate)
@@ -1128,11 +1158,12 @@ async function setSong(s) {
   loadFadeProfile(s)
 
   if (initialVariant.variant !== 'speed' && !ratesMatch(initialRate, 1)) {
+    isInitialSpeedPreprocessPending.value = true
     debugAudio('set-song-preprocess-miss', {
       songId: s.id,
       targetRate: roundRate(initialRate)
     })
-    scheduleSpeedPreprocess()
+    scheduleSpeedPreprocess({ immediate: true })
   }
 }
 
@@ -1185,6 +1216,7 @@ function setSpeed(val) {
     scheduleSpeedPreprocess()
   } else {
     clearPreprocessDebounce()
+    isInitialSpeedPreprocessPending.value = false
   }
   emit('speed')
 }
@@ -1571,6 +1603,7 @@ onBeforeUnmount(() => {
   clearPreprocessDebounce()
   preprocessRequestSerial += 1
   isPreprocessingSpeed.value = false
+  isInitialSpeedPreprocessPending.value = false
   volumeAnimationToken += 1
   fadeProfileRequestSerial += 1
   fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
@@ -1609,6 +1642,8 @@ defineExpose({
   next,
   speed_added,
   baseSpeed,
+  isPreprocessingSpeed,
+  isInitialSpeedPreprocessPending,
   refreshBaseSpeed: () => {
     updateBaseSpeed()
     applySpeed()

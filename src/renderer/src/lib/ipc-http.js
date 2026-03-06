@@ -56,8 +56,7 @@ function shouldSkipDiagnostic(rawUrl, status) {
   if (!url) return false
 
   return (
-    /^\/songs\/fade-profile\/\d+$/.test(url.pathname) ||
-    /^\/songs\/touch-speed-version\/\d+$/.test(url.pathname)
+    (/^\/songs\/fade-profile\/\d+$/).test(url.pathname) || (/^\/songs\/touch-speed-version\/\d+$/).test(url.pathname)
   )
 }
 

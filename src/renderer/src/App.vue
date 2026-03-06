@@ -698,7 +698,8 @@
                       player2.status === playerStatuses.Nivelando))
               "
               :disabled="
-                (player1 && player1.status === playerStatuses.Cambiando) ||
+                isDeckAInitialPreprocessBlockingPlayback ||
+                  (player1 && player1.status === playerStatuses.Cambiando) ||
                   (player2 && player2.status === playerStatuses.Cambiando)
               "
               type="button"
@@ -713,10 +714,13 @@
             <button
               v-else
               :disabled="
-                (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
-                  playerStatuses['Sin Carga'])
-                  && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
-                    player2.status === playerStatuses.Cambiando)
+                isDeckAInitialPreprocessBlockingPlayback ||
+                  (
+                    (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
+                      playerStatuses['Sin Carga'])
+                    && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
+                      player2.status === playerStatuses.Cambiando)
+                  )
               "
               type="button"
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
@@ -729,10 +733,13 @@
 
             <button
               :disabled="
-                (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
-                  playerStatuses['Sin Carga'])
-                  && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
-                    player2.status === playerStatuses.Cambiando)
+                isDeckAInitialPreprocessBlockingPlayback ||
+                  (
+                    (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
+                      playerStatuses['Sin Carga'])
+                    && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
+                      player2.status === playerStatuses.Cambiando)
+                  )
               "
               type="button"
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
@@ -1531,6 +1538,10 @@ const addRandomButtonDisabled = computed(() => {
   return (
     candidateCount <= 1 || player1Status === playerStatuses.Cambiando || player2Status === playerStatuses.Cambiando
   )
+})
+
+const isDeckAInitialPreprocessBlockingPlayback = computed(() => {
+  return Boolean(player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed)
 })
 
 // Define localstorage settings
@@ -3073,6 +3084,7 @@ function getFirstUnplayedSong() {
 
 function play() {
   if (!player1.value || !player2.value) return
+  if (isDeckAInitialPreprocessBlockingPlayback.value) return
   autopause.value = false
 
   if (isFirstPlay.value && player1.value.status === playerStatuses.Listo) {
@@ -3091,6 +3103,7 @@ function play() {
 
 function pause() {
   if (!player1.value || !player2.value) return
+  if (isDeckAInitialPreprocessBlockingPlayback.value) return
   if (player1.value.status === playerStatuses.Reproduciendo) {
     player1.value.pause()
   }
@@ -3367,6 +3380,7 @@ function saveSpeed(p) {
 
 function next() {
   if (!player1.value || !player2.value) return
+  if (isDeckAInitialPreprocessBlockingPlayback.value) return
   if (player1.value.status === playerStatuses.Reproduciendo) {
     player1.value.next()
   } else if (player2.value.status === playerStatuses.Reproduciendo) {
