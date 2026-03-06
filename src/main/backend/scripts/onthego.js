@@ -10,23 +10,27 @@ const IGNORED_TAG = 'agregado-reciente'
 function parseArgs(argv) {
   const genreIndex = argv.indexOf('--genre')
   const genre = genreIndex >= 0 ? argv[genreIndex + 1] : null
+
   return {
     genre: genre ? String(genre).trim() : ''
   }
 }
 
 function normalize(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim()
+  return String(value || '').replace(/\s+/g, ' ')
+    .trim()
 }
 
 function songHasTag(song, targetTag) {
   const normalizedTarget = normalize(targetTag).toLowerCase()
   if (!normalizedTarget) return false
   const tags = Array.isArray(song.Tags) ? song.Tags : []
+
   return tags.some((tag) => {
     const name = normalize(tag.name).toLowerCase()
     if (!name) return false
     if (name === IGNORED_TAG) return false
+
     return name === normalizedTarget
   })
 }
@@ -58,6 +62,7 @@ async function main() {
   const filtered = songs.filter((song) => songHasTag(song, genre))
   if (!filtered.length) {
     console.log(`No hay canciones con la etiqueta "${genre}"`)
+
     return
   }
 
@@ -94,6 +99,6 @@ main()
     console.error(error.message)
     process.exitCode = 1
   })
-  .finally(async () => {
+  .finally(async() => {
     await db.sequelize.close()
   })

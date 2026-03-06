@@ -50,6 +50,17 @@ function bodyToResponse(data) {
   return JSON.stringify(data)
 }
 
+function shouldSkipDiagnostic(rawUrl, status) {
+  if (Number(status) !== 404) return false
+  const url = toUrl(rawUrl)
+  if (!url) return false
+
+  return (
+    /^\/songs\/fade-profile\/\d+$/.test(url.pathname) ||
+    /^\/songs\/touch-speed-version\/\d+$/.test(url.pathname)
+  )
+}
+
 async function callBackend({ method, rawUrl, body, query }) {
   const url = toUrl(rawUrl)
   if (!url) {
@@ -81,7 +92,7 @@ export function installIpcHttpBridge() {
     const method = init?.method || (typeof input !== 'string' ? input?.method : 'GET') || 'GET'
     const body = init?.body
     const result = await callBackend({ method, rawUrl, body })
-    if (result.status >= 400) {
+    if (result.status >= 400 && !shouldSkipDiagnostic(rawUrl, result.status)) {
       // Temporary diagnostic to surface backend failures in renderer console.
       console.error('[vmusic][ipc-http][fetch-error]', { method, rawUrl, status: result.status, data: result.data })
     }
@@ -109,7 +120,7 @@ export function installIpcHttpBridge() {
       body: config?.data,
       query: config?.params
     })
-    if (result.status >= 400) {
+    if (result.status >= 400 && !shouldSkipDiagnostic(requestUrl, result.status)) {
       // Temporary diagnostic to surface backend failures in renderer console.
       console.error('[vmusic][ipc-http][axios-error]', { method: config?.method || 'GET', requestUrl, status: result.status, data: result.data })
     }

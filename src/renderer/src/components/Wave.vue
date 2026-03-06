@@ -200,7 +200,26 @@ function pause() {
 }
 
 function play() {
-  player.play()
+  try {
+    const maybePromise = player.play()
+    if (maybePromise && typeof maybePromise.catch === 'function') {
+      maybePromise.catch((error) => {
+        const name = String(error?.name || '')
+        const message = String(error?.message || '')
+        const isAbort = name === 'AbortError' || message.toLowerCase().includes('aborted')
+        if (!isAbort) {
+          console.warn('[vmusic][wave] play failed', error)
+        }
+      })
+    }
+  } catch (error) {
+    const name = String(error?.name || '')
+    const message = String(error?.message || '')
+    const isAbort = name === 'AbortError' || message.toLowerCase().includes('aborted')
+    if (!isAbort) {
+      console.warn('[vmusic][wave] play failed', error)
+    }
+  }
 }
 
 function save() {

@@ -1,6 +1,6 @@
-'use strict';
-const dayjs = require('dayjs');
-const { Model } = require('sequelize');
+'use strict'
+const dayjs = require('dayjs')
+const { Model } = require('sequelize')
 module.exports = (sequelize, DataTypes) => {
   class Song extends Model {
     /**
@@ -23,24 +23,25 @@ module.exports = (sequelize, DataTypes) => {
     timestamp: {
       type: DataTypes.VIRTUAL,
       get() {
-        return dayjs(this.createdAt).valueOf();
+        return dayjs(this.createdAt).valueOf()
       },
       set(value) {
-        throw new Error('Do not try to set the `fullName` value!');
-      },
+        throw new Error('Do not try to set the `fullName` value!')
+      }
     },
     isAppleMusic: {
       type: DataTypes.VIRTUAL,
       get() {
-        return !isNaN(parseFloat(this.ytid)) && isFinite(this.ytid);
+        return !isNaN(parseFloat(this.ytid)) && isFinite(this.ytid)
       },
       set(value) {
-        throw new Error('Do not try to set the `fullName` value!');
-      },
-    },
+        throw new Error('Do not try to set the `fullName` value!')
+      }
+    }
   }, {
     sequelize,
-    modelName: 'Song',
-  });
-  return Song;
-};
+    modelName: 'Song'
+  })
+
+  return Song
+}

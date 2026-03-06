@@ -25,11 +25,65 @@ const youtube = google.youtube({
   auth: apiKey,
 });
 
-const FFMPEG_BIN = process.env.VMUSIC_FFMPEG_BIN
+function resolveBinaryFromCandidates(name, explicitPath) {
+  const candidates = []
+  if (explicitPath) {
+    candidates.push(path.resolve(explicitPath))
+  }
+  candidates.push(path.resolve(process.cwd(), 'build/bin', name))
+  candidates.push(path.resolve(__dirname, '../../../build/bin', name))
+  candidates.push(path.resolve(__dirname, '../../../../build/bin', name))
+  if (process.resourcesPath) {
+    candidates.push(path.resolve(process.resourcesPath, 'bin', name))
+    candidates.push(path.resolve(process.resourcesPath, '..', 'bin', name))
+  }
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      try {
+        fs.chmodSync(candidate, 0o755)
+      } catch {}
+
+      return candidate
+    }
+  }
+
+  return null
+}
+
+const FFMPEG_BIN = resolveBinaryFromCandidates('ffmpeg', process.env.VMUSIC_FFMPEG_BIN)
+if (FFMPEG_BIN) {
+  process.env.VMUSIC_FFMPEG_BIN = FFMPEG_BIN
+}
 const GAMDL_BIN = process.env.VMUSIC_GAMDL_BIN || process.env.GAMDL
 const MUSIC_LIBRARY_DIR = path.resolve(process.env.VMUSIC_MUSIC_DIR || path.join(os.homedir(), 'Music', 'SalsamaniaLibrary'))
 fs.mkdirSync(MUSIC_LIBRARY_DIR, { recursive: true })
 const sqliteStoragePath = path.resolve(process.env.VMUSIC_DB_PATH || path.join(process.cwd(), 'src/main/backend/db/vmusic.sqlite'))
+const AUDIO_DEBUG = process.env.NODE_ENV !== 'production'
+const SPEED_CACHE_TTL_DAYS = Math.max(1, Number(process.env.VMUSIC_SPEED_CACHE_TTL_DAYS || 30))
+const SPEED_CACHE_MAX_GB = Math.max(1, Number(process.env.VMUSIC_SPEED_CACHE_MAX_GB || 20))
+const SPEED_CACHE_MAX_PERCENT = Math.min(95, Math.max(1, Number(process.env.VMUSIC_SPEED_CACHE_MAX_PERCENT || 25)))
+const SPEED_CACHE_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
+if (AUDIO_DEBUG) {
+  console.info('[vmusic][audio-debug][backend] ffmpeg-bin', {
+    ffmpeg: FFMPEG_BIN || null
+  })
+  if (!FFMPEG_BIN) {
+    console.info('[vmusic][audio-debug][backend] ffmpeg-bin-context', {
+      cwd: process.cwd(),
+      dirname: __dirname,
+      resourcesPath: process.resourcesPath || null,
+      envBin: process.env.VMUSIC_FFMPEG_BIN || null
+    })
+  }
+}
+if (AUDIO_DEBUG) {
+  console.info('[vmusic][audio-debug][backend] speed-cache-policy', {
+    ttlDays: SPEED_CACHE_TTL_DAYS,
+    maxGb: SPEED_CACHE_MAX_GB,
+    maxPercent: SPEED_CACHE_MAX_PERCENT
+  })
+}
 
 const sequelize = new Sequelize({
   dialect: 'sqlite',
@@ -148,6 +202,8 @@ const AUDIO_RECOGNITION_MAX_SONG_SECONDS = 90
 const AUDIO_RECOGNITION_MAX_SAMPLE_SECONDS = 20
 const AUDIO_RECOGNITION_MIN_CONFIDENCE = 0.72
 const AUDIO_FEATURE_CACHE_FILE = path.join(__dirname, '.audio_feature_cache.json')
+const FADE_PROFILE_CACHE_FILE = path.join(__dirname, '.fade_profile_cache.json')
+const FADE_PROFILE_ANALYZER_VERSION = 'v9'
 const AUDIO_FEATURE_FREQUENCIES = [
   82, 110, 146, 196, 261, 329, 440, 523, 659, 783, 987, 1174,
   100, 150, 230, 350, 530, 800, 1200, 1800, 2600, 3400
@@ -157,6 +213,9 @@ let audioFeatureCache = {}
 let audioFeatureCacheLoaded = false
 let audioFeatureCacheDirty = false
 let audioWindow = null
+let fadeProfileCache = {}
+let fadeProfileCacheLoaded = false
+let fadeProfileCacheDirty = false
 
 function getAudioExtensionFromMime(mimeType) {
   if (typeof mimeType !== 'string') return 'webm'
@@ -316,6 +375,43 @@ function decodeAudioToPcmBuffer(inputPath, maxSeconds) {
   })
 }
 
+function decodeAudioSegmentToPcmBuffer(inputPath, startSeconds, maxSeconds) {
+  return new Promise((resolve, reject) => {
+    if (!FFMPEG_BIN) {
+      reject(new Error('No se encontró el binario embebido de ffmpeg'))
+      return
+    }
+
+    const args = [
+      '-hide_banner',
+      '-loglevel', 'error',
+      '-ss', String(Math.max(0, Number(startSeconds) || 0)),
+      '-i', inputPath,
+      '-t', String(Math.max(0.5, Number(maxSeconds) || 1)),
+      '-ac', '1',
+      '-ar', '11025',
+      '-f', 's16le',
+      'pipe:1'
+    ]
+    const ff = spawn(FFMPEG_BIN, args)
+    const chunks = []
+    let stderr = ''
+
+    ff.stdout.on('data', (chunk) => chunks.push(chunk))
+    ff.stderr.on('data', (chunk) => {
+      stderr += chunk.toString()
+    })
+    ff.on('error', (error) => reject(error))
+    ff.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`ffmpeg failed (${code}): ${stderr}`))
+        return
+      }
+      resolve(Buffer.concat(chunks))
+    })
+  })
+}
+
 async function computeFeatureVectorFromFile(inputPath, maxSeconds) {
   const pcmBuffer = await decodeAudioToPcmBuffer(inputPath, maxSeconds)
   if (!pcmBuffer || pcmBuffer.length < 4096) return null
@@ -348,8 +444,385 @@ async function saveAudioFeatureCache() {
   }
 }
 
+async function loadFadeProfileCache() {
+  if (fadeProfileCacheLoaded) return
+  try {
+    const raw = await fsp.readFile(FADE_PROFILE_CACHE_FILE, 'utf-8')
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object') {
+      fadeProfileCache = parsed
+    }
+  } catch {
+    fadeProfileCache = {}
+  } finally {
+    fadeProfileCacheLoaded = true
+  }
+}
+
+async function saveFadeProfileCache() {
+  if (!fadeProfileCacheDirty) return
+  try {
+    await fsp.writeFile(FADE_PROFILE_CACHE_FILE, JSON.stringify(fadeProfileCache), 'utf-8')
+    fadeProfileCacheDirty = false
+  } catch (error) {
+    console.warn('No se pudo guardar cache de fade profile', error.message)
+  }
+}
+
+function computeRmsSeries(pcmBuffer, sampleRate, windowSeconds = 0.2) {
+  const samples = decodePcmBuffer(pcmBuffer)
+  const windowSize = Math.max(256, Math.floor(sampleRate * windowSeconds))
+  const series = []
+  for (let offset = 0; offset + windowSize <= samples.length; offset += windowSize) {
+    let sum = 0
+    for (let i = 0; i < windowSize; i++) {
+      const s = samples[offset + i]
+      sum += s * s
+    }
+    const rms = Math.sqrt(sum / windowSize)
+    if (Number.isFinite(rms)) {
+      series.push(rms)
+    }
+  }
+
+  return series
+}
+
+function analyseFadeFromSeries(series, tailStartSec, windowSeconds = 0.2) {
+  if (!Array.isArray(series) || series.length < 16) {
+    return { hasFade: false, fadeStartSec: null, confidence: 0 }
+  }
+
+  const smoothed = series.map((_, i) => {
+    const prev = series[Math.max(0, i - 1)]
+    const curr = series[i]
+    const next = series[Math.min(series.length - 1, i + 1)]
+    return (prev + curr + next) / 3
+  })
+  const baseline = Math.max(...smoothed)
+  if (!Number.isFinite(baseline) || baseline <= 0) {
+    return { hasFade: false, fadeStartSec: null, confidence: 0 }
+  }
+  const threshold = baseline * 0.5
+  const minSustainFrames = Math.max(4, Math.floor(1 / windowSeconds))
+  let crossingIndex = -1
+
+  for (let i = 0; i < smoothed.length; i++) {
+    if (smoothed[i] > threshold) continue
+    let sustained = true
+    for (let j = 0; j < minSustainFrames; j++) {
+      const idx = Math.min(smoothed.length - 1, i + j)
+      if (smoothed[idx] > threshold * 1.05) {
+        sustained = false
+        break
+      }
+    }
+    if (sustained) {
+      crossingIndex = i
+      break
+    }
+  }
+
+  if (crossingIndex < 0) {
+    return { hasFade: false, fadeStartSec: null, confidence: 0 }
+  }
+
+  const endValue = smoothed[smoothed.length - 1]
+  const maxEndValue = threshold * 0.9
+  if (!Number.isFinite(endValue) || endValue > maxEndValue) {
+    return { hasFade: false, fadeStartSec: null, confidence: 0 }
+  }
+
+  const lookbackFrames = Math.max(3, Math.floor(1.2 / windowSeconds))
+  const preStart = Math.max(0, crossingIndex - lookbackFrames)
+  const preSlice = smoothed.slice(preStart, Math.max(preStart + 1, crossingIndex))
+  const preLevel = preSlice.reduce((acc, value) => acc + value, 0) / Math.max(1, preSlice.length)
+  const minDropAfterCross = baseline * 0.15
+  if (!Number.isFinite(preLevel) || (preLevel - endValue) < minDropAfterCross) {
+    return { hasFade: false, fadeStartSec: null, confidence: 0 }
+  }
+
+  let reboundFrames = 0
+  for (let i = crossingIndex; i < smoothed.length; i++) {
+    if (smoothed[i] > threshold * 1.02) reboundFrames += 1
+  }
+  if (reboundFrames > 1) {
+    return { hasFade: false, fadeStartSec: null, confidence: 0 }
+  }
+
+  const confidence = Math.min(1, Math.max(0, (baseline - smoothed[crossingIndex]) / Math.max(0.0001, baseline)))
+  const fadeStartSec = Number((tailStartSec + (crossingIndex * windowSeconds)).toFixed(3))
+
+  return {
+    hasFade: true,
+    fadeStartSec,
+    confidence: Number(confidence.toFixed(3))
+  }
+}
+
+async function getSongFadeProfile(song) {
+  await loadFadeProfileCache()
+  const cacheKey = String(song.id)
+  const songPath = getSongAudioPath(song)
+  if (!fs.existsSync(songPath)) {
+    return { hasFade: false, fadeStartSec: null, confidence: 0 }
+  }
+  const stat = fs.statSync(songPath)
+  const fingerprintKey = `${FADE_PROFILE_ANALYZER_VERSION}:${song.folder}/${song.ytid}.mp3:${stat.size}:${stat.mtimeMs}:${song.duration || 0}`
+  const cached = fadeProfileCache[cacheKey]
+  if (cached && cached.fingerprintKey === fingerprintKey) {
+    return cached.profile
+  }
+
+  const durationSeconds = Number(song.duration || 0)
+  const tailDuration = Math.min(10, Math.max(4, durationSeconds || 10))
+  const tailStartSec = Math.max(0, durationSeconds - tailDuration)
+  const pcm = await decodeAudioSegmentToPcmBuffer(songPath, tailStartSec, tailDuration)
+  const series = computeRmsSeries(pcm, 11025, 0.2)
+  const profile = analyseFadeFromSeries(series, tailStartSec, 0.2)
+  const minFadeDurationSeconds = 1.05
+  if (profile?.hasFade && Number.isFinite(durationSeconds) && durationSeconds > 0) {
+    const fadeDurationSeconds = durationSeconds - Number(profile.fadeStartSec)
+    if (!Number.isFinite(fadeDurationSeconds) || fadeDurationSeconds <= minFadeDurationSeconds) {
+      profile.hasFade = false
+      profile.fadeStartSec = null
+      profile.confidence = 0
+    }
+  }
+
+  fadeProfileCache[cacheKey] = {
+    fingerprintKey,
+    profile
+  }
+  fadeProfileCacheDirty = true
+  return profile
+}
+
 function getSongAudioPath(song) {
   return path.join(MUSIC_LIBRARY_DIR, song.folder, `${song.ytid}.mp3`)
+}
+
+function getSongSpeedAudioPath(song) {
+  return path.join(MUSIC_LIBRARY_DIR, song.folder, `${song.ytid}_speed.mp3`)
+}
+
+function getSongSpeedMetaPath(song) {
+  return path.join(MUSIC_LIBRARY_DIR, song.folder, `${song.ytid}_speed.json`)
+}
+
+function normalizePlaybackRate(value) {
+  const rate = Number(value)
+  if (!Number.isFinite(rate)) return 1
+
+  return Math.min(Math.max(rate, 0.5), 1.8)
+}
+
+function buildAtempoFilter(rate) {
+  const clamped = normalizePlaybackRate(rate)
+  const parts = []
+  let remaining = clamped
+
+  while (remaining > 2.0) {
+    parts.push('atempo=2.0')
+    remaining = remaining / 2.0
+  }
+
+  while (remaining < 0.5) {
+    parts.push('atempo=0.5')
+    remaining = remaining / 0.5
+  }
+
+  parts.push(`atempo=${remaining.toFixed(6)}`)
+  return parts.join(',')
+}
+
+async function readSpeedMeta(song) {
+  const metaPath = getSongSpeedMetaPath(song)
+  try {
+    const raw = await fsp.readFile(metaPath, 'utf-8')
+    const parsed = JSON.parse(raw)
+    const rate = normalizePlaybackRate(parsed?.rate)
+
+    return {
+      rate,
+      updatedAt: parsed?.updatedAt || null
+    }
+  } catch {
+    return null
+  }
+}
+
+async function writeSpeedMeta(song, rate) {
+  const metaPath = getSongSpeedMetaPath(song)
+  const speedAudioPath = getSongSpeedAudioPath(song)
+  let sizeBytes = null
+  try {
+    const stat = await fsp.stat(speedAudioPath)
+    sizeBytes = stat.size || null
+  } catch {}
+  const payload = {
+    rate: normalizePlaybackRate(rate),
+    updatedAt: new Date().toISOString(),
+    lastUsedAt: new Date().toISOString(),
+    useCount: 1,
+    sizeBytes
+  }
+  await fsp.writeFile(metaPath, JSON.stringify(payload), 'utf-8')
+}
+
+async function touchSpeedMeta(song, baseMeta = null) {
+  const metaPath = getSongSpeedMetaPath(song)
+  const speedAudioPath = getSongSpeedAudioPath(song)
+  const existingMeta = baseMeta || await readSpeedMeta(song) || {}
+  let sizeBytes = null
+  try {
+    const stat = await fsp.stat(speedAudioPath)
+    sizeBytes = stat.size || null
+  } catch {}
+
+  const payload = {
+    rate: normalizePlaybackRate(existingMeta?.rate),
+    updatedAt: existingMeta?.updatedAt || new Date().toISOString(),
+    lastUsedAt: new Date().toISOString(),
+    useCount: Number(existingMeta?.useCount || 0) + 1,
+    sizeBytes
+  }
+  await fsp.writeFile(metaPath, JSON.stringify(payload), 'utf-8')
+}
+
+async function collectSpeedCacheEntries() {
+  const folders = await fsp.readdir(MUSIC_LIBRARY_DIR, { withFileTypes: true })
+    .catch(() => [])
+  const entries = []
+
+  for (const folder of folders) {
+    if (!folder.isDirectory()) continue
+    const folderPath = path.join(MUSIC_LIBRARY_DIR, folder.name)
+    const files = await fsp.readdir(folderPath, { withFileTypes: true })
+      .catch(() => [])
+    for (const file of files) {
+      if (!file.isFile()) continue
+      if (!file.name.endsWith('_speed.mp3')) continue
+      const speedPath = path.join(folderPath, file.name)
+      const metaPath = speedPath.replace(/\.mp3$/i, '.json')
+      let stat = null
+      let meta = null
+      try {
+        stat = await fsp.stat(speedPath)
+      } catch {}
+      try {
+        meta = JSON.parse(await fsp.readFile(metaPath, 'utf-8'))
+      } catch {
+        meta = null
+      }
+      if (!stat) continue
+
+      const lastUsedAt = Date.parse(meta?.lastUsedAt || meta?.updatedAt || '') || Number(stat.mtimeMs)
+      entries.push({
+        speedPath,
+        metaPath,
+        sizeBytes: Number(stat.size || 0),
+        lastUsedAt,
+        rate: normalizePlaybackRate(meta?.rate)
+      })
+    }
+  }
+
+  return entries
+}
+
+async function computeLibrarySizes() {
+  const folders = await fsp.readdir(MUSIC_LIBRARY_DIR, { withFileTypes: true })
+    .catch(() => [])
+  let originalBytes = 0
+  let speedBytes = 0
+
+  for (const folder of folders) {
+    if (!folder.isDirectory()) continue
+    const folderPath = path.join(MUSIC_LIBRARY_DIR, folder.name)
+    const files = await fsp.readdir(folderPath, { withFileTypes: true })
+      .catch(() => [])
+    for (const file of files) {
+      if (!file.isFile()) continue
+      if (!file.name.endsWith('.mp3')) continue
+      const filePath = path.join(folderPath, file.name)
+      let stat = null
+      try {
+        stat = await fsp.stat(filePath)
+      } catch {}
+      if (!stat) continue
+
+      if (file.name.endsWith('_speed.mp3')) {
+        speedBytes += Number(stat.size || 0)
+      } else {
+        originalBytes += Number(stat.size || 0)
+      }
+    }
+  }
+
+  return {
+    originalBytes,
+    speedBytes
+  }
+}
+
+async function deleteSpeedEntry(entry) {
+  try {
+    await fsp.unlink(entry.speedPath)
+  } catch {}
+  try {
+    await fsp.unlink(entry.metaPath)
+  } catch {}
+}
+
+let speedCacheCleanupRunning = false
+async function cleanupSpeedCache() {
+  if (speedCacheCleanupRunning) return
+  speedCacheCleanupRunning = true
+  try {
+    const now = Date.now()
+    const ttlMs = SPEED_CACHE_TTL_DAYS * 24 * 60 * 60 * 1000
+    const entries = await collectSpeedCacheEntries()
+    let deletedByTtl = 0
+    for (const entry of entries) {
+      if ((now - entry.lastUsedAt) > ttlMs) {
+        await deleteSpeedEntry(entry)
+        deletedByTtl += 1
+      }
+    }
+
+    let remaining = await collectSpeedCacheEntries()
+    const sizes = await computeLibrarySizes()
+    const absoluteLimitBytes = SPEED_CACHE_MAX_GB * 1024 * 1024 * 1024
+    const percentLimitBytes = Math.floor((sizes.originalBytes || 0) * (SPEED_CACHE_MAX_PERCENT / 100))
+    const effectiveLimitBytes = Math.min(absoluteLimitBytes, percentLimitBytes > 0 ? percentLimitBytes : absoluteLimitBytes)
+    let currentSpeedBytes = remaining.reduce((acc, item) => acc + item.sizeBytes, 0)
+    let deletedByLru = 0
+
+    if (currentSpeedBytes > effectiveLimitBytes) {
+      remaining = remaining.sort((a, b) => a.lastUsedAt - b.lastUsedAt)
+      for (const entry of remaining) {
+        if (currentSpeedBytes <= effectiveLimitBytes) break
+        await deleteSpeedEntry(entry)
+        currentSpeedBytes -= entry.sizeBytes
+        deletedByLru += 1
+      }
+    }
+
+    if (AUDIO_DEBUG && (deletedByTtl > 0 || deletedByLru > 0)) {
+      console.info('[vmusic][audio-debug][backend] speed-cache-cleanup', {
+        deletedByTtl,
+        deletedByLru,
+        effectiveLimitBytes
+      })
+    }
+  } catch (error) {
+    if (AUDIO_DEBUG) {
+      console.warn('[vmusic][audio-debug][backend] speed-cache-cleanup-failed', error.message)
+    }
+  } finally {
+    speedCacheCleanupRunning = false
+  }
 }
 
 async function getSongFeature(song) {
@@ -843,6 +1316,202 @@ app.post("/songs/save-speed", async (req, res, next) => {
   res.send('ok')
 })
 
+app.get("/songs/speed-version/:id", async (req, res, next) => {
+  const song = await Song.findByPk(req.params.id)
+  if (!song) {
+    return res.status(404).send({
+      message: 'Canción no encontrada'
+    })
+  }
+
+  const speedAudioPath = getSongSpeedAudioPath(song)
+  if (!fs.existsSync(speedAudioPath)) {
+    return res.send({
+      exists: false,
+      rate: null
+    })
+  }
+
+  const meta = await readSpeedMeta(song)
+  if (req.query?.use === '1') {
+    await touchSpeedMeta(song, meta).catch(() => {})
+  }
+  return res.send({
+    exists: true,
+    rate: meta?.rate || null
+  })
+})
+
+app.get("/songs/fade-profile/:id", async (req, res, next) => {
+  const song = await Song.findByPk(req.params.id)
+  if (!song) {
+    return res.status(404).send({
+      message: 'Canción no encontrada'
+    })
+  }
+
+  try {
+    const profile = await getSongFadeProfile(song)
+    await saveFadeProfileCache()
+    return res.send(profile)
+  } catch (error) {
+    return res.status(500).send({
+      message: 'No se pudo analizar fade profile',
+      error: error.message
+    })
+  }
+})
+
+app.post("/songs/touch-speed-version/:id", async (req, res, next) => {
+  const song = await Song.findByPk(req.params.id)
+  if (!song) {
+    return res.status(404).send({
+      message: 'Canción no encontrada'
+    })
+  }
+
+  const speedAudioPath = getSongSpeedAudioPath(song)
+  if (!fs.existsSync(speedAudioPath)) {
+    return res.send({
+      ok: false,
+      exists: false
+    })
+  }
+
+  await touchSpeedMeta(song).catch(() => {})
+  return res.send({
+    ok: true,
+    exists: true
+  })
+})
+
+app.post("/songs/preprocess-speed", async (req, res, next) => {
+  const song = await Song.findByPk(req.body.id)
+  if (!song) {
+    return res.status(404).send({
+      message: 'Canción no encontrada'
+    })
+  }
+
+  const sourcePath = getSongAudioPath(song)
+  if (!fs.existsSync(sourcePath)) {
+    return res.status(404).send({
+      message: 'No se encontró el mp3 original'
+    })
+  }
+
+  const rate = normalizePlaybackRate(req.body.rate)
+  if (AUDIO_DEBUG) {
+    console.info('[vmusic][audio-debug][backend] preprocess-request', {
+      songId: song.id,
+      rate
+    })
+  }
+  if (Math.abs(rate - 1.0) < 0.001) {
+    if (AUDIO_DEBUG) {
+      console.info('[vmusic][audio-debug][backend] preprocess-skipped-rate-1', {
+        songId: song.id
+      })
+    }
+    return res.send({
+      ok: true,
+      skipped: true,
+      reason: 'Rate 1.0 usa archivo original'
+    })
+  }
+
+  const speedAudioPath = getSongSpeedAudioPath(song)
+  const currentMeta = await readSpeedMeta(song)
+  if (fs.existsSync(speedAudioPath) && currentMeta && Math.abs(currentMeta.rate - rate) < 0.001) {
+    await touchSpeedMeta(song, currentMeta).catch(() => {})
+    if (AUDIO_DEBUG) {
+      console.info('[vmusic][audio-debug][backend] preprocess-reused', {
+        songId: song.id,
+        rate
+      })
+    }
+    return res.send({
+      ok: true,
+      reused: true,
+      rate: currentMeta.rate
+    })
+  }
+
+  if (!FFMPEG_BIN) {
+    return res.status(500).send({
+      message: 'No se encontró el binario embebido de ffmpeg'
+    })
+  }
+
+  const tempOutput = `${speedAudioPath}.tmp-${Date.now()}-${Math.random().toString(16).slice(2)}.mp3`
+  const args = [
+    '-y',
+    '-i', sourcePath,
+    '-vn',
+    '-filter:a', buildAtempoFilter(rate),
+    '-f', 'mp3',
+    '-b:a', '192k',
+    tempOutput
+  ]
+  const ff = spawn(FFMPEG_BIN, args)
+  let ffmpegStderr = ''
+
+  ff.stderr.on('data', (data) => {
+    ffmpegStderr += data.toString()
+  })
+
+  ff.on('error', (error) => {
+    console.warn('Error ejecutando ffmpeg preprocess-speed', error.message)
+  })
+
+  ff.on('close', async(code) => {
+    if (code !== 0) {
+      if (AUDIO_DEBUG) {
+        console.info('[vmusic][audio-debug][backend] preprocess-failed', {
+          songId: song.id,
+          rate,
+          code,
+          sourcePath,
+          outputPath: speedAudioPath,
+          stderr: ffmpegStderr.trim().slice(-1200)
+        })
+      }
+      try {
+        await fsp.unlink(tempOutput)
+      } catch {}
+      return res.status(500).send({
+        message: 'No se pudo preprocesar la velocidad',
+        code,
+        error: ffmpegStderr.trim().slice(-600)
+      })
+    }
+
+    try {
+      await fsp.rename(tempOutput, speedAudioPath)
+      await writeSpeedMeta(song, rate)
+      if (AUDIO_DEBUG) {
+        console.info('[vmusic][audio-debug][backend] preprocess-complete', {
+          songId: song.id,
+          rate,
+          output: speedAudioPath
+        })
+      }
+      return res.send({
+        ok: true,
+        rate
+      })
+    } catch (error) {
+      try {
+        await fsp.unlink(tempOutput)
+      } catch {}
+      return res.status(500).send({
+        message: 'No se pudo guardar la versión preprocesada',
+        error: error.message
+      })
+    }
+  })
+})
+
 app.post("/audio/recognize", async (req, res, next) => {
   try {
     const { audioBase64, mimeType } = req.body || {}
@@ -1317,6 +1986,10 @@ async function startServer() {
   try {
     await sequelize.authenticate()
     await sequelize.sync()
+    cleanupSpeedCache().catch(() => {})
+    setInterval(() => {
+      cleanupSpeedCache().catch(() => {})
+    }, SPEED_CACHE_CLEANUP_INTERVAL_MS)
     app.listen(port, () => {
       console.log(`Example app listening at http://localhost:${port}`);
     })

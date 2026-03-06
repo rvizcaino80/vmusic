@@ -91,11 +91,13 @@ async function main() {
   if (!all && !songId) {
     printUsage()
     process.exitCode = 1
+
     return
   }
 
   if (all) {
     await tagAllSongs()
+
     return
   }
 
@@ -107,6 +109,6 @@ main()
     console.error(error.message)
     process.exitCode = 1
   })
-  .finally(async () => {
+  .finally(async() => {
     await db.sequelize.close()
   })

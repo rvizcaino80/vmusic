@@ -88,6 +88,7 @@
           </div>
           <div class="text-sm text-gray-300 select-none">
             <span>Status: {{ getStatusName(status) }}</span>
+            <span v-if="status !== props.statuses['Sin Carga'] && finalModeLabel !== 'Exacto'"> | Final: {{ finalModeLabel }}</span>
             <span
               v-if="
                 status === props.statuses.Nivelando ||
@@ -105,7 +106,21 @@
           v-if="status !== props.statuses['Sin Carga']"
           class="flex flex-col items-center"
         >
-          <span class="text-sm mb-0.5 select-none">Velocidad</span>
+          <span class="text-sm mb-0.5 select-none flex items-center gap-1">
+            Velocidad
+            <Icon
+              v-if="isUsingNativeRateMode"
+              class="w-4 h-4 text-cyan-300"
+              icon="mdi:sine-wave"
+              title="Usando playbackRate + preservesPitch"
+            />
+            <Icon
+              v-else-if="isUsingProcessedSpeedFile"
+              class="w-4 h-4 text-lime-300"
+              icon="mdi:content-save"
+              title="Usando audio preprocesado en disco"
+            />
+          </span>
           <div class="flex flex-col items-center space-y-0.5">
             <div class="flex items-center space-x-1">
               <Icon
@@ -153,6 +168,7 @@ import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
+import axios from 'axios'
 
 const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'song-click', 'preview-start', 'preview-stop', 'finished'])
 
@@ -189,6 +205,9 @@ const speed_added = ref(0.0)
 const volume_added = ref(0.0)
 const songImage = ref('')
 const baseSpeed = ref(0)
+const hasManualEndMarker = ref(false)
+const fadeProfile = ref({ hasFade: false, fadeStartSec: null, confidence: 0 })
+let fadeProfileRequestSerial = 0
 let wsRegions = null
 let originalOptions = {}
 let crossfaderOptions = {}
@@ -199,7 +218,10 @@ let resizeFollowupTimeoutId = null
 let hardRebuildTimeoutId = null
 let isRebuildingWaveform = false
 let pendingRestoreState = null
-const regionColor = ref('rgba(114,0,0,0.64)')
+let forcedFadeEndAt = null
+const regionColor = ref('rgba(255, 255, 255, 0.28)')
+const fadeRegionColor = ref('rgba(255, 255, 255, 0.28)')
+const waveformDuration = ref(0)
 const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
 
 const baseSpeedLabel = computed(() => {
@@ -212,6 +234,68 @@ const baseSpeedLabel = computed(() => {
 const canPreview = computed(() => status.value !== props.statuses.Reproduciendo && Boolean(songFull.value?.id))
 const MIN_SPEED_OFFSET = -50
 const MAX_SPEED_OFFSET = 50
+const AUDIO_DEBUG = import.meta.env.DEV
+const SPEED_PREPROCESS_DEBOUNCE_MS = 3200
+const SPEED_SWITCH_FADE_OUT_MS = 90
+const SPEED_SWITCH_FADE_IN_MS = 140
+
+const currentMediaVariant = ref('original')
+const processedSpeedRate = ref(null)
+let speedPreprocessDebounceId = null
+let preprocessRequestSerial = 0
+let volumeAnimationToken = 0
+const isPreprocessingSpeed = ref(false)
+const isUsingProcessedSpeedFile = computed(() => {
+  if (ratesMatch(speed.value, 1)) return false
+
+  return currentMediaVariant.value === 'speed' && ratesMatch(processedSpeedRate.value, speed.value)
+})
+const isUsingNativeRateMode = computed(() => {
+  if (ratesMatch(speed.value, 1)) return false
+
+  return !isUsingProcessedSpeedFile.value
+})
+const finalModeLabel = computed(() => {
+  if (hasManualEndMarker.value) return 'Manual'
+  if (fadeProfile.value?.hasFade) return 'Automático'
+
+  return 'Exacto'
+})
+
+function debugAudio(event, payload = null) {
+  if (!AUDIO_DEBUG) return
+  const deck = props.position === 'top' ? 'A' : 'B'
+  if (payload && typeof payload === 'object') {
+    console.info(`[vmusic][audio-debug][deck-${deck}] ${event}`, payload)
+
+    return
+  }
+  console.info(`[vmusic][audio-debug][deck-${deck}] ${event}`)
+}
+
+function safePlay() {
+  if (!player || typeof player.play !== 'function') return
+  try {
+    const maybePromise = player.play()
+    if (maybePromise && typeof maybePromise.catch === 'function') {
+      maybePromise.catch((error) => {
+        const msg = String(error?.message || '')
+        const name = String(error?.name || '')
+        const isAbort = name === 'AbortError' || msg.toLowerCase().includes('aborted')
+        if (!isAbort) {
+          console.warn('[vmusic][audio] play failed', error)
+        }
+      })
+    }
+  } catch (error) {
+    const msg = String(error?.message || '')
+    const name = String(error?.name || '')
+    const isAbort = name === 'AbortError' || msg.toLowerCase().includes('aborted')
+    if (!isAbort) {
+      console.warn('[vmusic][audio] play failed', error)
+    }
+  }
+}
 
 onBeforeMount(() => {
   status.value = props.statuses['Sin Carga']
@@ -231,7 +315,8 @@ function init() {
   const progressColor = getCurrentProgressColor()
   const cursorColor = getThemeColor('--vm-player-cursor', '#FFFFFF')
   const crossfaderCursorColor = getThemeColor('--vm-player-crossfader-cursor', '#FF0000')
-  regionColor.value = getThemeColor('--vm-player-region', 'rgba(114,0,0,0.64)')
+  regionColor.value = 'rgba(255, 255, 255, 0.28)'
+  fadeRegionColor.value = 'rgba(255, 255, 255, 0.28)'
 
   mediaElement = document.createElement('audio')
   mediaElement.preload = 'auto'
@@ -239,6 +324,7 @@ function init() {
   mediaElement.preservesPitch = true
   mediaElement.webkitPreservesPitch = true
   mediaElement.mozPreservesPitch = true
+  forcedFadeEndAt = null
 
   originalOptions = {
     normalize: true,
@@ -267,13 +353,20 @@ function init() {
 
   wsRegions = player.registerPlugin(RegionsPlugin.create())
 
-  player.on('decode', (d) => {
+  const renderWaveRegions = () => {
+    if (!wsRegions) return
+    wsRegions.clearRegions()
+    const totalDuration = Number(waveformDuration.value)
+    if (!Number.isFinite(totalDuration) || totalDuration <= 0) return
+
+    const playbackStart = toPlaybackTime(start.value)
+    const playbackEnd = toPlaybackTime(end.value || toSourceTime(totalDuration))
+
     if (start.value && start.value !== 0) {
-      player.setTime(start.value)
       wsRegions.addRegion({
         id: 'inicio',
         start: 0,
-        end: start.value,
+        end: playbackStart,
         color: regionColor.value,
         drag: false,
         resize: false
@@ -283,17 +376,39 @@ function init() {
     if (end.value) {
       wsRegions.addRegion({
         id: 'final',
-        start: end.value,
-        end: d,
+        start: playbackEnd,
+        end: totalDuration,
         color: regionColor.value,
         drag: false,
         resize: false
       })
-    } else {
-      end.value = d
     }
 
-    left.value = end.value
+    if (!hasManualEndMarker.value && fadeProfile.value?.hasFade && Number.isFinite(fadeProfile.value?.fadeStartSec)) {
+      const fadeStartPlayback = Math.max(0, toPlaybackTime(fadeProfile.value.fadeStartSec))
+      const fadeEndPlayback = Math.max(fadeStartPlayback, playbackEnd || totalDuration)
+      if (fadeEndPlayback - fadeStartPlayback > 0.05) {
+        wsRegions.addRegion({
+          id: 'fade-detected',
+          start: fadeStartPlayback,
+          end: fadeEndPlayback,
+          color: fadeRegionColor.value,
+          drag: false,
+          resize: false
+        })
+      }
+    }
+  }
+
+  player.on('decode', (d) => {
+    waveformDuration.value = d
+    const playbackStart = toPlaybackTime(start.value)
+    if (start.value && start.value !== 0) {
+      player.setTime(playbackStart)
+    }
+    if (!end.value) end.value = toSourceTime(d)
+    renderWaveRegions()
+    left.value = toPlaybackTime(end.value)
   })
 
   wsRegions.on('region-clicked', (region, e) => {
@@ -303,10 +418,16 @@ function init() {
   player.on('load', () => {
     applyPreservePitch()
     songImage.value = ''
+    waveformDuration.value = 0
     wsRegions.clearRegions()
     player.toggleInteraction(false)
     status.value = props.statuses.Cargando
     player.seekTo(0)
+    debugAudio('player-load', {
+      songId: songFull.value?.id || null,
+      variant: currentMediaVariant.value,
+      targetRate: roundRate(getTargetPlaybackRate())
+    })
   })
 
   player.on('ready', (d) => {
@@ -338,6 +459,12 @@ function init() {
     duration.value = d
     status.value = props.statuses.Listo
     setInitialSpeed(speed_added.value)
+    debugAudio('player-ready', {
+      songId: songFull.value?.id || null,
+      variant: currentMediaVariant.value,
+      speedRate: processedSpeedRate.value,
+      playbackRate: roundRate(speed.value)
+    })
 
     if (pendingRestoreState) {
       const restore = pendingRestoreState
@@ -353,7 +480,10 @@ function init() {
         player.setTime(Math.max(0, restore.time))
       }
       if (restore.shouldPlay) {
-        player.play()
+        safePlay()
+      }
+      if (typeof restore.fadeInTarget === 'number') {
+        animateVolumeTo(restore.fadeInTarget, SPEED_SWITCH_FADE_IN_MS)
       }
     }
 
@@ -375,6 +505,15 @@ function init() {
       emit('finished', finishedSong)
     }
     resetSongMetadata()
+    clearPreprocessDebounce()
+    preprocessRequestSerial += 1
+    isPreprocessingSpeed.value = false
+    currentMediaVariant.value = 'original'
+    processedSpeedRate.value = null
+    fadeProfileRequestSerial += 1
+    fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
+    waveformDuration.value = 0
+    forcedFadeEndAt = null
     player.setPlaybackRate(1.0, true)
     speed_added.value = 0
 
@@ -405,6 +544,15 @@ function next() {
   }
   left.value = 0
   resetSongMetadata()
+  clearPreprocessDebounce()
+  preprocessRequestSerial += 1
+  isPreprocessingSpeed.value = false
+  currentMediaVariant.value = 'original'
+  processedSpeedRate.value = null
+  fadeProfileRequestSerial += 1
+  fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
+  waveformDuration.value = 0
+  forcedFadeEndAt = null
   start.value = null
   end.value = null
   player.stop()
@@ -418,13 +566,23 @@ function next() {
 
 function calculateVolume(ct) {
   const crossfader_time = savedSettings.crossfaderTime
-  left.value = end.value - ct
+  const playbackEnd = toPlaybackTime(end.value)
+  left.value = playbackEnd - ct
+  const canDetectNaturalFade = status.value === props.statuses.Reproduciendo && !hasManualEndMarker.value
+  const realFadeDetected = canDetectNaturalFade && shouldTriggerBackendFade(ct, crossfader_time)
+  const hasForcedFade = Number.isFinite(forcedFadeEndAt)
 
-  if (status.value === props.statuses.Cambiando && ct > end.value) {
+  if (realFadeDetected && !hasForcedFade && status.value === props.statuses.Reproduciendo) {
+    forcedFadeEndAt = ct + Math.max(0.1, Number(crossfader_time || 0))
+  }
+
+  const forcedFadeFinished = Number.isFinite(forcedFadeEndAt) && ct >= forcedFadeEndAt
+  if (status.value === props.statuses.Cambiando && (forcedFadeFinished || (!Number.isFinite(forcedFadeEndAt) && ct > playbackEnd))) {
     const finishedSong = songFull.value?.id ? { ...songFull.value } : null
     if (finishedSong) {
       emit('finished', finishedSong)
     }
+    forcedFadeEndAt = null
     left.value = 0
     resetSongMetadata()
     start.value = null
@@ -436,7 +594,8 @@ function calculateVolume(ct) {
     status.value = props.statuses['Sin Carga']
     emit('stopped')
   } else {
-    if (left.value > crossfader_time) {
+    const shouldStartCrossfade = Number.isFinite(forcedFadeEndAt) || left.value <= crossfader_time
+    if (!shouldStartCrossfade) {
       if (status.value !== props.statuses.Placa && status.value !== props.statuses.Nivelando) {
         player.setVolume(1.0)
       }
@@ -448,7 +607,8 @@ function calculateVolume(ct) {
         player.setOptions(crossfaderOptions)
         emit('fading')
       }
-      player.setVolume(left.value / crossfader_time)
+      const forcedRemaining = Number.isFinite(forcedFadeEndAt) ? (forcedFadeEndAt - ct) : left.value
+      player.setVolume(clamp(forcedRemaining / Math.max(0.1, crossfader_time), 0, 1))
     }
   }
 }
@@ -496,6 +656,431 @@ function resetSongMetadata() {
   songFull.value = {}
   songId.value = null
   primaryArtistId.value = null
+  waveformDuration.value = 0
+}
+
+function roundRate(value) {
+  return Number(Number(value || 1).toFixed(3))
+}
+
+function getTargetPlaybackRate() {
+  const totalOffset = normalizeSpeedOffset(speed_added.value) + normalizeSpeedOffset(baseSpeed.value)
+  const total = 1 + totalOffset / 100
+
+  return clamp(Number(total), 0.5, 1.8)
+}
+
+function ratesMatch(a, b) {
+  return Math.abs(roundRate(a) - roundRate(b)) < 0.001
+}
+
+function getCurrentMediaScale() {
+  if (currentMediaVariant.value === 'speed' && Number.isFinite(processedSpeedRate.value)) {
+    return Number(processedSpeedRate.value)
+  }
+
+  return 1
+}
+
+function hasExplicitEndMarker(songData) {
+  const endValue = Number(songData?.end)
+  if (!Number.isFinite(endValue) || endValue <= 0) return false
+  const durationValue = Number(songData?.duration)
+  if (!Number.isFinite(durationValue) || durationValue <= 0) return true
+
+  return endValue < (durationValue - 0.25)
+}
+
+function toPlaybackTime(sourceTime) {
+  const value = Number(sourceTime)
+  if (!Number.isFinite(value)) return 0
+  const scale = Math.max(0.001, getCurrentMediaScale())
+
+  return value / scale
+}
+
+function toSourceTime(playbackTime) {
+  const value = Number(playbackTime)
+  if (!Number.isFinite(value)) return 0
+  const scale = Math.max(0.001, getCurrentMediaScale())
+
+  return value * scale
+}
+
+async function loadFadeProfile(song) {
+  if (!song?.id) return
+  if (hasManualEndMarker.value) {
+    fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
+    debugAudio('fade-profile-skip-manual-end', {
+      songId: song.id
+    })
+
+    return
+  }
+
+  fadeProfileRequestSerial += 1
+  const requestSerial = fadeProfileRequestSerial
+  try {
+    const response = await window.electron2.backendRequest({
+      method: 'GET',
+      path: `/songs/fade-profile/${song.id}`
+    })
+    if (requestSerial !== fadeProfileRequestSerial) return
+    if (!songFull.value?.id || songFull.value.id !== song.id) return
+    if (Number(response?.status || 500) >= 400) {
+      fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
+      debugAudio('fade-profile-miss', {
+        songId: song.id,
+        status: Number(response?.status || 500),
+        data: response?.data || null
+      })
+
+      return
+    }
+    const data = response?.data || {}
+    const rawFadeStartSec = data?.fadeStartSec
+    const parsedFadeStartSec = (
+      rawFadeStartSec === null || rawFadeStartSec === undefined || rawFadeStartSec === ''
+    )
+? null
+: (Number.isFinite(Number(rawFadeStartSec)) ? Number(rawFadeStartSec) : null)
+    fadeProfile.value = {
+      hasFade: Boolean(data.hasFade),
+      fadeStartSec: parsedFadeStartSec,
+      confidence: Number.isFinite(Number(data.confidence)) ? Number(data.confidence) : 0
+    }
+    if (wsRegions && Number.isFinite(waveformDuration.value) && waveformDuration.value > 0) {
+      const totalDuration = Number(waveformDuration.value)
+      const playbackStart = toPlaybackTime(start.value)
+      const playbackEnd = toPlaybackTime(end.value || toSourceTime(totalDuration))
+      wsRegions.clearRegions()
+      if (start.value && start.value !== 0) {
+        wsRegions.addRegion({
+          id: 'inicio',
+          start: 0,
+          end: playbackStart,
+          color: regionColor.value,
+          drag: false,
+          resize: false
+        })
+      }
+      if (end.value) {
+        wsRegions.addRegion({
+          id: 'final',
+          start: playbackEnd,
+          end: totalDuration,
+          color: regionColor.value,
+          drag: false,
+          resize: false
+        })
+      }
+      if (!hasManualEndMarker.value && fadeProfile.value?.hasFade && Number.isFinite(fadeProfile.value?.fadeStartSec)) {
+        const fadeStartPlayback = Math.max(0, toPlaybackTime(fadeProfile.value.fadeStartSec))
+        const fadeEndPlayback = Math.max(fadeStartPlayback, playbackEnd || totalDuration)
+        if (fadeEndPlayback - fadeStartPlayback > 0.05) {
+          wsRegions.addRegion({
+            id: 'fade-detected',
+            start: fadeStartPlayback,
+            end: fadeEndPlayback,
+            color: fadeRegionColor.value,
+            drag: false,
+            resize: false
+          })
+        }
+      }
+    }
+
+    debugAudio('fade-profile-loaded', {
+      songId: song.id,
+      song: song.name || '',
+      hasFade: fadeProfile.value.hasFade,
+      fadeStartSec: fadeProfile.value.fadeStartSec,
+      confidence: fadeProfile.value.confidence
+    })
+  } catch (error) {
+    if (requestSerial !== fadeProfileRequestSerial) return
+    fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
+    debugAudio('fade-profile-error', {
+      songId: song.id,
+      error: String(error?.message || error)
+    })
+  }
+}
+
+function shouldTriggerBackendFade(playbackCurrentTime, crossfaderTime) {
+  if (!songFull.value?.id) return false
+  if (!Number.isFinite(playbackCurrentTime)) return false
+  if (hasManualEndMarker.value) return false
+  if (!fadeProfile.value?.hasFade) return false
+  if (!Number.isFinite(end.value) || end.value <= 0) return false
+
+  const playbackEnd = toPlaybackTime(end.value)
+  const triggerAt = toPlaybackTime(fadeProfile.value.fadeStartSec)
+  if (!Number.isFinite(playbackEnd) || !Number.isFinite(triggerAt)) return false
+
+  const maxTrigger = Math.max(0, playbackEnd - Math.max(0.1, Number(crossfaderTime || 0)))
+  const safeTriggerAt = Math.min(triggerAt, maxTrigger)
+
+  return playbackCurrentTime >= safeTriggerAt
+}
+
+function getCurrentPlayableStates() {
+  return [
+    props.statuses.Reproduciendo,
+    props.statuses.Cambiando,
+    props.statuses.Nivelando,
+    props.statuses.Placa
+  ]
+}
+
+function animateVolumeTo(targetVolume, durationMs) {
+  if (!player || typeof player.getVolume !== 'function' || typeof player.setVolume !== 'function') {
+    return Promise.resolve()
+  }
+
+  const from = clamp(Number(player.getVolume()), 0, 1)
+  const to = clamp(Number(targetVolume), 0, 1)
+  if (durationMs <= 0 || Math.abs(from - to) < 0.001) {
+    player.setVolume(to)
+
+    return Promise.resolve()
+  }
+
+  volumeAnimationToken += 1
+  const token = volumeAnimationToken
+  const startAt = performance.now()
+
+  return new Promise((resolve) => {
+    const tick = (now) => {
+      if (token !== volumeAnimationToken || !player) {
+        resolve()
+
+        return
+      }
+
+      const progress = clamp((now - startAt) / durationMs, 0, 1)
+      const vol = from + (to - from) * progress
+      player.setVolume(clamp(vol, 0, 1))
+
+      if (progress >= 1) {
+        resolve()
+
+        return
+      }
+      requestAnimationFrame(tick)
+    }
+
+    requestAnimationFrame(tick)
+  })
+}
+
+async function fetchSpeedVersionStatus(songId) {
+  try {
+    const response = await axios.get(`http://localhost:3000/songs/speed-version/${songId}`)
+
+    return response.data || { exists: false, rate: null }
+  } catch (error) {
+    return { exists: false, rate: null }
+  }
+}
+
+async function touchSpeedVersionUsage(songId) {
+  if (!songId) return
+  try {
+    await axios.get(`http://localhost:3000/songs/speed-version/${songId}?use=1`)
+  } catch (error) {
+    // ignore usage-mark failures
+  }
+}
+
+async function resolveInitialVariant(song, targetRate) {
+  if (!song?.id) {
+    return { variant: 'original', rate: null }
+  }
+
+  if (ratesMatch(targetRate, 1)) {
+    return { variant: 'original', rate: null }
+  }
+
+  const status = await fetchSpeedVersionStatus(song.id)
+  if (status?.exists && Number.isFinite(status?.rate) && ratesMatch(status.rate, targetRate)) {
+    return { variant: 'speed', rate: Number(status.rate) }
+  }
+
+  return { variant: 'original', rate: null }
+}
+
+async function getMediaUrlForVariant(song, variant) {
+  const ytid = variant === 'speed' ? `${song.ytid}_speed` : song.ytid
+
+  return window.electron2.getMediaUrl({
+    folder: song.folder,
+    ytid
+  })
+}
+
+async function switchMediaVariant(variant, variantRate = null, doFade = true) {
+  if (!player || !songFull.value?.id) return
+  if (variant !== 'original' && variant !== 'speed') return
+
+  const songSnapshot = { ...songFull.value }
+  const now = typeof player.getCurrentTime === 'function' ? player.getCurrentTime() : 0
+  const sourceScale = getCurrentMediaScale()
+  const targetScale = variant === 'speed' ? Number(variantRate || 1) : 1
+  const sourcePosition = Math.max(0, now * sourceScale)
+  const targetTime = sourcePosition / Math.max(0.001, targetScale)
+  const shouldPlay = getCurrentPlayableStates().includes(status.value)
+  const currentVolume = typeof player.getVolume === 'function' ? player.getVolume() : volume.value
+  const mutedVolume = clamp(currentVolume * 0.35, 0.08, 1)
+  debugAudio('switch-variant-start', {
+    songId: songSnapshot?.id || null,
+    from: currentMediaVariant.value,
+    to: variant,
+    fromTime: roundRate(now),
+    targetTime: roundRate(targetTime),
+    variantRate: variant === 'speed' ? roundRate(variantRate || 1) : 1
+  })
+
+  if (doFade) {
+    await animateVolumeTo(mutedVolume, SPEED_SWITCH_FADE_OUT_MS)
+  }
+
+  pendingRestoreState = {
+    time: targetTime,
+    shouldPlay,
+    speedAdded: speed_added.value,
+    volume: doFade ? mutedVolume : currentVolume,
+    fadeInTarget: doFade ? currentVolume : null
+  }
+
+  currentMediaVariant.value = variant
+  processedSpeedRate.value = variant === 'speed' ? Number(variantRate || 1) : null
+  if (variant === 'speed') {
+    touchSpeedVersionUsage(songSnapshot?.id)
+  }
+  const mediaUrl = await getMediaUrlForVariant(songSnapshot, variant)
+  player.load(mediaUrl)
+  debugAudio('switch-variant-load', {
+    songId: songSnapshot?.id || null,
+    variant,
+    rate: processedSpeedRate.value
+  })
+}
+
+function clearPreprocessDebounce() {
+  if (speedPreprocessDebounceId) {
+    clearTimeout(speedPreprocessDebounceId)
+    speedPreprocessDebounceId = null
+  }
+}
+
+function scheduleSpeedPreprocess() {
+  clearPreprocessDebounce()
+  speedPreprocessDebounceId = setTimeout(() => {
+    speedPreprocessDebounceId = null
+    triggerSpeedPreprocess()
+  }, SPEED_PREPROCESS_DEBOUNCE_MS)
+}
+
+async function triggerSpeedPreprocess() {
+  if (!songFull.value?.id) return
+
+  const songIdSnapshot = songFull.value.id
+  const targetRate = getTargetPlaybackRate()
+  if (ratesMatch(targetRate, 1)) return
+
+  preprocessRequestSerial += 1
+  const requestSerial = preprocessRequestSerial
+  isPreprocessingSpeed.value = true
+  debugAudio('preprocess-start', {
+    songId: songIdSnapshot,
+    rate: roundRate(targetRate),
+    requestSerial
+  })
+
+  try {
+    await axios.post('http://localhost:3000/songs/preprocess-speed', {
+      id: songIdSnapshot,
+      rate: targetRate
+    })
+  } catch (error) {
+    const errorData = error?.response?.data || null
+    const errorStatus = error?.response?.status || null
+    const payload = {
+      songId: songIdSnapshot,
+      rate: roundRate(targetRate),
+      requestSerial,
+      status: errorStatus,
+      error: errorData
+    }
+    debugAudio('preprocess-failed', payload)
+    if (AUDIO_DEBUG) {
+      console.error('[vmusic][audio-debug][preprocess-failed-json]', JSON.stringify(payload))
+    }
+    isPreprocessingSpeed.value = false
+
+    return
+  }
+
+  if (!songFull.value?.id || songFull.value.id !== songIdSnapshot) {
+    debugAudio('preprocess-discarded-song-changed', {
+      songId: songIdSnapshot,
+      requestSerial
+    })
+    isPreprocessingSpeed.value = false
+
+    return
+  }
+  if (requestSerial !== preprocessRequestSerial) {
+    debugAudio('preprocess-discarded-stale-request', {
+      songId: songIdSnapshot,
+      requestSerial,
+      latest: preprocessRequestSerial
+    })
+    isPreprocessingSpeed.value = false
+
+    return
+  }
+
+  const currentTargetRate = getTargetPlaybackRate()
+  if (!ratesMatch(currentTargetRate, targetRate)) {
+    debugAudio('preprocess-discarded-rate-mismatch', {
+      songId: songIdSnapshot,
+      completedRate: roundRate(targetRate),
+      currentRate: roundRate(currentTargetRate)
+    })
+    isPreprocessingSpeed.value = false
+
+    return
+  }
+  if (currentMediaVariant.value === 'speed' && ratesMatch(processedSpeedRate.value, targetRate)) {
+    debugAudio('preprocess-discarded-already-active', {
+      songId: songIdSnapshot,
+      rate: roundRate(targetRate)
+    })
+    isPreprocessingSpeed.value = false
+
+    return
+  }
+
+  debugAudio('preprocess-finished', {
+    songId: songIdSnapshot,
+    rate: roundRate(targetRate),
+    requestSerial
+  })
+
+  if (getCurrentPlayableStates().includes(status.value)) {
+    debugAudio('preprocess-ready-deferred-while-playing', {
+      songId: songIdSnapshot,
+      rate: roundRate(targetRate)
+    })
+    isPreprocessingSpeed.value = false
+
+    return
+  }
+
+  isPreprocessingSpeed.value = false
+  await switchMediaVariant('speed', targetRate, true)
 }
 
 async function setSong(s) {
@@ -504,6 +1089,10 @@ async function setSong(s) {
    * Get this value from db
    */
   songFull.value = s
+  hasManualEndMarker.value = hasExplicitEndMarker(s)
+  fadeProfileRequestSerial += 1
+  fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
+  forcedFadeEndAt = null
   start.value = s.start
   end.value = s.end
   songId.value = s.id
@@ -517,15 +1106,38 @@ async function setSong(s) {
   composer.value = s.Composers.map((i) => i.name).join(', ')
   player.setPlaybackRate(1.0, true)
   player.setVolume(1)
-  const mediaUrl = await window.electron2.getMediaUrl({
-    folder: s.folder,
-    ytid: s.ytid
+  clearPreprocessDebounce()
+  preprocessRequestSerial += 1
+  isPreprocessingSpeed.value = false
+  updateBaseSpeed()
+  const initialRate = getTargetPlaybackRate()
+  const initialVariant = await resolveInitialVariant(s, initialRate)
+  currentMediaVariant.value = initialVariant.variant
+  processedSpeedRate.value = initialVariant.rate
+  if (initialVariant.variant === 'speed') {
+    touchSpeedVersionUsage(s.id)
+  }
+  debugAudio('set-song', {
+    songId: s.id,
+    initialRate: roundRate(initialRate),
+    selectedVariant: initialVariant.variant,
+    selectedVariantRate: initialVariant.rate
   })
+  const mediaUrl = await getMediaUrlForVariant(s, initialVariant.variant)
   player.load(mediaUrl)
+  loadFadeProfile(s)
+
+  if (initialVariant.variant !== 'speed' && !ratesMatch(initialRate, 1)) {
+    debugAudio('set-song-preprocess-miss', {
+      songId: s.id,
+      targetRate: roundRate(initialRate)
+    })
+    scheduleSpeedPreprocess()
+  }
 }
 
 function play() {
-  player.play()
+  safePlay()
 }
 
 function pause() {
@@ -538,7 +1150,7 @@ function stop() {
 
 function restart() {
   if (!player) return
-  const restartAt = Number.isFinite(start.value) ? Math.max(0, start.value) : 0
+  const restartAt = Number.isFinite(start.value) ? Math.max(0, toPlaybackTime(start.value)) : 0
   player.setTime(restartAt)
 }
 
@@ -561,14 +1173,29 @@ function setSpeed(val) {
   const nextOffset = normalizeSpeedOffset(speed_added.value) + Number(val || 0)
   speed_added.value = clamp(nextOffset, MIN_SPEED_OFFSET, MAX_SPEED_OFFSET)
   applySpeed()
+  const targetRate = getTargetPlaybackRate()
+  debugAudio('speed-change', {
+    songId: songFull.value?.id || null,
+    speedAdded: speed_added.value,
+    targetRate: roundRate(targetRate),
+    variant: currentMediaVariant.value,
+    variantRate: processedSpeedRate.value
+  })
+  if (!ratesMatch(targetRate, 1)) {
+    scheduleSpeedPreprocess()
+  } else {
+    clearPreprocessDebounce()
+  }
   emit('speed')
 }
 
 function applySpeed() {
-  const totalOffset = normalizeSpeedOffset(speed_added.value) + normalizeSpeedOffset(baseSpeed.value)
-  const total = 1 + totalOffset / 100
-  speed.value = clamp(Number(total), 0.5, 1.8)
-  player.setPlaybackRate(speed.value, true)
+  const total = getTargetPlaybackRate()
+  speed.value = total
+
+  const shouldUseNativeRate = currentMediaVariant.value !== 'speed' || !ratesMatch(processedSpeedRate.value, total)
+  const playbackRate = shouldUseNativeRate ? total : 1
+  player.setPlaybackRate(playbackRate, true)
 }
 
 function normalizeSpeedOffset(value) {
@@ -911,7 +1538,8 @@ function handleThemeChanged() {
   const progressColor = getCurrentProgressColor()
   const cursorColor = getThemeColor('--vm-player-cursor', '#FFFFFF')
   const crossfaderCursorColor = getThemeColor('--vm-player-crossfader-cursor', '#FF0000')
-  regionColor.value = getThemeColor('--vm-player-region', 'rgba(114,0,0,0.64)')
+  regionColor.value = 'rgba(255, 255, 255, 0.28)'
+  fadeRegionColor.value = 'rgba(255, 255, 255, 0.28)'
 
   player.setOptions({
     waveColor,
@@ -940,6 +1568,13 @@ window.addEventListener('vmusic-color-schema-changed', handleThemeChanged)
 onBeforeUnmount(() => {
   window.removeEventListener('vmusic-color-schema-changed', handleThemeChanged)
   window.removeEventListener('resize', onViewportResize)
+  clearPreprocessDebounce()
+  preprocessRequestSerial += 1
+  isPreprocessingSpeed.value = false
+  volumeAnimationToken += 1
+  fadeProfileRequestSerial += 1
+  fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
+  forcedFadeEndAt = null
   if (resizeObserver) {
     resizeObserver.disconnect()
     resizeObserver = null

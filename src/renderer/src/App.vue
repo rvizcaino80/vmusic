@@ -2088,6 +2088,13 @@ async function startPreview(song, options = {}) {
     await audio.play()
     previewStatus.value = 'playing'
   } catch (error) {
+    const name = String(error?.name || '')
+    const message = String(error?.message || '')
+    const isAbort = name === 'AbortError' || message.toLowerCase().includes('aborted')
+    if (isAbort) {
+      resetPreviewState()
+      return
+    }
     console.error(error)
     resetPreviewState()
     alert('No se pudo reproducir la previsualización en los audífonos.')

@@ -22,6 +22,7 @@ function parseArgs(argv) {
   const getArgValue = (flag) => {
     const index = argv.indexOf(flag)
     if (index === -1) return null
+
     return argv[index + 1] || null
   }
 
@@ -36,6 +37,7 @@ function sanitizePath(remotePath) {
   const value = String(remotePath || '').trim()
   if (!value) return '/v-music'
   if (value === '/') return value
+
   return value.startsWith('/') ? value.replace(/\/+$/, '') : `/${value.replace(/\/+$/, '')}`
 }
 
@@ -43,12 +45,15 @@ function joinRemotePath(folderPath, fileName) {
   const folder = sanitizePath(folderPath)
   const cleanName = String(fileName || '').replace(/^\/+/, '')
   if (folder === '/') return `/${cleanName}`
+
   return `${folder}/${cleanName}`
 }
 
 function sanitizeMetadataValue(value) {
   if (value === null || value === undefined) return ''
-  return String(value).replace(/\s+/g, ' ').trim()
+
+  return String(value).replace(/\s+/g, ' ')
+    .trim()
 }
 
 function buildSongFilePath(song) {
@@ -57,6 +62,7 @@ function buildSongFilePath(song) {
 
 function getFileFingerprint(filePath) {
   const stat = fs.statSync(filePath)
+
   return `${stat.size}:${Math.floor(stat.mtimeMs)}`
 }
 
@@ -67,6 +73,7 @@ function loadUploadCache() {
     if (parsed && typeof parsed === 'object') return parsed
   } catch (error) {
   }
+
   return {}
 }
 
@@ -81,6 +88,7 @@ function getSongGenre(song) {
     .sort((a, b) => {
       const aTime = a?.SongTag?.createdAt ? new Date(a.SongTag.createdAt).getTime() : Number.MAX_SAFE_INTEGER
       const bTime = b?.SongTag?.createdAt ? new Date(b.SongTag.createdAt).getTime() : Number.MAX_SAFE_INTEGER
+
       return aTime - bTime
     })
 
@@ -88,6 +96,7 @@ function getSongGenre(song) {
     const tagName = sanitizeMetadataValue(tag.name)
     if (!tagName) continue
     if (tagName.toLowerCase() === IGNORED_GENRE_TAG) continue
+
     return tagName
   }
 
@@ -99,10 +108,12 @@ function songHasTag(song, tagName) {
   if (!normalizedTarget) return false
 
   const tags = Array.isArray(song.Tags) ? song.Tags : []
+
   return tags.some((tag) => {
     const current = sanitizeMetadataValue(tag.name).toLowerCase()
     if (!current) return false
     if (current === IGNORED_GENRE_TAG) return false
+
     return current === normalizedTarget
   })
 }
@@ -122,12 +133,8 @@ async function resolveApiServer(accessToken) {
     })
     const apiList = response?.data?.api
     const binApiList = response?.data?.binapi
-    const apiHost = Array.isArray(apiList) && apiList.length > 0 && typeof apiList[0] === 'string'
-      ? apiList[0]
-      : fallback.apiHost
-    const binApiHost = Array.isArray(binApiList) && binApiList.length > 0 && typeof binApiList[0] === 'string'
-      ? binApiList[0]
-      : fallback.binApiHost
+    const apiHost = Array.isArray(apiList) && apiList.length > 0 && typeof apiList[0] === 'string' ? apiList[0] : fallback.apiHost
+    const binApiHost = Array.isArray(binApiList) && binApiList.length > 0 && typeof binApiList[0] === 'string' ? binApiList[0] : fallback.binApiHost
 
     return { apiHost, binApiHost }
   } catch (error) {
@@ -158,10 +165,7 @@ async function listRemoteFilesInFolder({ apiHost, accessToken, folderPath }) {
   const response = await axios.get(url, { params, timeout: REQUEST_TIMEOUT_MS })
   if (response?.data?.result !== 0) {
     const errorMessage = String(response?.data?.error || '')
-    const notFound =
-      response?.data?.result === 2005 ||
-      /does not exist/i.test(errorMessage) ||
-      /directory not found/i.test(errorMessage)
+    const notFound = response?.data?.result === 2005 || (/does not exist/i).test(errorMessage) || (/directory not found/i).test(errorMessage)
 
     // If folder is missing, treat as empty (caller creates it first anyway).
     if (notFound) return new Set()
@@ -169,9 +173,7 @@ async function listRemoteFilesInFolder({ apiHost, accessToken, folderPath }) {
     throw new Error(`listfolder fallo (${response?.data?.result}): ${errorMessage || 'sin detalle'}`)
   }
 
-  const contents = Array.isArray(response?.data?.metadata?.contents)
-    ? response.data.metadata.contents
-    : []
+  const contents = Array.isArray(response?.data?.metadata?.contents) ? response.data.metadata.contents : []
 
   const fileNames = contents
     .filter((entry) => entry && entry.isfile)
@@ -190,6 +192,7 @@ async function listRemoteFilesInFolderWithHostFallback({ apiHosts, accessToken, 
         accessToken,
         folderPath
       })
+
       return files
     } catch (error) {
       lastError = error
@@ -198,6 +201,7 @@ async function listRemoteFilesInFolderWithHostFallback({ apiHosts, accessToken, 
   }
 
   if (lastError) throw lastError
+
   return new Set()
 }
 
@@ -213,12 +217,7 @@ async function remoteFileExistsViaStat({ apiHost, accessToken, remoteFilePath })
   }
 
   const errorMessage = String(response?.data?.error || '')
-  const notFound =
-    response?.data?.result === 2005 ||
-    response?.data?.result === 2055 ||
-    /does not exist/i.test(errorMessage) ||
-    /not found/i.test(errorMessage) ||
-    /directory not found/i.test(errorMessage)
+  const notFound = response?.data?.result === 2005 || response?.data?.result === 2055 || (/does not exist/i).test(errorMessage) || (/not found/i).test(errorMessage) || (/directory not found/i).test(errorMessage)
 
   if (notFound) return false
   throw new Error(`stat fallo (${response?.data?.result}): ${errorMessage || 'sin detalle'}`)
@@ -233,6 +232,7 @@ async function remoteFileExistsViaStatWithHostFallback({ apiHosts, accessToken, 
         accessToken,
         remoteFilePath
       })
+
       return exists
     } catch (error) {
       lastError = error
@@ -241,6 +241,7 @@ async function remoteFileExistsViaStatWithHostFallback({ apiHosts, accessToken, 
   }
 
   if (lastError) throw lastError
+
   return false
 }
 
@@ -249,13 +250,11 @@ async function createFolderIfNotExistsWithRetry({ apiHost, accessToken, folderPa
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
       await createFolderIfNotExists({ apiHost, accessToken, folderPath })
+
       return
     } catch (error) {
       lastError = error
-      const isRetryable =
-        error?.code === 'ECONNRESET' ||
-        error?.code === 'ETIMEDOUT' ||
-        /socket hang up/i.test(error?.message || '')
+      const isRetryable = error?.code === 'ECONNRESET' || error?.code === 'ETIMEDOUT' || (/socket hang up/i).test(error?.message || '')
 
       if (!isRetryable || attempt === attempts) {
         throw error
@@ -280,6 +279,7 @@ async function ensureRemotePathExistsWithHostFallback({ apiHosts, accessToken, f
         folderPath,
         createdFolders
       })
+
       return host
     } catch (error) {
       lastError = error
@@ -316,13 +316,19 @@ async function uploadFile({ apiHost, accessToken, folderPath, filePath, fileName
   const args = [
     '-sS',
     '--http1.1',
-    '--connect-timeout', String(UPLOAD_CONNECT_TIMEOUT_SECONDS),
-    '--max-time', String(UPLOAD_MAX_TIME_SECONDS),
-    '-X', 'POST',
+    '--connect-timeout',
+    String(UPLOAD_CONNECT_TIMEOUT_SECONDS),
+    '--max-time',
+    String(UPLOAD_MAX_TIME_SECONDS),
+    '-X',
+    'POST',
     ...tokenEntries.flatMap(([key, value]) => ['-F', `${key}=${value}`]),
-    '-F', `path=${folderPath}`,
-    '-F', `filename=${fileName}`,
-    '-F', `file=@${filePath};filename=${fileName}`,
+    '-F',
+    `path=${folderPath}`,
+    '-F',
+    `filename=${fileName}`,
+    '-F',
+    `file=@${filePath};filename=${fileName}`,
     url
   ]
 
@@ -343,6 +349,7 @@ async function uploadFile({ apiHost, accessToken, folderPath, filePath, fileName
     child.on('close', (code) => {
       if (code !== 0) {
         reject(new Error(`curl fallo (${code}): ${stderr || 'sin detalle'}`))
+
         return
       }
 
@@ -351,11 +358,13 @@ async function uploadFile({ apiHost, accessToken, folderPath, filePath, fileName
         parsed = JSON.parse(stdout)
       } catch (error) {
         reject(new Error(`Respuesta invalida de pCloud: ${stdout || 'vacia'}`))
+
         return
       }
 
       if (parsed?.result !== 0) {
         reject(new Error(`uploadfile fallo (${parsed?.result}): ${parsed?.error || 'sin detalle'}`))
+
         return
       }
 
@@ -369,17 +378,11 @@ async function uploadFileWithRetry({ apiHost, accessToken, folderPath, filePath,
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
       await uploadFile({ apiHost, accessToken, folderPath, filePath, fileName })
+
       return
     } catch (error) {
       lastError = error
-      const isRetryable =
-        error?.code === 'ECONNRESET' ||
-        error?.code === 'EPIPE' ||
-        error?.code === 'ETIMEDOUT' ||
-        /socket hang up/i.test(error?.message || '') ||
-        /Operation timed out/i.test(error?.message || '') ||
-        /curl fallo \(52\)/i.test(error?.message || '') ||
-        /curl fallo \(55\)/i.test(error?.message || '')
+      const isRetryable = error?.code === 'ECONNRESET' || error?.code === 'EPIPE' || error?.code === 'ETIMEDOUT' || (/socket hang up/i).test(error?.message || '') || (/Operation timed out/i).test(error?.message || '') || (/curl fallo \(52\)/i).test(error?.message || '') || (/curl fallo \(55\)/i).test(error?.message || '')
 
       if (!isRetryable || attempt === attempts) {
         throw error
@@ -405,6 +408,7 @@ async function uploadFileWithHostFallback({ uploadHosts, accessToken, folderPath
         filePath,
         fileName
       })
+
       return host
     } catch (error) {
       lastError = error
@@ -442,11 +446,7 @@ async function run() {
   const { songId, genre, remotePath } = parseArgs(process.argv.slice(2))
   const oauthAccessToken = sanitizeMetadataValue(process.env.PCLOUD_ACCESS_TOKEN)
   const authToken = sanitizeMetadataValue(process.env.PCLOUD_AUTH_TOKEN)
-  const tokenParams = oauthAccessToken
-    ? { access_token: oauthAccessToken }
-    : authToken
-      ? { auth: authToken }
-      : null
+  const tokenParams = oauthAccessToken ? { access_token: oauthAccessToken } : authToken ? { auth: authToken } : null
   const baseRemotePath = sanitizePath(remotePath)
 
   if (!tokenParams) {
@@ -519,6 +519,7 @@ async function run() {
 
   if (!uploadPlan.length) {
     console.log('No hay canciones para subir con ese criterio')
+
     return
   }
 
@@ -614,6 +615,6 @@ run()
     console.error(error.message)
     process.exitCode = 1
   })
-  .finally(async () => {
+  .finally(async() => {
     await db.sequelize.close()
   })

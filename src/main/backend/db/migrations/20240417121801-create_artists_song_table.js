@@ -1,8 +1,8 @@
-'use strict';
+'use strict'
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  async up (queryInterface, Sequelize) {
+  async up(queryInterface, Sequelize) {
     return queryInterface.createTable('ArtistSong', {
       id: {
         allowNull: false,
@@ -40,12 +40,13 @@ module.exports = {
       }
     }).then(() => {
       // Create Unique CompoundIndex
-      let sql = `CREATE UNIQUE INDEX artist_song_index ON ArtistSong (artistId, songId)`;
-      return queryInterface.sequelize.query(sql, {raw: true});
-    });
+      let sql = `CREATE UNIQUE INDEX artist_song_index ON ArtistSong (artistId, songId)`
+
+      return queryInterface.sequelize.query(sql, { raw: true })
+    })
   },
 
-  async down (queryInterface, Sequelize) {
-    return queryInterface.dropTable('ArtistSong');
+  async down(queryInterface, Sequelize) {
+    return queryInterface.dropTable('ArtistSong')
   }
-};
+}

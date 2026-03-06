@@ -1,8 +1,8 @@
-'use strict';
+'use strict'
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  async up (queryInterface, Sequelize) {
+  async up(queryInterface, Sequelize) {
     return queryInterface.createTable('SongTags', {
       id: {
         allowNull: false,
@@ -10,26 +10,26 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-    songId: {
-      type: Sequelize.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'Songs',
-        key: 'id'
+      songId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'Songs',
+          key: 'id'
+        },
+        onUpdate: 'cascade',
+        onDelete: 'cascade'
       },
-      onUpdate: 'cascade',
-      onDelete: 'cascade'
-    },
-    tagId: {
-      type: Sequelize.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'Tags',
-        key: 'id'
+      tagId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'Tags',
+          key: 'id'
+        },
+        onUpdate: 'cascade',
+        onDelete: 'cascade'
       },
-      onUpdate: 'cascade',
-      onDelete: 'cascade'
-    },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE
@@ -40,12 +40,13 @@ module.exports = {
       }
     }).then(() => {
       // Create Unique CompoundIndex
-      let sql = `CREATE UNIQUE INDEX song_tag_index ON SongTags (songId, tagId)`;
-      return queryInterface.sequelize.query(sql, {raw: true});
-      });
+      let sql = `CREATE UNIQUE INDEX song_tag_index ON SongTags (songId, tagId)`
+
+      return queryInterface.sequelize.query(sql, { raw: true })
+    })
   },
 
-  async down (queryInterface, Sequelize) {
-    return queryInterface.dropTable('SongTags');
+  async down(queryInterface, Sequelize) {
+    return queryInterface.dropTable('SongTags')
   }
-};
+}
