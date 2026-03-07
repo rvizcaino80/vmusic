@@ -235,6 +235,7 @@ const baseSpeedLabel = computed(() => {
 const canPreview = computed(() => status.value !== props.statuses.Reproduciendo && Boolean(songFull.value?.id))
 const MIN_SPEED_OFFSET = -50
 const MAX_SPEED_OFFSET = 50
+const KEYBOARD_SEEK_FORWARD_END_GUARD_SECONDS = 10
 const AUDIO_DEBUG = import.meta.env.DEV
 const SPEED_PREPROCESS_DEBOUNCE_MS = 3200
 const SPEED_SWITCH_FADE_OUT_MS = 90
@@ -1197,6 +1198,20 @@ function restart() {
   player.setTime(restartAt)
 }
 
+function seekBy(deltaSeconds) {
+  if (!player || !songFull.value?.id || typeof player.getCurrentTime !== 'function') return
+
+  const now = player.getCurrentTime()
+  const playbackStart = Number.isFinite(start.value) ? Math.max(0, toPlaybackTime(start.value)) : 0
+  const playbackEnd = Number.isFinite(end.value) ? Math.max(playbackStart, toPlaybackTime(end.value)) : Number.POSITIVE_INFINITY
+  const requestedDelta = Number(deltaSeconds || 0)
+  const maxForwardTime = Number.isFinite(playbackEnd) ? Math.max(playbackStart, playbackEnd - KEYBOARD_SEEK_FORWARD_END_GUARD_SECONDS) : playbackEnd
+  const clampedMaxTime = requestedDelta > 0 ? maxForwardTime : playbackEnd
+  const targetTime = clamp(now + requestedDelta, playbackStart, clampedMaxTime)
+
+  player.setTime(targetTime)
+}
+
 function getStatusName(status) {
   for (let s in props.statuses) {
     if (props.statuses.hasOwnProperty(s)) {
@@ -1654,6 +1669,8 @@ defineExpose({
   pause,
   stop,
   restart,
+  seekBy,
+  setSpeed,
   setSong,
   next,
   speed_added,

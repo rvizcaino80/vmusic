@@ -1338,6 +1338,8 @@ let traySyncIntervalId = null
 const isWindowFullscreen = ref(false)
 const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
 const mediaKeyCodes = new Set(['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaStop'])
+const KEYBOARD_SEEK_SECONDS = 5
+const KEYBOARD_SPEED_STEP = 1
 
 function normalizeOutputDeviceId(deviceId) {
   return deviceId && deviceId !== 'default' ? deviceId : 'default'
@@ -1771,6 +1773,7 @@ onMounted(() => {
     sendTrayMediaControlsState()
   }, 1000)
   window.addEventListener('keydown', onHardwareMediaKey)
+  window.addEventListener('keydown', onKeyboardSeekKey)
   window.addEventListener('keydown', onModifierKeyDown, true)
   window.addEventListener('keyup', onModifierKeyUp)
   window.addEventListener('blur', onWindowBlurResetModifiers)
@@ -1795,6 +1798,7 @@ onUnmounted(() => {
   window.electron2?.offWindowFullscreenChanged?.(onFullscreenChanged)
   window.electron2?.offMediaControlsCommand?.(onTrayMediaCommand)
   window.removeEventListener('keydown', onHardwareMediaKey)
+  window.removeEventListener('keydown', onKeyboardSeekKey)
   window.removeEventListener('keydown', onModifierKeyDown, true)
   window.removeEventListener('keyup', onModifierKeyUp)
   window.removeEventListener('blur', onWindowBlurResetModifiers)
@@ -3390,10 +3394,30 @@ async function refreshSongInLibrary(id) {
   }
 }
 
+function reloadEditedSongInInactivePlayer(playerRef, songId, markers) {
+  if (!playerRef?.songFull?.id || playerRef.songFull.id !== songId) return
+  if (playerRef.status !== playerStatuses.Listo && playerRef.status !== playerStatuses.Pausado) return
+
+  playerRef.setSong({
+    ...playerRef.songFull,
+    start: markers.start,
+    end: markers.end
+  })
+}
+
+function reloadEditedSongInInactivePlayers(songId, markers) {
+  reloadEditedSongInInactivePlayer(player1.value, songId, markers)
+  reloadEditedSongInInactivePlayer(player2.value, songId, markers)
+}
+
 function waveUpdated(markers) {
+  const editedSongId = selectedSongs.value[0]
+
   axios
-    .post('http://localhost:3000/songs/update-markers/' + selectedSongs.value[0], markers)
-    .then(function(response) {})
+    .post('http://localhost:3000/songs/update-markers/' + editedSongId, markers)
+    .then(function() {
+      reloadEditedSongInInactivePlayers(editedSongId, markers)
+    })
     .catch(function(error) {
       console.log(error)
     })
@@ -3599,6 +3623,69 @@ function onHardwareMediaKey(event) {
     }
   } catch (error) {
     console.warn('Error al manejar media key', error)
+  }
+}
+
+function isEditableKeyboardTarget(target) {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.isContentEditable) return true
+
+  const tagName = target.tagName
+
+  return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT'
+}
+
+function seekActivePlayer(deltaSeconds) {
+  const targetPlayer = getMediaTargetPlayer()
+  if (!targetPlayer || typeof targetPlayer.seekBy !== 'function') return false
+
+  targetPlayer.seekBy(deltaSeconds)
+
+  return true
+}
+
+function adjustActivePlayerSpeed(delta) {
+  const targetPlayer = getMediaTargetPlayer()
+  if (!targetPlayer || typeof targetPlayer.setSpeed !== 'function') return false
+
+  targetPlayer.setSpeed(delta)
+
+  return true
+}
+
+function onKeyboardSeekKey(event) {
+  if (event.defaultPrevented || event.repeat) return
+  if (isEditableKeyboardTarget(event.target)) return
+  if (event.ctrlKey || event.metaKey) return
+
+  if (event.altKey) {
+    if (event.key === 'ArrowLeft') {
+      if (adjustActivePlayerSpeed(-KEYBOARD_SPEED_STEP)) {
+        event.preventDefault()
+      }
+
+      return
+    }
+
+    if (event.key === 'ArrowRight') {
+      if (adjustActivePlayerSpeed(KEYBOARD_SPEED_STEP)) {
+        event.preventDefault()
+      }
+
+      return
+    }
+  }
+
+  if (event.key === 'ArrowLeft') {
+    if (seekActivePlayer(-KEYBOARD_SEEK_SECONDS)) {
+      event.preventDefault()
+    }
+
+    return
+  }
+
+  if (event.key === 'ArrowRight' && seekActivePlayer(KEYBOARD_SEEK_SECONDS)) {
+    event.preventDefault()
   }
 }
 
