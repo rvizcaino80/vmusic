@@ -19,7 +19,13 @@ if (process.contextIsolated) {
       getWindowDisplayMode: () => ipcRenderer.invoke('get-window-display-mode'),
       backendRequest: (payload) => ipcRenderer.invoke('backend:request', payload),
       getMediaUrl: (payload) => ipcRenderer.invoke('backend:get-media-url', payload),
-      ipcRenderer: ipcRenderer
+      onWindowDisplayModeChanged: (listener) => ipcRenderer.on('window-display-mode-changed', listener),
+      offWindowDisplayModeChanged: (listener) => ipcRenderer.removeListener('window-display-mode-changed', listener),
+      onWindowFullscreenChanged: (listener) => ipcRenderer.on('window-fullscreen-changed', listener),
+      offWindowFullscreenChanged: (listener) => ipcRenderer.removeListener('window-fullscreen-changed', listener),
+      onMediaControlsCommand: (listener) => ipcRenderer.on('media-controls:command', listener),
+      offMediaControlsCommand: (listener) => ipcRenderer.removeListener('media-controls:command', listener),
+      updateMediaControlsState: (payload) => ipcRenderer.send('media-controls:update-state', payload)
     })
 
     contextBridge.exposeInMainWorld('api', api)

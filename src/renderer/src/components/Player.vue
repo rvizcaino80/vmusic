@@ -199,6 +199,7 @@ const primaryArtistId = ref(null)
 const status = ref()
 const playerId = ref('')
 const volume = ref(1.0)
+const baseVolume = ref(1.0)
 const speed = ref(1.0)
 const left = ref(0)
 const speed_added = ref(0.0)
@@ -244,6 +245,7 @@ const processedSpeedRate = ref(null)
 let speedPreprocessDebounceId = null
 let preprocessRequestSerial = 0
 let volumeAnimationToken = 0
+const previewDuckMultiplier = ref(1)
 const isPreprocessingSpeed = ref(false)
 const isInitialSpeedPreprocessPending = ref(false)
 const isUsingProcessedSpeedFile = computed(() => {
@@ -480,7 +482,7 @@ function init() {
         setInitialSpeed(restore.speedAdded)
       }
       if (typeof restore.volume === 'number') {
-        player.setVolume(restore.volume)
+        applyVolume(restore.volume)
       }
       if (typeof restore.time === 'number' && Number.isFinite(restore.time)) {
         player.setTime(Math.max(0, restore.time))
@@ -538,7 +540,6 @@ function init() {
     if (
       status.value === props.statuses.Reproduciendo || status.value === props.statuses.Cambiando || status.value === props.statuses.Placa || status.value === props.statuses.Nivelando
     ) {
-      volume.value = player.getVolume()
       calculateVolume(currentTime)
     }
   })
@@ -605,7 +606,7 @@ function calculateVolume(ct) {
     const shouldStartCrossfade = Number.isFinite(forcedFadeEndAt) || left.value <= crossfader_time
     if (!shouldStartCrossfade) {
       if (status.value !== props.statuses.Placa && status.value !== props.statuses.Nivelando) {
-        player.setVolume(1.0)
+        applyVolume(1.0)
       }
     } else {
       if (status.value === props.statuses.Reproduciendo) {
@@ -616,17 +617,17 @@ function calculateVolume(ct) {
         emit('fading')
       }
       const forcedRemaining = Number.isFinite(forcedFadeEndAt) ? (forcedFadeEndAt - ct) : left.value
-      player.setVolume(clamp(forcedRemaining / Math.max(0.1, crossfader_time), 0, 1))
+      applyVolume(clamp(forcedRemaining / Math.max(0.1, crossfader_time), 0, 1))
     }
   }
 }
 
 function tempFade(duration = 3000) {
   player.toggleInteraction(false)
-  let vol = player.getVolume()
+  let vol = baseVolume.value
 
   if (vol > 0.6) {
-    player.setVolume(vol - 0.1)
+    applyVolume(vol - 0.1)
     setTimeout(tempFade, 100)
   } else {
     setTimeout(function() {
@@ -639,11 +640,11 @@ function tempFade(duration = 3000) {
 const clamp = (val, min, max) => Math.min(Math.max(val, min), max)
 
 function volToNormal() {
-  let vol = player.getVolume()
+  let vol = baseVolume.value
 
   if (vol < 1.0) {
     let new_vol = clamp(vol + 0.05, 0, 1)
-    player.setVolume(new_vol)
+    applyVolume(new_vol)
     setTimeout(volToNormal, 100)
   } else {
     player.toggleInteraction(true)
@@ -747,11 +748,7 @@ async function loadFadeProfile(song) {
     }
     const data = response?.data || {}
     const rawFadeStartSec = data?.fadeStartSec
-    const parsedFadeStartSec = (
-      rawFadeStartSec === null || rawFadeStartSec === undefined || rawFadeStartSec === ''
-    )
-? null
-: (Number.isFinite(Number(rawFadeStartSec)) ? Number(rawFadeStartSec) : null)
+    const parsedFadeStartSec = rawFadeStartSec === null || rawFadeStartSec === undefined || rawFadeStartSec === '' ? null : (Number.isFinite(Number(rawFadeStartSec)) ? Number(rawFadeStartSec) : null)
     fadeProfile.value = {
       hasFade: Boolean(data.hasFade),
       fadeStartSec: parsedFadeStartSec,
@@ -841,15 +838,30 @@ function getCurrentPlayableStates() {
   ]
 }
 
+function applyVolume(targetVolume, options = {}) {
+  const { persistBase = true } = options
+  const normalizedBaseVolume = clamp(Number(targetVolume), 0, 1)
+  if (persistBase) {
+    baseVolume.value = normalizedBaseVolume
+  }
+  const appliedVolume = clamp(normalizedBaseVolume * previewDuckMultiplier.value, 0, 1)
+  if (player && typeof player.setVolume === 'function') {
+    player.setVolume(appliedVolume)
+  }
+  volume.value = appliedVolume
+
+  return appliedVolume
+}
+
 function animateVolumeTo(targetVolume, durationMs) {
-  if (!player || typeof player.getVolume !== 'function' || typeof player.setVolume !== 'function') {
+  if (!player || typeof player.setVolume !== 'function') {
     return Promise.resolve()
   }
 
-  const from = clamp(Number(player.getVolume()), 0, 1)
+  const from = clamp(Number(baseVolume.value), 0, 1)
   const to = clamp(Number(targetVolume), 0, 1)
   if (durationMs <= 0 || Math.abs(from - to) < 0.001) {
-    player.setVolume(to)
+    applyVolume(to)
 
     return Promise.resolve()
   }
@@ -868,7 +880,7 @@ function animateVolumeTo(targetVolume, durationMs) {
 
       const progress = clamp((now - startAt) / durationMs, 0, 1)
       const vol = from + (to - from) * progress
-      player.setVolume(clamp(vol, 0, 1))
+      applyVolume(vol)
 
       if (progress >= 1) {
         resolve()
@@ -938,7 +950,7 @@ async function switchMediaVariant(variant, variantRate = null, doFade = true) {
   const sourcePosition = Math.max(0, now * sourceScale)
   const targetTime = sourcePosition / Math.max(0.001, targetScale)
   const shouldPlay = getCurrentPlayableStates().includes(status.value)
-  const currentVolume = typeof player.getVolume === 'function' ? player.getVolume() : volume.value
+  const currentVolume = baseVolume.value
   const mutedVolume = clamp(currentVolume * 0.35, 0.08, 1)
   debugAudio('switch-variant-start', {
     songId: songSnapshot?.id || null,
@@ -1134,7 +1146,7 @@ async function setSong(s) {
   primaryArtistId.value = artistsList.value?.[0]?.id || null
   composer.value = s.Composers.map((i) => i.name).join(', ')
   player.setPlaybackRate(1.0, true)
-  player.setVolume(1)
+  applyVolume(1)
   clearPreprocessDebounce()
   preprocessRequestSerial += 1
   isPreprocessingSpeed.value = false
@@ -1278,10 +1290,14 @@ function updateBaseSpeed() {
 }
 function setVolume(val) {
   volume_added.value = volume_added.value + val
-  const newVolume = volume.value + val / 20
+  const newVolume = baseVolume.value + val / 20
 
-  volume.value = parseFloat(newVolume)
-  player.setVolume(volume.value)
+  applyVolume(parseFloat(newVolume))
+}
+
+function setPreviewDucking(active, multiplier = 0.2) {
+  previewDuckMultiplier.value = active ? clamp(Number(multiplier) || 0.2, 0, 1) : 1
+  applyVolume(baseVolume.value, { persistBase: false })
 }
 
 function setSinkId(sinkId) {
@@ -1433,7 +1449,7 @@ function hardRebuildWaveform() {
     time: typeof player.getCurrentTime === 'function' ? player.getCurrentTime() : 0,
     shouldPlay,
     speedAdded: speed_added.value,
-    volume: typeof player.getVolume === 'function' ? player.getVolume() : volume.value
+    volume: baseVolume.value
   }
 
   pendingRestoreState = restoreState
@@ -1650,7 +1666,8 @@ defineExpose({
   },
   refreshWaveform,
   forceWaveformRebuild: hardRebuildWaveform,
-  setSinkId
+  setSinkId,
+  setPreviewDucking
 })
 </script>
 

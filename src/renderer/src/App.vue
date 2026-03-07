@@ -57,6 +57,7 @@
           :id="selectedSongs.length > 0 ? selectedSongs[0] : 0"
           :preview-sink-id="previewSinkId"
           @wave-updated="waveUpdated"
+          @preview-play-state="onWavePreviewPlayState"
         />
         <div
           v-if="currentSelectedOption && currentSelectedOption === options.library"
@@ -1262,6 +1263,8 @@ const previewSinkId = ref(null)
 const previewOutputs = ref([])
 const previewPlaylistEntryId = ref(null)
 const deckSinkId = ref(null)
+const waveEditorPreviewActive = ref(false)
+const PREVIEW_DECK_DUCK_MULTIPLIER = 0.2
 const hasStoredSettings = Boolean(localStorage.getItem('vmusic_settings'))
 const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
 const normalizedHistoryLimit = normalizeHistoryLimit(savedSettingsRef.historyLimit)
@@ -1331,9 +1334,40 @@ const isFirstPlay = ref(true)
 let playersResizeRafId = null
 let playersResizeTimeoutIds = []
 let playersFullscreenRecoverTimeoutIds = []
+let traySyncIntervalId = null
 const isWindowFullscreen = ref(false)
 const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
 const mediaKeyCodes = new Set(['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaStop'])
+
+function normalizeOutputDeviceId(deviceId) {
+  return deviceId && deviceId !== 'default' ? deviceId : 'default'
+}
+
+function shouldDuckDeckPlayersForPreview() {
+  const isStandardPreviewActive = previewStatus.value === 'loading' || previewStatus.value === 'playing'
+  const sameOutputDevice = normalizeOutputDeviceId(previewSinkId.value) === normalizeOutputDeviceId(deckSinkId.value)
+
+  return sameOutputDevice && (isStandardPreviewActive || waveEditorPreviewActive.value)
+}
+
+function syncPreviewDeckDucking() {
+  const shouldDuck = shouldDuckDeckPlayersForPreview()
+
+  if (player1.value?.setPreviewDucking) {
+    player1.value.setPreviewDucking(shouldDuck, PREVIEW_DECK_DUCK_MULTIPLIER)
+  }
+  if (player2.value?.setPreviewDucking) {
+    player2.value.setPreviewDucking(shouldDuck, PREVIEW_DECK_DUCK_MULTIPLIER)
+  }
+}
+
+watch([previewStatus, previewSinkId, deckSinkId, waveEditorPreviewActive, player1, player2], () => {
+  syncPreviewDeckDucking()
+}, { immediate: true })
+
+function onWavePreviewPlayState(isPlaying) {
+  waveEditorPreviewActive.value = Boolean(isPlaying)
+}
 
 // Multiselects
 const artistMultiSelect = ref(null)
@@ -1726,13 +1760,16 @@ onMounted(() => {
   setupMediaSessionHandlers()
   updateMediaSessionState()
   updateMediaSessionMetadata()
+  sendTrayMediaControlsState()
   syncWindowDisplayMode().finally(() => {
     pageSizeRef.value = getRowsPerPageByMode()
   })
-  if (window.electron2?.ipcRenderer?.on) {
-    window.electron2.ipcRenderer.on('window-display-mode-changed', onWindowDisplayModeChanged)
-    window.electron2.ipcRenderer.on('window-fullscreen-changed', onFullscreenChanged)
-  }
+  window.electron2?.onWindowDisplayModeChanged?.(onWindowDisplayModeChanged)
+  window.electron2?.onWindowFullscreenChanged?.(onFullscreenChanged)
+  window.electron2?.onMediaControlsCommand?.(onTrayMediaCommand)
+  traySyncIntervalId = setInterval(() => {
+    sendTrayMediaControlsState()
+  }, 1000)
   window.addEventListener('keydown', onHardwareMediaKey)
   window.addEventListener('keydown', onModifierKeyDown, true)
   window.addEventListener('keyup', onModifierKeyUp)
@@ -1745,14 +1782,18 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearMediaSessionHandlers()
+  sendTrayMediaControlsState({ canControl: false })
   if (filterQueryDebounceTimer) {
     clearTimeout(filterQueryDebounceTimer)
     filterQueryDebounceTimer = null
   }
-  if (window.electron2?.ipcRenderer?.removeListener) {
-    window.electron2.ipcRenderer.removeListener('window-display-mode-changed', onWindowDisplayModeChanged)
-    window.electron2.ipcRenderer.removeListener('window-fullscreen-changed', onFullscreenChanged)
+  if (traySyncIntervalId) {
+    clearInterval(traySyncIntervalId)
+    traySyncIntervalId = null
   }
+  window.electron2?.offWindowDisplayModeChanged?.(onWindowDisplayModeChanged)
+  window.electron2?.offWindowFullscreenChanged?.(onFullscreenChanged)
+  window.electron2?.offMediaControlsCommand?.(onTrayMediaCommand)
   window.removeEventListener('keydown', onHardwareMediaKey)
   window.removeEventListener('keydown', onModifierKeyDown, true)
   window.removeEventListener('keyup', onModifierKeyUp)
@@ -1855,7 +1896,8 @@ function onWindowResizeRedrawPlayers() {
   })
 
   // Electron may settle window bounds after resize/fullscreenchange.
-  ;[140, 320, 620].forEach((delay) => {
+  const resizeRecoveryDelays = [140, 320, 620]
+  resizeRecoveryDelays.forEach((delay) => {
     const timeoutId = setTimeout(() => {
       refreshPlayers()
     }, delay)
@@ -1903,10 +1945,13 @@ watch(() => [
   player1.value?.status,
   player2.value?.status,
   player1.value?.songFull?.id,
-  player2.value?.songFull?.id
+  player2.value?.songFull?.id,
+  player1.value?.songFull?.name,
+  player2.value?.songFull?.name
 ], () => {
   updateMediaSessionState()
   updateMediaSessionMetadata()
+  sendTrayMediaControlsState()
 })
 
 const removeAccents = (str) => String(str || '').normalize('NFD')
@@ -3462,6 +3507,58 @@ function updateMediaSessionMetadata() {
     artist: artistNames || 'Sin artista',
     album: 'Salsamanía'
   })
+}
+
+function sendTrayMediaControlsState(overrides = {}) {
+  if (!window.electron2?.updateMediaControlsState) return
+  const activePlayer = getMediaTargetPlayer()
+  const song = activePlayer?.songFull
+  const isPlaying = player1.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Reproduciendo
+  const canControl = Boolean(player1.value?.status === playerStatuses.Listo || player1.value?.status === playerStatuses.Pausado || player1.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Listo || player2.value?.status === playerStatuses.Pausado || player2.value?.status === playerStatuses.Reproduciendo)
+  const artistNames = Array.isArray(song?.Artists) ? song.Artists.map((artist) => artist.name).join(', ') : ''
+
+  window.electron2.updateMediaControlsState({
+    canControl,
+    isPlaying,
+    title: song?.name || '',
+    artist: artistNames || '',
+    ...overrides
+  })
+}
+
+function onTrayMediaCommand(_event, command) {
+  if (command === 'playpause') {
+    const currentlyPlaying = player1.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Reproduciendo
+    if (currentlyPlaying) {
+      pause()
+    } else {
+      play()
+    }
+
+    return
+  }
+
+  if (command === 'play') {
+    play()
+
+    return
+  }
+
+  if (command === 'pause') {
+    pause()
+
+    return
+  }
+
+  if (command === 'next') {
+    next()
+
+    return
+  }
+
+  if (command === 'previous') {
+    previousTrack()
+  }
 }
 
 function onHardwareMediaKey(event) {

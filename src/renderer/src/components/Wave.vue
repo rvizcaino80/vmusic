@@ -143,10 +143,12 @@ onMounted(() => {
 
       player.on('play', () => {
         isPlaying.value = true
+        emit('preview-play-state', true)
       })
 
       player.on('pause', () => {
         isPlaying.value = false
+        emit('preview-play-state', false)
       })
 
       player.on('load', () => {
@@ -180,7 +182,7 @@ onMounted(() => {
     })
 })
 
-const emit = defineEmits(['wave-updated'])
+const emit = defineEmits(['wave-updated', 'preview-play-state'])
 const sliderValue = ref(30)
 
 const props = defineProps({
@@ -301,6 +303,7 @@ watch(() => props.previewSinkId, (val) => {
 window.addEventListener('vmusic-color-schema-changed', handleThemeChanged)
 
 onBeforeUnmount(() => {
+  emit('preview-play-state', false)
   window.removeEventListener('vmusic-color-schema-changed', handleThemeChanged)
   if (player) {
     player.destroy()
