@@ -1663,6 +1663,7 @@ defineExpose({
   status,
   left,
   songFull,
+  songImage,
   tempFade,
   load,
   play,
@@ -1680,6 +1681,13 @@ defineExpose({
   refreshBaseSpeed: () => {
     updateBaseSpeed()
     applySpeed()
+  },
+  getMediaElement: () => {
+    if (player && typeof player.getMediaElement === 'function') {
+      return player.getMediaElement()
+    }
+
+    return mediaElement
   },
   refreshWaveform,
   forceWaveformRebuild: hardRebuildWaveform,

@@ -652,8 +652,59 @@
           @fading="songFading(player1)"
           @speed="saveSpeed(player1)"
         />
-        <div class="p-6">
-          <div class="relative">
+        <div class="vm-center-stage">
+          <div
+            v-if="centerVisualizerEnabled"
+            :class="[
+              'vm-center-visualizer',
+              centerVisualizerDeckClass,
+              { 'is-playing': centerVisualizerAnimating }
+            ]"
+          >
+            <div class="vm-center-content">
+              <div
+                class="vm-center-cover-frame"
+                :class="{ 'has-cover': Boolean(centerVisualizerCover) }"
+              >
+                <img
+                  v-if="centerVisualizerCover"
+                  :src="centerVisualizerCover"
+                  class="vm-center-cover"
+                  draggable="false"
+                >
+                <div
+                  v-else
+                  class="vm-center-cover-fallback"
+                >
+                  {{ centerVisualizerDeckLabel }}
+                </div>
+                <div class="vm-center-cover-ring" />
+              </div>
+
+              <div class="vm-center-meta">
+                <div class="vm-center-kicker">
+                  <span>{{ centerVisualizerStateLabel }} {{ centerVisualizerDeckLabel }}</span>
+                </div>
+                <h2>{{ centerVisualizerTitle }}</h2>
+                <p>{{ centerVisualizerArtist }}</p>
+                <div
+                  class="vm-center-rms-bars"
+                  aria-hidden="true"
+                >
+                  <span
+                    v-for="(height, index) in centerVisualizerBarHeights"
+                    :key="index"
+                    class="vm-center-rms-bar"
+                    :style="{ transform: `scaleY(${height})` }"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            v-else
+            class="vm-center-logo-wrap relative"
+          >
             <div
               id="logo"
               class="vm-logo w-full h-auto select-none"
@@ -1148,6 +1199,7 @@ const COLOR_SCHEMA_TRANSITION_MS = 1000
 let colorSchemaTransitionTimer = null
 let colorSchemaTransitionRaf = null
 const SONG_HISTORY_STORAGE_KEY = 'vmusic_song_history'
+const CENTER_VISUALIZER_STORAGE_KEY = 'vmusic_center_visualizer'
 const antTheme = {
   token: {
     colorPrimary: 'var(--vm-ant-primary)',
@@ -1331,15 +1383,28 @@ const m3uSourceLabel = computed(() => {
 const player1 = ref(null)
 const player2 = ref(null)
 const isFirstPlay = ref(true)
+const lastActiveDeckPosition = ref(null)
 let playersResizeRafId = null
 let playersResizeTimeoutIds = []
 let playersFullscreenRecoverTimeoutIds = []
 let traySyncIntervalId = null
+let logoAnimationIntervalId = null
 const isWindowFullscreen = ref(false)
 const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
 const mediaKeyCodes = new Set(['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaStop'])
 const KEYBOARD_SEEK_SECONDS = 5
 const KEYBOARD_SPEED_STEP = 1
+const CENTER_VISUALIZER_BAR_COUNT = 20
+const centerVisualizerEnabled = ref(localStorage.getItem(CENTER_VISUALIZER_STORAGE_KEY) === '1')
+const centerVisualizerBarHeights = ref(Array.from({ length: CENTER_VISUALIZER_BAR_COUNT }, () => 0.16))
+let centerVisualizerAudioContext = null
+let centerVisualizerAnalyser = null
+let centerVisualizerSourceNode = null
+let centerVisualizerBoundMedia = null
+let centerVisualizerFrameId = null
+let centerVisualizerDataBuffer = null
+let centerVisualizerRetryMedia = null
+let centerVisualizerRetryHandler = null
 
 function normalizeOutputDeviceId(deviceId) {
   return deviceId && deviceId !== 'default' ? deviceId : 'default'
@@ -1716,10 +1781,13 @@ loadSongHistory()
 
 onMounted(() => {
   // filterSongs()
-  setInterval(function() {
-    document.getElementById('logo').classList.add('jello-horizontal')
+  logoAnimationIntervalId = setInterval(function() {
+    const logo = document.getElementById('logo')
+    if (!logo) return
+
+    logo.classList.add('jello-horizontal')
     setTimeout(function() {
-      document.getElementById('logo').classList.remove('jello-horizontal')
+      logo.classList.remove('jello-horizontal')
     }, 1000)
   }, 10000)
 })
@@ -1774,6 +1842,7 @@ onMounted(() => {
   }, 1000)
   window.addEventListener('keydown', onHardwareMediaKey)
   window.addEventListener('keydown', onKeyboardSeekKey)
+  window.addEventListener('keydown', onVisualizerToggleKey)
   window.addEventListener('keydown', onModifierKeyDown, true)
   window.addEventListener('keyup', onModifierKeyUp)
   window.addEventListener('blur', onWindowBlurResetModifiers)
@@ -1794,11 +1863,16 @@ onUnmounted(() => {
     clearInterval(traySyncIntervalId)
     traySyncIntervalId = null
   }
+  if (logoAnimationIntervalId) {
+    clearInterval(logoAnimationIntervalId)
+    logoAnimationIntervalId = null
+  }
   window.electron2?.offWindowDisplayModeChanged?.(onWindowDisplayModeChanged)
   window.electron2?.offWindowFullscreenChanged?.(onFullscreenChanged)
   window.electron2?.offMediaControlsCommand?.(onTrayMediaCommand)
   window.removeEventListener('keydown', onHardwareMediaKey)
   window.removeEventListener('keydown', onKeyboardSeekKey)
+  window.removeEventListener('keydown', onVisualizerToggleKey)
   window.removeEventListener('keydown', onModifierKeyDown, true)
   window.removeEventListener('keyup', onModifierKeyUp)
   window.removeEventListener('blur', onWindowBlurResetModifiers)
@@ -1817,6 +1891,11 @@ onUnmounted(() => {
   if (playersFullscreenRecoverTimeoutIds.length > 0) {
     playersFullscreenRecoverTimeoutIds.forEach((id) => clearTimeout(id))
     playersFullscreenRecoverTimeoutIds = []
+  }
+  stopCenterVisualizerAnalysis()
+  if (centerVisualizerAudioContext && typeof centerVisualizerAudioContext.close === 'function') {
+    centerVisualizerAudioContext.close()
+    centerVisualizerAudioContext = null
   }
 })
 
@@ -1956,6 +2035,30 @@ watch(() => [
   updateMediaSessionState()
   updateMediaSessionMetadata()
   sendTrayMediaControlsState()
+})
+
+watch(() => [
+  player1.value?.status,
+  player2.value?.status
+], () => {
+  if (player1.value?.status === playerStatuses.Reproduciendo || player1.value?.status === playerStatuses.Cambiando || player1.value?.status === playerStatuses.Nivelando) {
+    rememberActiveDeck(player1.value)
+
+    return
+  }
+
+  if (player2.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Cambiando || player2.value?.status === playerStatuses.Nivelando) {
+    rememberActiveDeck(player2.value)
+  }
+}, { immediate: true })
+
+watch(centerVisualizerEnabled, (enabled) => {
+  localStorage.setItem(CENTER_VISUALIZER_STORAGE_KEY, enabled ? '1' : '0')
+  if (enabled) {
+    ensureCenterVisualizerAnalysis()
+  } else {
+    stopCenterVisualizerAnalysis()
+  }
 })
 
 const removeAccents = (str) => String(str || '').normalize('NFD')
@@ -3457,16 +3560,235 @@ function next() {
   }
 }
 
+function rememberActiveDeck(playerRef) {
+  if (!playerRef?.position) return
+  lastActiveDeckPosition.value = playerRef.position
+}
+
 function getMediaTargetPlayer() {
   if (!player1.value || !player2.value) return null
 
   if (player1.value.status === playerStatuses.Reproduciendo) return player1.value
   if (player2.value.status === playerStatuses.Reproduciendo) return player2.value
+
+  if (lastActiveDeckPosition.value === 'top' && (player1.value.status === playerStatuses.Pausado || player1.value.status === playerStatuses.Listo)) {
+    return player1.value
+  }
+
+  if (lastActiveDeckPosition.value === 'bottom' && (player2.value.status === playerStatuses.Pausado || player2.value.status === playerStatuses.Listo)) {
+    return player2.value
+  }
+
   if (player1.value.status === playerStatuses.Pausado || player1.value.status === playerStatuses.Listo) return player1.value
   if (player2.value.status === playerStatuses.Pausado || player2.value.status === playerStatuses.Listo) return player2.value
 
   return null
 }
+
+const centerVisualizerPlayer = computed(() => {
+  const active = getMediaTargetPlayer()
+  if (active?.songFull?.id) return active
+  if (player1.value?.songFull?.id) return player1.value
+  if (player2.value?.songFull?.id) return player2.value
+
+  return null
+})
+
+const centerVisualizerSong = computed(() => centerVisualizerPlayer.value?.songFull || null)
+const centerVisualizerCover = computed(() => centerVisualizerPlayer.value?.songImage || '')
+const centerVisualizerDeckLabel = computed(() => {
+  if (centerVisualizerPlayer.value?.position === 'top') return 'Deck A'
+  if (centerVisualizerPlayer.value?.position === 'bottom') return 'Deck B'
+
+  return 'Salsamania'
+})
+
+const centerVisualizerDeckClass = computed(() => {
+  if (centerVisualizerPlayer.value?.position === 'top') return 'vm-center-visualizer-a'
+  if (centerVisualizerPlayer.value?.position === 'bottom') return 'vm-center-visualizer-b'
+
+  return 'vm-center-visualizer-idle'
+})
+
+const centerVisualizerAnimating = computed(() => {
+  const status = centerVisualizerPlayer.value?.status
+
+  return status === playerStatuses.Reproduciendo || status === playerStatuses.Cambiando || status === playerStatuses.Nivelando
+})
+
+const centerVisualizerStateLabel = computed(() => {
+  const status = centerVisualizerPlayer.value?.status
+
+  return Object.entries(playerStatuses).find(([, value]) => value === status)?.[0] || 'Visual'
+})
+
+const centerVisualizerTitle = computed(() => centerVisualizerSong.value?.name || 'Salsamania')
+
+const centerVisualizerArtist = computed(() => {
+  const artists = centerVisualizerSong.value?.Artists
+  if (Array.isArray(artists) && artists.length > 0) {
+    return artists.map((artist) => artist.name).join(', ')
+  }
+
+  return centerVisualizerEnabled.value ? 'Modo visual activo' : ''
+})
+
+function resetCenterVisualizerBars() {
+  centerVisualizerBarHeights.value = Array.from({ length: CENTER_VISUALIZER_BAR_COUNT }, () => 0.16)
+}
+
+function clearCenterVisualizerRetryListeners() {
+  if (!centerVisualizerRetryMedia || !centerVisualizerRetryHandler) return
+
+  centerVisualizerRetryMedia.removeEventListener('loadeddata', centerVisualizerRetryHandler)
+  centerVisualizerRetryMedia.removeEventListener('canplay', centerVisualizerRetryHandler)
+  centerVisualizerRetryMedia.removeEventListener('playing', centerVisualizerRetryHandler)
+  centerVisualizerRetryMedia = null
+  centerVisualizerRetryHandler = null
+}
+
+function scheduleCenterVisualizerRetry(media) {
+  if (!media) return
+  if (centerVisualizerRetryMedia === media && centerVisualizerRetryHandler) return
+
+  clearCenterVisualizerRetryListeners()
+  centerVisualizerRetryMedia = media
+  centerVisualizerRetryHandler = () => {
+    clearCenterVisualizerRetryListeners()
+    ensureCenterVisualizerAnalysis()
+  }
+
+  media.addEventListener('loadeddata', centerVisualizerRetryHandler, { once: true })
+  media.addEventListener('canplay', centerVisualizerRetryHandler, { once: true })
+  media.addEventListener('playing', centerVisualizerRetryHandler, { once: true })
+}
+
+function stopCenterVisualizerAnalysis() {
+  if (centerVisualizerFrameId) {
+    cancelAnimationFrame(centerVisualizerFrameId)
+    centerVisualizerFrameId = null
+  }
+
+  if (centerVisualizerSourceNode) {
+    try {
+      centerVisualizerSourceNode.disconnect()
+    } catch (error) {}
+    centerVisualizerSourceNode = null
+  }
+
+  if (centerVisualizerAnalyser) {
+    try {
+      centerVisualizerAnalyser.disconnect()
+    } catch (error) {}
+    centerVisualizerAnalyser = null
+  }
+
+  centerVisualizerBoundMedia = null
+  centerVisualizerDataBuffer = null
+  clearCenterVisualizerRetryListeners()
+  resetCenterVisualizerBars()
+}
+
+function updateCenterVisualizerBars() {
+  if (!centerVisualizerAnalyser || !centerVisualizerDataBuffer) return
+
+  centerVisualizerAnalyser.getFloatTimeDomainData(centerVisualizerDataBuffer)
+  const buffer = centerVisualizerDataBuffer
+  const segmentSize = Math.max(1, Math.floor(buffer.length / CENTER_VISUALIZER_BAR_COUNT))
+  const nextHeights = []
+
+  for (let barIndex = 0; barIndex < CENTER_VISUALIZER_BAR_COUNT; barIndex++) {
+    const startIndex = barIndex * segmentSize
+    const endIndex = Math.min(buffer.length, startIndex + segmentSize)
+    let sumSquares = 0
+    let count = 0
+
+    for (let index = startIndex; index < endIndex; index++) {
+      const sample = buffer[index]
+      sumSquares += sample * sample
+      count += 1
+    }
+
+    const rms = count > 0 ? Math.sqrt(sumSquares / count) : 0
+    const normalized = Math.min(1, Math.max(0.08, rms * 8.5))
+    const previous = centerVisualizerBarHeights.value[barIndex] || 0.16
+    const smoothed = previous * 0.68 + normalized * 0.32
+    nextHeights.push(smoothed)
+  }
+
+  centerVisualizerBarHeights.value = nextHeights
+  centerVisualizerFrameId = requestAnimationFrame(updateCenterVisualizerBars)
+}
+
+async function ensureCenterVisualizerAnalysis() {
+  if (!centerVisualizerEnabled.value) {
+    stopCenterVisualizerAnalysis()
+
+    return
+  }
+
+  const media = centerVisualizerPlayer.value?.getMediaElement?.()
+  if (!media) {
+    stopCenterVisualizerAnalysis()
+
+    return
+  }
+
+  if (centerVisualizerBoundMedia === media && centerVisualizerAnalyser) {
+    if (!centerVisualizerFrameId) {
+      centerVisualizerFrameId = requestAnimationFrame(updateCenterVisualizerBars)
+    }
+
+    return
+  }
+
+  stopCenterVisualizerAnalysis()
+
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext
+  if (!AudioContextCtor) return
+
+  if (!centerVisualizerAudioContext) {
+    centerVisualizerAudioContext = new AudioContextCtor()
+  }
+
+  if (centerVisualizerAudioContext.state === 'suspended') {
+    try {
+      await centerVisualizerAudioContext.resume()
+    } catch (error) {}
+  }
+
+  const stream = typeof media.captureStream === 'function' ? media.captureStream() : (typeof media.mozCaptureStream === 'function' ? media.mozCaptureStream() : null)
+  if (!stream) {
+    scheduleCenterVisualizerRetry(media)
+
+    return
+  }
+
+  const audioTracks = typeof stream.getAudioTracks === 'function' ? stream.getAudioTracks() : []
+  if (!audioTracks || audioTracks.length <= 0) {
+    scheduleCenterVisualizerRetry(media)
+
+    return
+  }
+
+  centerVisualizerAnalyser = centerVisualizerAudioContext.createAnalyser()
+  centerVisualizerAnalyser.fftSize = 2048
+  centerVisualizerAnalyser.smoothingTimeConstant = 0.72
+  centerVisualizerDataBuffer = new Float32Array(centerVisualizerAnalyser.fftSize)
+  centerVisualizerSourceNode = centerVisualizerAudioContext.createMediaStreamSource(stream)
+  centerVisualizerSourceNode.connect(centerVisualizerAnalyser)
+  centerVisualizerBoundMedia = media
+  centerVisualizerFrameId = requestAnimationFrame(updateCenterVisualizerBars)
+}
+
+watch(() => [
+  centerVisualizerEnabled.value,
+  centerVisualizerPlayer.value?.position,
+  centerVisualizerPlayer.value?.songFull?.id,
+  centerVisualizerPlayer.value?.status
+], () => {
+  ensureCenterVisualizerAnalysis()
+}, { immediate: true })
 
 function previousTrack() {
   const targetPlayer = getMediaTargetPlayer()
@@ -3656,24 +3978,34 @@ function adjustActivePlayerSpeed(delta) {
 function onKeyboardSeekKey(event) {
   if (event.defaultPrevented || event.repeat) return
   if (isEditableKeyboardTarget(event.target)) return
-  if (event.ctrlKey || event.metaKey) return
+  if (event.ctrlKey) return
 
-  if (event.altKey) {
-    if (event.key === 'ArrowLeft') {
-      if (adjustActivePlayerSpeed(-KEYBOARD_SPEED_STEP)) {
-        event.preventDefault()
-      }
+  const normalizedKey = event.key.toLowerCase()
 
-      return
+  if (event.metaKey && normalizedKey === 'z') {
+    if (adjustActivePlayerSpeed(event.shiftKey ? KEYBOARD_SPEED_STEP : -KEYBOARD_SPEED_STEP)) {
+      event.preventDefault()
     }
 
-    if (event.key === 'ArrowRight') {
-      if (adjustActivePlayerSpeed(KEYBOARD_SPEED_STEP)) {
-        event.preventDefault()
-      }
+    return
+  }
 
-      return
+  if (event.altKey) return
+
+  if (event.key === 'ArrowDown') {
+    if (adjustActivePlayerSpeed(-KEYBOARD_SPEED_STEP)) {
+      event.preventDefault()
     }
+
+    return
+  }
+
+  if (event.key === 'ArrowUp') {
+    if (adjustActivePlayerSpeed(KEYBOARD_SPEED_STEP)) {
+      event.preventDefault()
+    }
+
+    return
   }
 
   if (event.key === 'ArrowLeft') {
@@ -3687,6 +4019,20 @@ function onKeyboardSeekKey(event) {
   if (event.key === 'ArrowRight' && seekActivePlayer(KEYBOARD_SEEK_SECONDS)) {
     event.preventDefault()
   }
+}
+
+function onVisualizerToggleKey(event) {
+  if (event.defaultPrevented || event.repeat) return
+  if (isEditableKeyboardTarget(event.target)) return
+  if (event.altKey || event.ctrlKey || event.metaKey) return
+  if (event.key.toLowerCase() !== 'v') return
+
+  centerVisualizerEnabled.value = !centerVisualizerEnabled.value
+  event.preventDefault()
+  nextTick(() => {
+    player1.value?.refreshWaveform?.()
+    player2.value?.refreshWaveform?.()
+  })
 }
 
 function onModifierKeyDown(event) {
@@ -3961,6 +4307,203 @@ table tr td.ant-table-cell {
   height: auto;
   display: block;
 }
+
+.vm-center-stage {
+  min-height: 184px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.vm-center-logo-wrap {
+  width: 100%;
+  max-height: 184px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.vm-center-logo-wrap .vm-logo {
+  width: min(100%, 460px);
+  max-height: 184px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vm-center-logo-wrap .vm-logo svg {
+  max-height: 184px;
+}
+
+.vm-center-visualizer {
+  position: relative;
+  width: 100%;
+  min-height: 184px;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.vm-center-content {
+  position: relative;
+  z-index: 2;
+  min-height: 184px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 0;
+}
+
+.vm-center-cover-frame {
+  position: relative;
+  width: 156px;
+  height: 156px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  box-shadow: none;
+}
+
+.vm-center-cover-frame.has-cover {
+  background: transparent;
+}
+
+.vm-center-cover {
+  width: 136px;
+  height: 136px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 22px;
+  box-shadow: none;
+}
+
+.vm-center-cover-fallback {
+  width: 136px;
+  height: 136px;
+  aspect-ratio: 1 / 1;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, var(--vm-player-wave-a), var(--vm-player-wave-b));
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vm-center-cover-ring {
+  display: none;
+}
+
+.vm-center-visualizer.is-playing .vm-center-cover-frame {
+  animation: vm-center-cover-pulse 3.2s ease-in-out infinite;
+}
+
+.vm-center-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
+  min-width: 0;
+  max-width: min(420px, 100%);
+}
+
+.vm-center-kicker {
+  display: flex;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.vm-center-meta h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(0.98rem, 1.75vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.08;
+  max-width: 100%;
+}
+
+.vm-center-meta p {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.88rem;
+  max-width: 100%;
+}
+
+.vm-center-rms-bars {
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  height: 32px;
+  margin-top: 10px;
+}
+
+.vm-center-rms-bar {
+  width: 4px;
+  height: 100%;
+  border-radius: 999px;
+  transform-origin: center bottom;
+  transition: transform 90ms linear;
+  background: linear-gradient(to top, var(--vm-player-wave-a), var(--vm-player-wave-b));
+}
+
+.vm-center-visualizer-a {
+  --vm-center-accent: var(--vm-player-wave-a);
+}
+
+.vm-center-visualizer-b {
+  --vm-center-accent: var(--vm-player-wave-b);
+}
+
+.vm-center-visualizer-idle {
+  --vm-center-accent: color-mix(in srgb, var(--vm-player-wave-a) 50%, var(--vm-player-wave-b) 50%);
+}
+
+@keyframes vm-center-cover-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@media (max-width: 900px) {
+  .vm-center-content {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .vm-center-meta {
+    align-items: center;
+    text-align: center;
+  }
+
+  .vm-center-kicker {
+    justify-content: center;
+  }
+}
+
 
 #app .vmusic-app .vm-logo stop:first-of-type {
   stop-color: var(--vm-player-wave-b) !important;
