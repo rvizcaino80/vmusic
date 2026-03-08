@@ -631,6 +631,37 @@
       </div>
     </div>
 
+    <div
+      v-if="customUpdaterVisible"
+      class="mx-4 mb-2 rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-white flex items-center justify-between gap-3"
+    >
+      <div class="min-w-0">
+        <div class="text-sm font-semibold truncate">
+          {{ customUpdaterTitle }}
+        </div>
+        <div class="text-xs text-white/70 truncate">
+          {{ customUpdaterMessage }}
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <a-button
+          v-if="customUpdaterState.status === 'error'"
+          size="small"
+          @click="checkCustomUpdater()"
+        >
+          Reintentar
+        </a-button>
+        <a-button
+          v-if="customUpdaterState.status === 'downloaded'"
+          size="small"
+          type="primary"
+          @click="installCustomUpdaterNow()"
+        >
+          Instalar ahora
+        </a-button>
+      </div>
+    </div>
+
     <div class="vmusic-app flex items-stretch min-w-0">
       <div class="flex-[5] flex flex-col justify-between min-w-0">
         <Player
@@ -1345,6 +1376,20 @@ if (
 const downloadTasksCount = ref(0)
 const DOWNLOAD_TASKS_STORAGE_KEY = 'vmusic_download_tasks'
 const DOWNLOAD_TASK_TIMEOUT_MS = 5 * 60 * 1000
+const customUpdaterState = ref({
+  status: 'idle',
+  version: '',
+  message: '',
+  downloaded: false,
+  supported: false
+})
+const isMacPlatform = typeof navigator !== 'undefined' && (/mac/i).test(navigator.platform || navigator.userAgent || '')
+const customUpdaterListener = (_event, payload) => {
+  customUpdaterState.value = {
+    ...customUpdaterState.value,
+    ...(payload || {})
+  }
+}
 
 // Tags
 const tags = ref([])
@@ -1645,6 +1690,49 @@ const isDeckAInitialPreprocessBlockingPlayback = computed(() => {
   return Boolean(player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed)
 })
 
+const customUpdaterVisible = computed(() => {
+  if (!isMacPlatform) return false
+
+  return ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(customUpdaterState.value.status)
+})
+
+const customUpdaterTitle = computed(() => {
+  switch (customUpdaterState.value.status) {
+  case 'checking':
+    return 'Buscando actualización'
+  case 'available':
+    return `Nueva versión ${customUpdaterState.value.version || ''}`.trim()
+  case 'downloading':
+    return `Descargando ${customUpdaterState.value.version || 'actualización'}`
+  case 'downloaded':
+    return `Actualización lista ${customUpdaterState.value.version || ''}`.trim()
+  case 'installing':
+    return 'Instalando actualización'
+  case 'error':
+    return 'No se pudo actualizar'
+  default:
+    return 'Actualización'
+  }
+})
+
+const customUpdaterMessage = computed(() => {
+  return customUpdaterState.value.message || 'Actualización personal para macOS.'
+})
+
+async function checkCustomUpdater() {
+  if (!window.electron2?.checkCustomUpdater) return
+  const nextState = await window.electron2.checkCustomUpdater()
+  customUpdaterState.value = {
+    ...customUpdaterState.value,
+    ...(nextState || {})
+  }
+}
+
+async function installCustomUpdaterNow() {
+  if (!window.electron2?.installCustomUpdaterNow) return
+  await window.electron2.installCustomUpdaterNow()
+}
+
 // Define localstorage settings
 if (!localStorage.getItem('vmusic_library_state')) {
   localStorage.setItem('vmusic_library_state', JSON.stringify(libraryState.value))
@@ -1827,6 +1915,17 @@ function refreshDownloadCount() {
 
 onMounted(() => {
   refreshDownloadCount()
+  if (window.electron2?.getCustomUpdaterState) {
+    window.electron2.getCustomUpdaterState()
+      .then((state) => {
+        customUpdaterState.value = {
+          ...customUpdaterState.value,
+          ...(state || {})
+        }
+      })
+      .catch(() => {})
+  }
+  window.electron2?.onCustomUpdaterState?.(customUpdaterListener)
   setupMediaSessionHandlers()
   updateMediaSessionState()
   updateMediaSessionMetadata()
@@ -1862,6 +1961,7 @@ onUnmounted(() => {
     clearInterval(logoAnimationIntervalId)
     logoAnimationIntervalId = null
   }
+  window.electron2?.offCustomUpdaterState?.(customUpdaterListener)
   window.electron2?.offMediaControlsCommand?.(onTrayMediaCommand)
   window.removeEventListener('keydown', onHardwareMediaKey)
   window.removeEventListener('keydown', onKeyboardSeekKey)
