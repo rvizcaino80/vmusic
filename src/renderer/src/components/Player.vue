@@ -27,7 +27,7 @@
             'player-deck-b': props.position === 'bottom',
             'player-deck-a': props.position === 'top'
           }"
-          class="flex text-[70px] player-text text-bold text-center h-[80px] w-[80px] items-center justify-center"
+          class="flex rounded-xl text-[70px] player-text text-bold text-center h-[80px] w-[80px] items-center justify-center"
         >
           <span
             v-if="props.position === 'top'"
@@ -167,7 +167,6 @@ import { onBeforeMount, onMounted, onBeforeUnmount, ref, watch, computed } from 
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
-import * as cheerio from 'cheerio'
 import axios from 'axios'
 
 const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'song-click', 'preview-start', 'preview-stop', 'finished'])
@@ -423,7 +422,6 @@ function init() {
 
   player.on('load', () => {
     applyPreservePitch()
-    songImage.value = ''
     waveformDuration.value = 0
     wsRegions.clearRegions()
     player.toggleInteraction(false)
@@ -439,25 +437,7 @@ function init() {
   player.on('ready', (d) => {
     applyPreservePitch()
     setSinkId(props.outputSinkId)
-    if (songFull.value.isAppleMusic) {
-      const url = `https://music.apple.com/co/song/taste/${songFull.value.ytid}`
-      fetch(url).then((response) => {
-        response.text().then((html) => {
-          const $ = cheerio.load(html)
-          const songInfo = JSON.parse($('script').first()
-            .text())
-          songImage.value = songInfo.image.replace('1200', '200')
-        })
-      })
-        .catch((e) => {
-          console.log(e)
-          songImage.value = ''
-          loadCoverFromMap()
-        })
-    } else {
-      songImage.value = ''
-      loadCoverFromMap()
-    }
+    songImage.value = getStoredCoverForSong(songFull.value)
 
     player.setOptions(originalOptions)
     player.toggleInteraction(false)
@@ -1135,14 +1115,9 @@ async function setSong(s) {
   start.value = s.start
   end.value = s.end
   songId.value = s.id
-  song.value = s.name
-  songImage.value = ''
+  applySongMetadata(s)
   speed.value = 1
   speed_added.value = normalizeSpeedOffset(s.speed)
-  artistsList.value = s.Artists || []
-  artist.value = artistsList.value.map((i) => i.name).join(', ')
-  primaryArtistId.value = artistsList.value?.[0]?.id || null
-  composer.value = s.Composers.map((i) => i.name).join(', ')
   player.setPlaybackRate(1.0, true)
   applyVolume(1)
   clearPreprocessDebounce()
@@ -1321,17 +1296,39 @@ function setSinkId(sinkId) {
   }
 }
 
-function loadCoverFromMap() {
+function getStoredCoverForSong(song) {
+  if (!song) return ''
+
+  const directCover = song.songImage || song.coverUrl || song.cover || song.image || song.artwork || ''
+  if (directCover) return directCover
+
   try {
     const stored = localStorage.getItem('vmusic_cover_map')
-    if (!stored || !songFull.value?.ytid) return
+    if (!stored || !song.ytid) return ''
     const parsed = JSON.parse(stored)
-    const cover = parsed[songFull.value.ytid]
-    if (cover) {
-      songImage.value = cover
-    }
+
+    return parsed[song.ytid] || ''
   } catch (error) {
-    // ignore
+    return ''
+  }
+}
+
+function applySongMetadata(songData) {
+  if (!songData) return
+
+  songFull.value = {
+    ...songFull.value,
+    ...songData
+  }
+  song.value = songFull.value.name || ''
+  artistsList.value = songFull.value.Artists || []
+  artist.value = artistsList.value.map((i) => i.name).join(', ')
+  primaryArtistId.value = artistsList.value?.[0]?.id || null
+  composer.value = (songFull.value.Composers || []).map((i) => i.name).join(', ')
+
+  const nextCover = getStoredCoverForSong(songFull.value)
+  if (nextCover) {
+    songImage.value = nextCover
   }
 }
 
@@ -1571,6 +1568,7 @@ defineExpose({
   seekBy,
   setSpeed,
   setSong,
+  updateSongMetadata: applySongMetadata,
   next,
   speed_added,
   baseSpeed,

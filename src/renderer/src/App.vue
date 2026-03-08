@@ -718,7 +718,7 @@
         />
         <div class="vm-center-stage flex-1">
           <div
-            v-if="centerVisualizerEnabled"
+            v-if="shouldShowCenterVisualizer"
             :class="[
               'vm-center-visualizer',
               centerVisualizerDeckClass,
@@ -1954,6 +1954,7 @@ function refreshDownloadCount() {
 
 onMounted(() => {
   refreshDownloadCount()
+  setOption(options.library)
   if (window.electron2?.getCustomUpdaterState) {
     window.electron2.getCustomUpdaterState()
       .then((state) => {
@@ -3505,14 +3506,15 @@ async function updated(songId) {
   const targetId = songId || selectedSongs.value[0]
   isLoadingLibrary.value = true
   await filterSongs()
-  await refreshSongInLibrary(targetId)
+  const updatedSong = await refreshSongInLibrary(targetId)
+  refreshEditedSongInLoadedPlayers(updatedSong)
   currentSelectedOption.value = options.library
   selectedSongs.value = []
   isLoadingLibrary.value = false
 }
 
 async function refreshSongInLibrary(id) {
-  if (!id) return
+  if (!id) return null
 
   try {
     const response = await axios.get(`http://localhost:3000/songs/${id}`)
@@ -3531,9 +3533,25 @@ async function refreshSongInLibrary(id) {
     if (index !== -1) {
       songs.value.splice(index, 1, normalizedSong)
     }
+
+    return normalizedSong
   } catch (error) {
     console.log(error)
+
+    return null
   }
+}
+
+function refreshEditedSongInLoadedPlayer(playerRef, updatedSong) {
+  if (!playerRef?.songFull?.id || !updatedSong?.id || playerRef.songFull.id !== updatedSong.id) return
+  if (typeof playerRef.updateSongMetadata !== 'function') return
+
+  playerRef.updateSongMetadata(updatedSong)
+}
+
+function refreshEditedSongInLoadedPlayers(updatedSong) {
+  refreshEditedSongInLoadedPlayer(player1.value, updatedSong)
+  refreshEditedSongInLoadedPlayer(player2.value, updatedSong)
 }
 
 function reloadEditedSongInInactivePlayer(playerRef, songId, markers) {
@@ -3631,6 +3649,10 @@ const centerVisualizerPlayer = computed(() => {
   if (player2.value?.songFull?.id) return player2.value
 
   return null
+})
+
+const shouldShowCenterVisualizer = computed(() => {
+  return centerVisualizerEnabled.value && Boolean(centerVisualizerPlayer.value?.songFull?.id)
 })
 
 const centerVisualizerSong = computed(() => centerVisualizerPlayer.value?.songFull || null)
@@ -4479,7 +4501,7 @@ table tr td.ant-table-cell {
 
 .vm-center-logo-wrap {
   width: 100%;
-  max-height: 184px;
+  max-height: 320px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4487,15 +4509,15 @@ table tr td.ant-table-cell {
 }
 
 .vm-center-logo-wrap .vm-logo {
-  width: min(100%, 460px);
-  max-height: 184px;
+  width: min(100%, 720px);
+  max-height: 320px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .vm-center-logo-wrap .vm-logo svg {
-  max-height: 184px;
+  max-height: 320px;
 }
 
 .vm-center-visualizer {
