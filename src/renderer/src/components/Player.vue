@@ -1,11 +1,11 @@
 <template>
   <div
     :class="{
-      'flex-col-reverse': props.position === 'top'
+      'player-layout-reverse': props.position === 'top'
     }"
-    class="justify-end player p-6 flex flex-col flex-1 max-h-[550px] min-w-0"
+    class="player player-fixed-layout p-6 min-w-0"
   >
-    <div class="flex justify-between space-x-3">
+    <div class="player-header flex justify-between space-x-3">
       <div class="flex space-x-3 flex-1 min-w-0">
         <div
           v-if="songImage"
@@ -156,8 +156,8 @@
     <div
       v-show="status !== props.statuses['Sin Carga']"
       :id="playerId"
-      :class="{ 'mb-3': props.position === 'top', 'mt-3': props.position === 'bottom' }"
-      class="wavesurfer flex-1 min-w-0 w-full overflow-hidden"
+      :class="{ 'mt-3': props.position === 'bottom' }"
+      class="wavesurfer wavesurfer-fixed-height min-w-0 w-full overflow-hidden"
     />
   </div>
 </template>
@@ -213,10 +213,6 @@ let wsRegions = null
 let originalOptions = {}
 let crossfaderOptions = {}
 let mediaElement = null
-let resizeObserver = null
-let resizeRafId = null
-let resizeFollowupTimeoutId = null
-let hardRebuildTimeoutId = null
 let isRebuildingWaveform = false
 let pendingRestoreState = null
 let forcedFadeEndAt = null
@@ -240,6 +236,7 @@ const AUDIO_DEBUG = import.meta.env.DEV
 const SPEED_PREPROCESS_DEBOUNCE_MS = 3200
 const SPEED_SWITCH_FADE_OUT_MS = 90
 const SPEED_SWITCH_FADE_IN_MS = 140
+const WAVEFORM_BAR_HEIGHT = 1
 
 const currentMediaVariant = ref('original')
 const processedSpeedRate = ref(null)
@@ -315,8 +312,6 @@ onBeforeMount(() => {
 onMounted(() => {
   updateBaseSpeed()
   init()
-  window.addEventListener('resize', onViewportResize)
-  setupResizeObserver()
 })
 
 function init() {
@@ -339,6 +334,7 @@ function init() {
     normalize: true,
     container: '#' + playerId.value,
     cursorColor,
+    barHeight: WAVEFORM_BAR_HEIGHT,
     height: 'auto',
     fillParent: true,
     backend: 'MediaElement',
@@ -351,6 +347,7 @@ function init() {
     normalize: true,
     container: '#' + playerId.value,
     cursorColor: crossfaderCursorColor,
+    barHeight: WAVEFORM_BAR_HEIGHT,
     height: 'auto',
     fillParent: true,
     waveColor,
@@ -1413,6 +1410,7 @@ function redrawWaveform() {
     waveColor,
     progressColor,
     cursorColor,
+    barHeight: WAVEFORM_BAR_HEIGHT,
     width: '100%',
     minPxPerSec: 0,
     height: renderHeight,
@@ -1491,91 +1489,8 @@ function hardRebuildWaveform() {
   }, 5000)
 }
 
-function scheduleWaveformRedraw() {
-  if (resizeRafId) {
-    cancelAnimationFrame(resizeRafId)
-  }
-  resizeRafId = requestAnimationFrame(() => {
-    resizeRafId = null
-    redrawWaveform()
-  })
-}
-
-function onViewportResize() {
-  refreshWaveform()
-}
-
-function setupResizeObserver() {
-  if (typeof ResizeObserver === 'undefined') return
-  const container = document.getElementById(playerId.value)
-  if (!container) return
-
-  resizeObserver = new ResizeObserver(() => {
-    refreshWaveform()
-  })
-  resizeObserver.observe(container)
-}
-
-function shouldHardRebuildWaveform() {
-  if (!player || !songFull.value?.id) return false
-  if (isRebuildingWaveform) return false
-
-  const decodedData = typeof player.getDecodedData === 'function' ? player.getDecodedData() : null
-  if (!decodedData) return false
-
-  const mount = document.getElementById(playerId.value)
-  if (!mount || mount.clientWidth <= 0) return false
-
-  const waveHost = Array.from(mount.children)
-    .find((node) => node && node.shadowRoot)
-  const shadow = waveHost?.shadowRoot
-  if (!shadow) return false
-
-  const scroll = shadow.querySelector('.scroll')
-  const wrapper = shadow.querySelector('.wrapper')
-  const widths = [scroll?.clientWidth, wrapper?.clientWidth].filter((value) => Number.isFinite(value) && value > 0)
-  const heights = [scroll?.clientHeight, wrapper?.clientHeight].filter((value) => Number.isFinite(value) && value > 0)
-  if (widths.length <= 0) return false
-
-  const widthMismatch = widths.some((width) => Math.abs(width - mount.clientWidth) > 4)
-  const heightMismatch = heights.length > 0 ? heights.some((height) => Math.abs(height - mount.clientHeight) > 4) : false
-  const scrollOversized = scroll && Number.isFinite(scroll.scrollWidth) ? (scroll.scrollWidth - mount.clientWidth) > 4 : false
-  const scrollOversizedY = scroll && Number.isFinite(scroll.scrollHeight) ? (scroll.scrollHeight - mount.clientHeight) > 4 : false
-
-  return widthMismatch || heightMismatch || scrollOversized || scrollOversizedY
-}
-
-function scheduleHardRebuildCheck() {
-  if (hardRebuildTimeoutId) {
-    clearTimeout(hardRebuildTimeoutId)
-    hardRebuildTimeoutId = null
-  }
-
-  hardRebuildTimeoutId = setTimeout(() => {
-    hardRebuildTimeoutId = null
-    if (shouldHardRebuildWaveform()) {
-      hardRebuildWaveform()
-    }
-  }, 320)
-}
-
-function runWaveformRefreshPass() {
-  scheduleWaveformRedraw()
-  scheduleHardRebuildCheck()
-}
-
 function refreshWaveform() {
-  runWaveformRefreshPass()
-  if (resizeFollowupTimeoutId) {
-    clearTimeout(resizeFollowupTimeoutId)
-    resizeFollowupTimeoutId = null
-  }
-
-  // Follow-up pass catches Electron fullscreen/restore layout timing.
-  resizeFollowupTimeoutId = setTimeout(() => {
-    resizeFollowupTimeoutId = null
-    runWaveformRefreshPass()
-  }, 180)
+  redrawWaveform()
 }
 
 function syncWaveColor() {
@@ -1630,7 +1545,6 @@ window.addEventListener('vmusic-color-schema-changed', handleThemeChanged)
 
 onBeforeUnmount(() => {
   window.removeEventListener('vmusic-color-schema-changed', handleThemeChanged)
-  window.removeEventListener('resize', onViewportResize)
   clearPreprocessDebounce()
   preprocessRequestSerial += 1
   isPreprocessingSpeed.value = false
@@ -1639,22 +1553,6 @@ onBeforeUnmount(() => {
   fadeProfileRequestSerial += 1
   fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
   forcedFadeEndAt = null
-  if (resizeObserver) {
-    resizeObserver.disconnect()
-    resizeObserver = null
-  }
-  if (resizeRafId) {
-    cancelAnimationFrame(resizeRafId)
-    resizeRafId = null
-  }
-  if (resizeFollowupTimeoutId) {
-    clearTimeout(resizeFollowupTimeoutId)
-    resizeFollowupTimeoutId = null
-  }
-  if (hardRebuildTimeoutId) {
-    clearTimeout(hardRebuildTimeoutId)
-    hardRebuildTimeoutId = null
-  }
 })
 
 defineExpose({
@@ -1713,14 +1611,44 @@ defineExpose({
   color: var(--vm-player-preview-hover);
 }
 
+.player-fixed-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 12px;
+}
+
+.player-header {
+  min-width: 0;
+}
+
+.player-layout-reverse .player-header {
+  order: 2;
+}
+
+.player-layout-reverse .wavesurfer-fixed-height {
+  order: 1;
+}
+
+.wavesurfer-fixed-height {
+  flex: none !important;
+  align-self: stretch;
+  height: 180px !important;
+  min-height: 180px !important;
+  max-height: 180px !important;
+}
+
 .wavesurfer::part(scroll) {
   overflow-x: hidden !important;
   width: 100% !important;
   max-width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
 }
 
 .wavesurfer::part(wrapper) {
   width: 100% !important;
   max-width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
 }
 </style>

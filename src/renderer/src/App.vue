@@ -652,7 +652,7 @@
           @fading="songFading(player1)"
           @speed="saveSpeed(player1)"
         />
-        <div class="vm-center-stage">
+        <div class="vm-center-stage flex-1">
           <div
             v-if="centerVisualizerEnabled"
             :class="[
@@ -1387,9 +1387,6 @@ const player1 = ref(null)
 const player2 = ref(null)
 const isFirstPlay = ref(true)
 const lastActiveDeckPosition = ref(null)
-let playersResizeRafId = null
-let playersResizeTimeoutIds = []
-let playersFullscreenRecoverTimeoutIds = []
 let traySyncIntervalId = null
 let logoAnimationIntervalId = null
 const isWindowFullscreen = ref(false)
@@ -1837,8 +1834,6 @@ onMounted(() => {
   syncWindowDisplayMode().finally(() => {
     pageSizeRef.value = getRowsPerPageByMode()
   })
-  window.electron2?.onWindowDisplayModeChanged?.(onWindowDisplayModeChanged)
-  window.electron2?.onWindowFullscreenChanged?.(onFullscreenChanged)
   window.electron2?.onMediaControlsCommand?.(onTrayMediaCommand)
   traySyncIntervalId = setInterval(() => {
     sendTrayMediaControlsState()
@@ -1848,8 +1843,6 @@ onMounted(() => {
   window.addEventListener('keydown', onModifierKeyDown, true)
   window.addEventListener('keyup', onModifierKeyUp)
   window.addEventListener('blur', onWindowBlurResetModifiers)
-  window.addEventListener('resize', onWindowResizeRedrawPlayers)
-  window.addEventListener('fullscreenchange', onWindowResizeRedrawPlayers)
   window.addEventListener('storage', onDownloadTasksStorageChanged)
   window.addEventListener('vmusic-download-tasks-changed', onDownloadTasksStorageChanged)
 })
@@ -1869,30 +1862,14 @@ onUnmounted(() => {
     clearInterval(logoAnimationIntervalId)
     logoAnimationIntervalId = null
   }
-  window.electron2?.offWindowDisplayModeChanged?.(onWindowDisplayModeChanged)
-  window.electron2?.offWindowFullscreenChanged?.(onFullscreenChanged)
   window.electron2?.offMediaControlsCommand?.(onTrayMediaCommand)
   window.removeEventListener('keydown', onHardwareMediaKey)
   window.removeEventListener('keydown', onKeyboardSeekKey)
   window.removeEventListener('keydown', onModifierKeyDown, true)
   window.removeEventListener('keyup', onModifierKeyUp)
   window.removeEventListener('blur', onWindowBlurResetModifiers)
-  window.removeEventListener('resize', onWindowResizeRedrawPlayers)
-  window.removeEventListener('fullscreenchange', onWindowResizeRedrawPlayers)
   window.removeEventListener('storage', onDownloadTasksStorageChanged)
   window.removeEventListener('vmusic-download-tasks-changed', onDownloadTasksStorageChanged)
-  if (playersResizeRafId) {
-    cancelAnimationFrame(playersResizeRafId)
-    playersResizeRafId = null
-  }
-  if (playersResizeTimeoutIds.length > 0) {
-    playersResizeTimeoutIds.forEach((id) => clearTimeout(id))
-    playersResizeTimeoutIds = []
-  }
-  if (playersFullscreenRecoverTimeoutIds.length > 0) {
-    playersFullscreenRecoverTimeoutIds.forEach((id) => clearTimeout(id))
-    playersFullscreenRecoverTimeoutIds = []
-  }
   stopCenterVisualizerAnalysis()
   if (centerVisualizerAudioContext && typeof centerVisualizerAudioContext.close === 'function') {
     centerVisualizerAudioContext.close()
@@ -1903,102 +1880,6 @@ onUnmounted(() => {
 function onDownloadTasksStorageChanged(event) {
   if (event?.type === 'storage' && event.key && event.key !== DOWNLOAD_TASKS_STORAGE_KEY) return
   refreshDownloadCount()
-}
-
-function schedulePlayersFullscreenExitRecovery() {
-  if (playersFullscreenRecoverTimeoutIds.length > 0) {
-    playersFullscreenRecoverTimeoutIds.forEach((id) => clearTimeout(id))
-    playersFullscreenRecoverTimeoutIds = []
-  }
-
-  const refreshPlayers = () => {
-    player1.value?.refreshWaveform?.()
-    player2.value?.refreshWaveform?.()
-  }
-
-  const forceRebuildPlayers = () => {
-    player1.value?.forceWaveformRebuild?.()
-    player2.value?.forceWaveformRebuild?.()
-  }
-
-  // Electron can settle the restored bounds in multiple passes after leaving fullscreen.
-  [60, 180, 360, 720].forEach((delay) => {
-    const timeoutId = setTimeout(() => {
-      refreshPlayers()
-    }, delay)
-    playersFullscreenRecoverTimeoutIds.push(timeoutId)
-  });
-  [260, 860].forEach((delay) => {
-    const timeoutId = setTimeout(() => {
-      forceRebuildPlayers()
-    }, delay)
-    playersFullscreenRecoverTimeoutIds.push(timeoutId)
-  })
-}
-
-function onFullscreenChanged(_event, isFullscreen) {
-  const wasFullscreen = isWindowFullscreen.value
-  isWindowFullscreen.value = Boolean(isFullscreen)
-  pageSizeRef.value = getRowsPerPageByMode()
-  onWindowResizeRedrawPlayers()
-  if (wasFullscreen && !isWindowFullscreen.value) {
-    schedulePlayersFullscreenExitRecovery()
-  }
-}
-
-function onWindowDisplayModeChanged(_event, mode) {
-  const wasFullscreen = isWindowFullscreen.value
-  isWindowFullscreen.value = Boolean(mode?.isFullScreen)
-  pageSizeRef.value = getRowsPerPageByMode()
-  onWindowResizeRedrawPlayers()
-  if (wasFullscreen && !isWindowFullscreen.value) {
-    schedulePlayersFullscreenExitRecovery()
-  }
-}
-
-function onWindowResizeRedrawPlayers() {
-  const wasFullscreen = isWindowFullscreen.value
-  syncWindowDisplayMode().finally(() => {
-    pageSizeRef.value = getRowsPerPageByMode()
-    if (wasFullscreen && !isWindowFullscreen.value) {
-      schedulePlayersFullscreenExitRecovery()
-    }
-  })
-  if (playersResizeRafId) {
-    cancelAnimationFrame(playersResizeRafId)
-  }
-  if (playersResizeTimeoutIds.length > 0) {
-    playersResizeTimeoutIds.forEach((id) => clearTimeout(id))
-    playersResizeTimeoutIds = []
-  }
-
-  const refreshPlayers = () => {
-    player1.value?.refreshWaveform?.()
-    player2.value?.refreshWaveform?.()
-  }
-
-  playersResizeRafId = requestAnimationFrame(() => {
-    playersResizeRafId = null
-    refreshPlayers()
-  })
-
-  // Electron may settle window bounds after resize/fullscreenchange.
-  const resizeRecoveryDelays = [120, 260, 520, 860]
-  resizeRecoveryDelays.forEach((delay) => {
-    const timeoutId = setTimeout(() => {
-      refreshPlayers()
-    }, delay)
-    playersResizeTimeoutIds.push(timeoutId)
-  })
-
-  const hardRebuildDelays = [340, 980]
-  hardRebuildDelays.forEach((delay) => {
-    const timeoutId = setTimeout(() => {
-      player1.value?.forceWaveformRebuild?.()
-      player2.value?.forceWaveformRebuild?.()
-    }, delay)
-    playersResizeTimeoutIds.push(timeoutId)
-  })
 }
 
 watch(autopause, (newValue) => {
