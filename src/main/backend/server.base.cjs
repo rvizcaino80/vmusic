@@ -55,6 +55,10 @@ const FFMPEG_BIN = resolveBinaryFromCandidates('ffmpeg', process.env.VMUSIC_FFMP
 if (FFMPEG_BIN) {
   process.env.VMUSIC_FFMPEG_BIN = FFMPEG_BIN
 }
+const YT_DLP_BIN = resolveBinaryFromCandidates('yt-dlp', process.env.VMUSIC_YT_DLP_BIN)
+if (YT_DLP_BIN) {
+  process.env.VMUSIC_YT_DLP_BIN = YT_DLP_BIN
+}
 const GAMDL_BIN = process.env.VMUSIC_GAMDL_BIN || process.env.GAMDL
 const MUSIC_LIBRARY_DIR = path.resolve(process.env.VMUSIC_MUSIC_DIR || path.join(os.homedir(), 'Music', 'SalsamaniaLibrary'))
 fs.mkdirSync(MUSIC_LIBRARY_DIR, { recursive: true })
@@ -1664,7 +1668,7 @@ app.post("/download", async (req, res, next) => {
 
   if (isYoutubeUrl(requestUrl)) {
     const url = `https://www.youtube.com/watch?v=${yid}`
-    command = process.env.VMUSIC_YT_DLP_BIN
+    command = process.env.VMUSIC_YT_DLP_BIN || YT_DLP_BIN
     if (!command) {
       return res.status(500).send({
         message: 'No se encontró el binario embebido de yt-dlp'

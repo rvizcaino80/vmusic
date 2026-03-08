@@ -306,17 +306,6 @@
               <span>Onda</span>
             </button-->
 
-              <a-button
-                :disabled="selectedSongs.length !== 1"
-                class="flex items-center space-x-1 pl-2.5"
-                @click="currentSelectedOption = options.wave"
-              >
-                <i-mdi-sine-wave
-                  class="w-5 h-5"
-                />
-                Onda
-              </a-button>
-
               <!--button
               :disabled="selectedSongs.length !== 1"
               type="button"
@@ -412,21 +401,30 @@
               </template>
               <template #bodyCell="{text, record, column}">
                 <template v-if="column.dataIndex === 'preview'">
-                  <a-button
-                    class="flex items-center justify-center w-8 h-8 p-0"
-                    size="small"
-                    :type="previewSongId === record.id && previewStatus === 'playing' ? 'primary' : 'default'"
-                    :loading="isPreviewLoading && previewSongId === record.id"
-                    @mousedown.stop.prevent="startPreview(record)"
-                    @mouseup.stop="stopPreview()"
-                    @mouseleave.stop="stopPreview()"
-                    @touchstart.stop.prevent="startPreview(record)"
-                    @touchend.stop="stopPreview()"
-                  >
-                    <i-mdi-headphones
-                      class="w-4 h-4"
-                    />
-                  </a-button>
+                  <div class="flex items-center justify-center gap-1">
+                    <a-button
+                      class="flex items-center justify-center w-8 h-8 p-0"
+                      size="small"
+                      :type="previewSongId === record.id && previewStatus === 'playing' ? 'primary' : 'default'"
+                      :loading="isPreviewLoading && previewSongId === record.id"
+                      @mousedown.stop.prevent="startPreview(record)"
+                      @mouseup.stop="stopPreview()"
+                      @mouseleave.stop="stopPreview()"
+                      @touchstart.stop.prevent="startPreview(record)"
+                      @touchend.stop="stopPreview()"
+                    >
+                      <i-mdi-headphones
+                        class="w-4 h-4"
+                      />
+                    </a-button>
+                    <a-button
+                      class="flex items-center justify-center w-8 h-8 p-0"
+                      size="small"
+                      @click.stop="openWaveEditorForSong(record)"
+                    >
+                      <i-mdi-sine-wave class="w-4 h-4" />
+                    </a-button>
+                  </div>
                 </template>
                 <template v-else-if="column.dataIndex === 'name'">
                   <div class="flex items-center space-x-2">
@@ -3215,6 +3213,12 @@ function loadLibrarySongToDeck(song, deck) {
   }
 }
 
+function openWaveEditorForSong(song) {
+  if (!song?.id) return
+  selectedSongs.value = [song.id]
+  currentSelectedOption.value = options.wave
+}
+
 function getFirstUnplayedSong() {
   if (playlistDetails.value.length > 0) {
     history.value.push(playlist.value.shift())
@@ -3653,6 +3657,7 @@ function clearCenterVisualizerRetryListeners() {
   centerVisualizerRetryMedia.removeEventListener('loadeddata', centerVisualizerRetryHandler)
   centerVisualizerRetryMedia.removeEventListener('canplay', centerVisualizerRetryHandler)
   centerVisualizerRetryMedia.removeEventListener('playing', centerVisualizerRetryHandler)
+  centerVisualizerRetryMedia.removeEventListener('timeupdate', centerVisualizerRetryHandler)
   centerVisualizerRetryMedia = null
   centerVisualizerRetryHandler = null
 }
@@ -3671,6 +3676,7 @@ function scheduleCenterVisualizerRetry(media) {
   media.addEventListener('loadeddata', centerVisualizerRetryHandler, { once: true })
   media.addEventListener('canplay', centerVisualizerRetryHandler, { once: true })
   media.addEventListener('playing', centerVisualizerRetryHandler, { once: true })
+  media.addEventListener('timeupdate', centerVisualizerRetryHandler, { once: true })
 }
 
 function stopCenterVisualizerAnalysis() {
@@ -3795,7 +3801,8 @@ watch(() => [
   centerVisualizerEnabled.value,
   centerVisualizerPlayer.value?.position,
   centerVisualizerPlayer.value?.songFull?.id,
-  centerVisualizerPlayer.value?.status
+  centerVisualizerPlayer.value?.status,
+  centerVisualizerPlayer.value?.left
 ], () => {
   ensureCenterVisualizerAnalysis()
 }, { immediate: true })
