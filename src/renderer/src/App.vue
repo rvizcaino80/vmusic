@@ -687,6 +687,9 @@
                 </div>
                 <h2>{{ centerVisualizerTitle }}</h2>
                 <p>{{ centerVisualizerArtist }}</p>
+                <div class="vm-center-times">
+                  {{ centerVisualizerTimeText }}
+                </div>
                 <div
                   class="vm-center-rms-bars"
                   aria-hidden="true"
@@ -1395,7 +1398,7 @@ const mediaKeyCodes = new Set(['MediaPlayPause', 'MediaPlay', 'MediaPause', 'Med
 const KEYBOARD_SEEK_SECONDS = 5
 const KEYBOARD_SPEED_STEP = 1
 const CENTER_VISUALIZER_BAR_COUNT = 20
-const centerVisualizerEnabled = ref(localStorage.getItem(CENTER_VISUALIZER_STORAGE_KEY) === '1')
+const centerVisualizerEnabled = ref(true)
 const centerVisualizerBarHeights = ref(Array.from({ length: CENTER_VISUALIZER_BAR_COUNT }, () => 0.16))
 let centerVisualizerAudioContext = null
 let centerVisualizerAnalyser = null
@@ -1842,7 +1845,6 @@ onMounted(() => {
   }, 1000)
   window.addEventListener('keydown', onHardwareMediaKey)
   window.addEventListener('keydown', onKeyboardSeekKey)
-  window.addEventListener('keydown', onVisualizerToggleKey)
   window.addEventListener('keydown', onModifierKeyDown, true)
   window.addEventListener('keyup', onModifierKeyUp)
   window.addEventListener('blur', onWindowBlurResetModifiers)
@@ -1872,7 +1874,6 @@ onUnmounted(() => {
   window.electron2?.offMediaControlsCommand?.(onTrayMediaCommand)
   window.removeEventListener('keydown', onHardwareMediaKey)
   window.removeEventListener('keydown', onKeyboardSeekKey)
-  window.removeEventListener('keydown', onVisualizerToggleKey)
   window.removeEventListener('keydown', onModifierKeyDown, true)
   window.removeEventListener('keyup', onModifierKeyUp)
   window.removeEventListener('blur', onWindowBlurResetModifiers)
@@ -1918,18 +1919,21 @@ function schedulePlayersFullscreenExitRecovery() {
   const forceRebuildPlayers = () => {
     player1.value?.forceWaveformRebuild?.()
     player2.value?.forceWaveformRebuild?.()
-  };
-  [80, 240].forEach((delay) => {
+  }
+
+  // Electron can settle the restored bounds in multiple passes after leaving fullscreen.
+  [60, 180, 360, 720].forEach((delay) => {
     const timeoutId = setTimeout(() => {
       refreshPlayers()
     }, delay)
     playersFullscreenRecoverTimeoutIds.push(timeoutId)
+  });
+  [260, 860].forEach((delay) => {
+    const timeoutId = setTimeout(() => {
+      forceRebuildPlayers()
+    }, delay)
+    playersFullscreenRecoverTimeoutIds.push(timeoutId)
   })
-
-  const rebuildTimeoutId = setTimeout(() => {
-    forceRebuildPlayers()
-  }, 480)
-  playersFullscreenRecoverTimeoutIds.push(rebuildTimeoutId)
 }
 
 function onFullscreenChanged(_event, isFullscreen) {
@@ -1979,10 +1983,19 @@ function onWindowResizeRedrawPlayers() {
   })
 
   // Electron may settle window bounds after resize/fullscreenchange.
-  const resizeRecoveryDelays = [140, 320, 620]
+  const resizeRecoveryDelays = [120, 260, 520, 860]
   resizeRecoveryDelays.forEach((delay) => {
     const timeoutId = setTimeout(() => {
       refreshPlayers()
+    }, delay)
+    playersResizeTimeoutIds.push(timeoutId)
+  })
+
+  const hardRebuildDelays = [340, 980]
+  hardRebuildDelays.forEach((delay) => {
+    const timeoutId = setTimeout(() => {
+      player1.value?.forceWaveformRebuild?.()
+      player2.value?.forceWaveformRebuild?.()
     }, delay)
     playersResizeTimeoutIds.push(timeoutId)
   })
@@ -3633,6 +3646,22 @@ const centerVisualizerArtist = computed(() => {
   return centerVisualizerEnabled.value ? 'Modo visual activo' : ''
 })
 
+function formatVisualizerTime(totalSeconds) {
+  const safeSeconds = Math.max(0, Math.floor(Number(totalSeconds) || 0))
+  const minutes = Math.floor(safeSeconds / 60)
+  const seconds = safeSeconds % 60
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+const centerVisualizerTimeText = computed(() => {
+  const duration = Number(centerVisualizerPlayer.value?.songFull?.duration || 0)
+  const left = Number(centerVisualizerPlayer.value?.left || 0)
+  const elapsed = Math.max(0, duration - left)
+
+  return `${formatVisualizerTime(elapsed)} / ${formatVisualizerTime(duration)}`
+})
+
 function resetCenterVisualizerBars() {
   centerVisualizerBarHeights.value = Array.from({ length: CENTER_VISUALIZER_BAR_COUNT }, () => 0.16)
 }
@@ -4021,20 +4050,6 @@ function onKeyboardSeekKey(event) {
   }
 }
 
-function onVisualizerToggleKey(event) {
-  if (event.defaultPrevented || event.repeat) return
-  if (isEditableKeyboardTarget(event.target)) return
-  if (event.altKey || event.ctrlKey || event.metaKey) return
-  if (event.key.toLowerCase() !== 'v') return
-
-  centerVisualizerEnabled.value = !centerVisualizerEnabled.value
-  event.preventDefault()
-  nextTick(() => {
-    player1.value?.refreshWaveform?.()
-    player2.value?.refreshWaveform?.()
-  })
-}
-
 function onModifierKeyDown(event) {
   if (event.key === 'Escape') {
     const handled = handleLibraryEscapeShortcut(event)
@@ -4362,8 +4377,8 @@ table tr td.ant-table-cell {
 
 .vm-center-cover-frame {
   position: relative;
-  width: 156px;
-  height: 156px;
+  width: 168px;
+  height: 168px;
   aspect-ratio: 1 / 1;
   flex-shrink: 0;
   border-radius: 28px;
@@ -4379,8 +4394,8 @@ table tr td.ant-table-cell {
 }
 
 .vm-center-cover {
-  width: 136px;
-  height: 136px;
+  width: 148px;
+  height: 148px;
   aspect-ratio: 1 / 1;
   object-fit: cover;
   border-radius: 22px;
@@ -4388,8 +4403,8 @@ table tr td.ant-table-cell {
 }
 
 .vm-center-cover-fallback {
-  width: 136px;
-  height: 136px;
+  width: 148px;
+  height: 148px;
   aspect-ratio: 1 / 1;
   border-radius: 22px;
   display: flex;
@@ -4448,6 +4463,14 @@ table tr td.ant-table-cell {
   color: rgba(255, 255, 255, 0.72);
   font-size: 0.88rem;
   max-width: 100%;
+}
+
+.vm-center-times {
+  margin-top: 8px;
+  color: #ffffff;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
 }
 
 .vm-center-rms-bars {

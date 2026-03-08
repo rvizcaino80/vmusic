@@ -191,9 +191,9 @@ export default {
       { label: 'Chicle', value: 'aurora' },
       { label: 'Cobre', value: 'tormenta_cobre' },
       { label: 'Deportivo', value: 'monochrome' },
-      { label: 'Nocturno', value: 'nocturno' },
       { label: 'Oceano', value: 'oceano' },
       { label: 'Orquidea', value: 'orquidea' },
+      { label: 'Playa', value: 'nocturno' },
       { label: 'Rubí', value: 'coral' }
     ])
     const audioOutputs = ref([])
