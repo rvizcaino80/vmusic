@@ -2,7 +2,7 @@ import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveB
 import os from 'os'
 import { join } from 'path'
 import fs from 'fs'
-import { spawn, spawnSync } from 'child_process'
+import { spawn } from 'child_process'
 import https from 'https'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app'
@@ -73,12 +73,7 @@ function resolveGithubRepo() {
 
 function configureAutoUpdates() {
   if (is.dev) return
-  if (!['darwin', 'win32'].includes(process.platform)) return
-  if (process.platform === 'darwin' && !isMacAppEligibleForAutoUpdate()) {
-    console.warn('[vmusic][updates] Skipping auto-update because the app is not signed with a valid Developer ID identity.')
-
-    return
-  }
+  if (process.platform !== 'win32') return
 
   const githubRepo = resolveGithubRepo()
   if (!githubRepo) {
@@ -99,39 +94,6 @@ function configureAutoUpdates() {
     })
   } catch (error) {
     console.error('[vmusic][updates] Failed to initialize auto-updates', error)
-  }
-}
-
-function isMacAppEligibleForAutoUpdate() {
-  try {
-    const appPath = app.getPath('exe').includes('.app/') ? app.getPath('exe').split('.app/')[0] + '.app' : app.getAppPath()
-    const result = spawnSync('codesign', ['-dv', '--verbose=4', appPath], {
-      encoding: 'utf8'
-    })
-    const output = `${result.stdout || ''}\n${result.stderr || ''}`
-    if (result.status !== 0 && !output.trim()) {
-      throw new Error(`codesign exited with status ${result.status}`)
-    }
-
-    const signature = output.match(/Signature=(.+)/)?.[1]?.trim() || ''
-    const teamIdentifier = output.match(/TeamIdentifier=(.+)/)?.[1]?.trim() || ''
-    const isAdhoc = signature.toLowerCase() === 'adhoc'
-    const hasTeam = teamIdentifier && teamIdentifier !== 'not set'
-
-    if (isAdhoc || !hasTeam) {
-      console.warn('[vmusic][updates] macOS signature is not eligible for auto-update', {
-        signature,
-        teamIdentifier
-      })
-
-      return false
-    }
-
-    return true
-  } catch (error) {
-    console.warn('[vmusic][updates] Failed to inspect macOS code signature', error)
-
-    return false
   }
 }
 
