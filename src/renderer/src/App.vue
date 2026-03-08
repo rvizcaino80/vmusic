@@ -635,12 +635,12 @@
     >
       <div
         class="vm-update-shell"
-        :class="{ 'vm-update-shell-error': customUpdaterEffectiveState.status === 'error' }"
+        :class="{ 'vm-update-shell-error': customUpdaterState.status === 'error' }"
       >
         <div class="vm-update-brand">
           <div
             class="vm-update-mark"
-            :class="{ 'vm-update-mark-error': customUpdaterEffectiveState.status === 'error' }"
+            :class="{ 'vm-update-mark-error': customUpdaterState.status === 'error' }"
           >
             S
           </div>
@@ -649,31 +649,31 @@
           </div>
         </div>
         <div
-          v-if="customUpdaterEffectiveState.status !== 'downloaded' && customUpdaterEffectiveState.status !== 'error'"
+          v-if="customUpdaterState.status !== 'downloaded' && customUpdaterState.status !== 'error'"
           class="vm-update-spinner"
           aria-hidden="true"
         />
         <div
           class="vm-update-title"
-          :class="{ 'vm-update-title-error': customUpdaterEffectiveState.status === 'error' }"
+          :class="{ 'vm-update-title-error': customUpdaterState.status === 'error' }"
         >
           {{ customUpdaterTitle }}
         </div>
         <div
           class="vm-update-message"
-          :class="{ 'vm-update-message-error': customUpdaterEffectiveState.status === 'error' }"
+          :class="{ 'vm-update-message-error': customUpdaterState.status === 'error' }"
         >
           {{ customUpdaterMessage }}
         </div>
         <div
-          v-if="customUpdaterEffectiveState.version"
+          v-if="customUpdaterState.version"
           class="vm-update-version"
         >
-          Version {{ customUpdaterEffectiveState.version }}
+          Version {{ customUpdaterState.version }}
         </div>
         <div class="vm-update-actions">
           <a-button
-            v-if="customUpdaterEffectiveState.status === 'downloaded'"
+            v-if="customUpdaterState.status === 'downloaded'"
             type="primary"
             size="large"
             @click="installCustomUpdaterNow()"
@@ -681,7 +681,7 @@
             Instalar ahora
           </a-button>
           <a-button
-            v-if="customUpdaterEffectiveState.status === 'error'"
+            v-if="customUpdaterState.status === 'error'"
             danger
             size="large"
             @click="checkCustomUpdater()"
@@ -1217,55 +1217,6 @@
         </div>
       </div>
     </div>
-
-    <div
-      v-if="customUpdaterPreviewControlsVisible"
-      class="vm-update-devtools"
-    >
-      <span class="vm-update-devtools-label">Updater preview</span>
-      <button
-        type="button"
-        :class="{ 'is-active': customUpdaterPreviewStatus === 'off' }"
-        @click="customUpdaterPreviewStatus = 'off'"
-      >
-        Off
-      </button>
-      <button
-        type="button"
-        :class="{ 'is-active': customUpdaterPreviewStatus === 'checking' }"
-        @click="customUpdaterPreviewStatus = 'checking'"
-      >
-        Checking
-      </button>
-      <button
-        type="button"
-        :class="{ 'is-active': customUpdaterPreviewStatus === 'downloading' }"
-        @click="customUpdaterPreviewStatus = 'downloading'"
-      >
-        Downloading
-      </button>
-      <button
-        type="button"
-        :class="{ 'is-active': customUpdaterPreviewStatus === 'downloaded' }"
-        @click="customUpdaterPreviewStatus = 'downloaded'"
-      >
-        Downloaded
-      </button>
-      <button
-        type="button"
-        :class="{ 'is-active': customUpdaterPreviewStatus === 'installing' }"
-        @click="customUpdaterPreviewStatus = 'installing'"
-      >
-        Installing
-      </button>
-      <button
-        type="button"
-        :class="{ 'is-active': customUpdaterPreviewStatus === 'error' }"
-        @click="customUpdaterPreviewStatus = 'error'"
-      >
-        Error
-      </button>
-    </div>
   </a-config-provider>
 </template>
 
@@ -1465,8 +1416,6 @@ const customUpdaterState = ref({
   downloaded: false,
   supported: false
 })
-const isDevEnvironment = Boolean(import.meta.env.DEV)
-const customUpdaterPreviewStatus = ref('off')
 const isMacPlatform = typeof navigator !== 'undefined' && (/mac/i).test(navigator.platform || navigator.userAgent || '')
 const customUpdaterListener = (_event, payload) => {
   customUpdaterState.value = {
@@ -1774,77 +1723,28 @@ const isDeckAInitialPreprocessBlockingPlayback = computed(() => {
   return Boolean(player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed)
 })
 
-const customUpdaterEffectiveState = computed(() => {
-  if (!isDevEnvironment || customUpdaterPreviewStatus.value === 'off') {
-    return customUpdaterState.value
-  }
-
-  switch (customUpdaterPreviewStatus.value) {
-  case 'checking':
-    return {
-      ...customUpdaterState.value,
-      status: 'checking',
-      version: '1.1.99',
-      message: 'Buscando actualizaciones...'
-    }
-  case 'downloading':
-    return {
-      ...customUpdaterState.value,
-      status: 'downloading',
-      version: '1.1.99',
-      message: 'Descargando actualización personalizada...'
-    }
-  case 'downloaded':
-    return {
-      ...customUpdaterState.value,
-      status: 'downloaded',
-      version: '1.1.99',
-      downloaded: true,
-      message: 'Actualización descargada. Lista para instalar.'
-    }
-  case 'installing':
-    return {
-      ...customUpdaterState.value,
-      status: 'installing',
-      version: '1.1.99',
-      message: 'Instalando actualización...'
-    }
-  case 'error':
-    return {
-      ...customUpdaterState.value,
-      status: 'error',
-      version: '1.1.99',
-      message: 'No se pudo descargar la actualización.'
-    }
-  default:
-    return customUpdaterState.value
-  }
-})
-
-const customUpdaterPreviewControlsVisible = computed(() => isDevEnvironment)
-
 const customUpdaterVisible = computed(() => {
   if (!isMacPlatform) return false
 
-  return ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(customUpdaterEffectiveState.value.status)
+  return ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(customUpdaterState.value.status)
 })
 
 const customUpdaterBlocking = computed(() => {
   if (!isMacPlatform) return false
 
-  return ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(customUpdaterEffectiveState.value.status)
+  return ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(customUpdaterState.value.status)
 })
 
 const customUpdaterTitle = computed(() => {
-  switch (customUpdaterEffectiveState.value.status) {
+  switch (customUpdaterState.value.status) {
   case 'checking':
     return 'Buscando actualización'
   case 'available':
-    return `Nueva versión ${customUpdaterEffectiveState.value.version || ''}`.trim()
+    return `Nueva versión ${customUpdaterState.value.version || ''}`.trim()
   case 'downloading':
-    return `Descargando ${customUpdaterEffectiveState.value.version || 'actualización'}`
+    return `Descargando ${customUpdaterState.value.version || 'actualización'}`
   case 'downloaded':
-    return `Actualización lista ${customUpdaterEffectiveState.value.version || ''}`.trim()
+    return `Actualización lista ${customUpdaterState.value.version || ''}`.trim()
   case 'installing':
     return 'Instalando actualización'
   case 'error':
@@ -1855,7 +1755,7 @@ const customUpdaterTitle = computed(() => {
 })
 
 const customUpdaterMessage = computed(() => {
-  return customUpdaterEffectiveState.value.message || 'Actualización personal para macOS.'
+  return customUpdaterState.value.message || 'Actualización personal para macOS.'
 })
 
 async function checkCustomUpdater() {
@@ -4567,47 +4467,6 @@ table tr td.ant-table-cell {
   to {
     transform: rotate(360deg);
   }
-}
-
-.vm-update-devtools {
-  position: fixed;
-  right: 14px;
-  bottom: 14px;
-  z-index: 70;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  max-width: min(92vw, 640px);
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(12px);
-}
-
-.vm-update-devtools-label {
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-right: 6px;
-}
-
-.vm-update-devtools button {
-  border: 0;
-  border-radius: 999px;
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 0.78rem;
-  cursor: pointer;
-}
-
-.vm-update-devtools button.is-active {
-  background: linear-gradient(90deg, var(--vm-player-wave-a), var(--vm-player-wave-b));
-  color: #fff;
 }
 
 .vm-center-stage {
