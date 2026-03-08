@@ -8,6 +8,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app'
 import icon from '../../resources/icon.png?asset'
 import traySIcon from '../../resources/tray-icon.png?asset'
+import trayTemplateIcon from '../../resources/tray-icon-template.png?asset'
 import backendService from './backend/service.cjs'
 
 let mainWindow = null
@@ -37,7 +38,7 @@ let customUpdateContext = {
   shouldInstallOnQuit: false,
   helperLaunched: false
 }
-const CUSTOM_UPDATE_INTERVAL_MS = 30 * 60 * 1000
+const CUSTOM_UPDATE_INTERVAL_MS = 10 * 60 * 1000
 const CUSTOM_UPDATE_OWNER = 'rvizcaino80'
 const CUSTOM_UPDATE_REPO = 'vmusic'
 
@@ -530,9 +531,9 @@ function refreshTrayMenu() {
 function createTray() {
   if (tray) return
 
-  let trayIcon = nativeImage.createFromPath(traySIcon)
+  let trayIcon = process.platform === 'darwin' ? nativeImage.createFromPath(trayTemplateIcon) : nativeImage.createFromPath(icon)
   if (trayIcon.isEmpty()) {
-    trayIcon = nativeImage.createFromPath(icon)
+    trayIcon = nativeImage.createFromPath(traySIcon)
   }
   if (!trayIcon.isEmpty()) {
     const traySize = process.platform === 'darwin' ? 18 : 16
@@ -636,6 +637,17 @@ function createWindow() {
  */
 app.whenReady().then(() => {
   configureAutoUpdates()
+
+  if (is.dev) {
+    app.setName('Salsamania-DEV')
+  }
+
+  if (process.platform === 'darwin') {
+    const dockIcon = nativeImage.createFromPath(icon)
+    if (!dockIcon.isEmpty()) {
+      app.dock.setIcon(dockIcon)
+    }
+  }
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')

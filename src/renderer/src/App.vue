@@ -740,7 +740,7 @@
                   v-else
                   class="vm-center-cover-fallback"
                 >
-                  {{ centerVisualizerDeckLabel }}
+                  {{ centerVisualizerDeckLetter }}
                 </div>
                 <div class="vm-center-cover-ring" />
               </div>
@@ -1193,6 +1193,19 @@
           </div>
 
           <div
+            v-if="customUpdaterActionVisible"
+            class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
+            @click="openCustomUpdaterOverlay()"
+          >
+            <div class="relative">
+              <i-ic-baseline-update
+                class="w-8 h-8"
+              />
+              <span class="vm-side-alert-dot" />
+            </div>
+          </div>
+
+          <div
             :class="{ 'vm-item-selected': currentSelectedOption === options.settings }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.settings)"
@@ -1372,6 +1385,9 @@ let filterQueryDebounceTimer = null
 const isLoadingLibrary = ref(true)
 const autopause = ref(false)
 const isAltPressed = ref(false)
+const isLeftAltPressed = ref(false)
+const isLeftShiftPressed = ref(false)
+const isLeftMetaPressed = ref(false)
 const ESC_DOUBLE_PRESS_WINDOW_MS = 1000
 let lastEscapePressAt = 0
 const previewAudio = ref(null)
@@ -1416,6 +1432,8 @@ const customUpdaterState = ref({
   downloaded: false,
   supported: false
 })
+const customUpdaterOverlayOpen = ref(false)
+const customUpdaterInitialStateHandled = ref(false)
 const isMacPlatform = typeof navigator !== 'undefined' && (/mac/i).test(navigator.platform || navigator.userAgent || '')
 const customUpdaterListener = (_event, payload) => {
   customUpdaterState.value = {
@@ -1732,7 +1750,13 @@ const customUpdaterVisible = computed(() => {
 const customUpdaterBlocking = computed(() => {
   if (!isMacPlatform) return false
 
-  return ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(customUpdaterState.value.status)
+  return customUpdaterOverlayOpen.value && ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(customUpdaterState.value.status)
+})
+
+const customUpdaterActionVisible = computed(() => {
+  if (!isMacPlatform) return false
+
+  return ['available', 'downloading', 'downloaded', 'installing'].includes(customUpdaterState.value.status)
 })
 
 const customUpdaterTitle = computed(() => {
@@ -1766,6 +1790,28 @@ async function checkCustomUpdater() {
     ...(nextState || {})
   }
 }
+
+function openCustomUpdaterOverlay() {
+  if (!customUpdaterActionVisible.value && customUpdaterState.value.status !== 'error') return
+  customUpdaterOverlayOpen.value = true
+}
+
+watch(() => customUpdaterState.value.status, (status) => {
+  if (!customUpdaterInitialStateHandled.value && ['available', 'downloading', 'downloaded', 'installing', 'error'].includes(status)) {
+    customUpdaterOverlayOpen.value = true
+    customUpdaterInitialStateHandled.value = true
+
+    return
+  }
+
+  if (!customUpdaterInitialStateHandled.value && ['up-to-date', 'idle'].includes(status)) {
+    customUpdaterInitialStateHandled.value = true
+  }
+
+  if (['idle', 'up-to-date'].includes(status)) {
+    customUpdaterOverlayOpen.value = false
+  }
+})
 
 async function installCustomUpdaterNow() {
   if (!window.electron2?.installCustomUpdaterNow) return
@@ -1978,7 +2024,7 @@ onMounted(() => {
     sendTrayMediaControlsState()
   }, 1000)
   window.addEventListener('keydown', onHardwareMediaKey)
-  window.addEventListener('keydown', onKeyboardSeekKey)
+  window.addEventListener('keydown', onKeyboardSeekKey, true)
   window.addEventListener('keydown', onModifierKeyDown, true)
   window.addEventListener('keyup', onModifierKeyUp)
   window.addEventListener('blur', onWindowBlurResetModifiers)
@@ -2004,7 +2050,7 @@ onUnmounted(() => {
   window.electron2?.offCustomUpdaterState?.(customUpdaterListener)
   window.electron2?.offMediaControlsCommand?.(onTrayMediaCommand)
   window.removeEventListener('keydown', onHardwareMediaKey)
-  window.removeEventListener('keydown', onKeyboardSeekKey)
+  window.removeEventListener('keydown', onKeyboardSeekKey, true)
   window.removeEventListener('keydown', onModifierKeyDown, true)
   window.removeEventListener('keyup', onModifierKeyUp)
   window.removeEventListener('blur', onWindowBlurResetModifiers)
@@ -3664,6 +3710,13 @@ const centerVisualizerDeckLabel = computed(() => {
   return 'Salsamania'
 })
 
+const centerVisualizerDeckLetter = computed(() => {
+  if (centerVisualizerPlayer.value?.position === 'top') return 'A'
+  if (centerVisualizerPlayer.value?.position === 'bottom') return 'B'
+
+  return 'S'
+})
+
 const centerVisualizerDeckClass = computed(() => {
   if (centerVisualizerPlayer.value?.position === 'top') return 'vm-center-visualizer-a'
   if (centerVisualizerPlayer.value?.position === 'bottom') return 'vm-center-visualizer-b'
@@ -4055,16 +4108,39 @@ function adjustActivePlayerSpeed(delta) {
   return true
 }
 
+function resetActivePlayerSpeed() {
+  const targetPlayer = getMediaTargetPlayer()
+  if (!targetPlayer || typeof targetPlayer.setSpeed !== 'function') return false
+
+  const currentOffset = Number(targetPlayer.speed_added || 0)
+  if (!Number.isFinite(currentOffset) || currentOffset === 0) return false
+
+  targetPlayer.setSpeed(-currentOffset)
+
+  return true
+}
+
 function onKeyboardSeekKey(event) {
   if (event.defaultPrevented || event.repeat) return
   if (isEditableKeyboardTarget(event.target)) return
   if (event.ctrlKey) return
 
   const normalizedKey = event.key.toLowerCase()
+  const normalizedCode = event.code || ''
 
-  if (event.metaKey && normalizedKey === 'z') {
+  if (normalizedCode === 'KeyZ' && isLeftMetaPressed.value && isLeftAltPressed.value && isLeftShiftPressed.value) {
+    if (resetActivePlayerSpeed()) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
+    return
+  }
+
+  if (event.metaKey && normalizedCode === 'KeyZ') {
     if (adjustActivePlayerSpeed(event.shiftKey ? KEYBOARD_SPEED_STEP : -KEYBOARD_SPEED_STEP)) {
       event.preventDefault()
+      event.stopPropagation()
     }
 
     return
@@ -4110,16 +4186,43 @@ function onModifierKeyDown(event) {
   if (event.key === 'Alt' || event.altKey) {
     isAltPressed.value = true
   }
+
+  if (event.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) {
+    if (event.key === 'Alt') {
+      isLeftAltPressed.value = true
+    }
+    if (event.key === 'Shift') {
+      isLeftShiftPressed.value = true
+    }
+    if (event.key === 'Meta') {
+      isLeftMetaPressed.value = true
+    }
+  }
 }
 
 function onModifierKeyUp(event) {
   if (event.key === 'Alt') {
     isAltPressed.value = false
   }
+
+  if (event.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) {
+    if (event.key === 'Alt') {
+      isLeftAltPressed.value = false
+    }
+    if (event.key === 'Shift') {
+      isLeftShiftPressed.value = false
+    }
+    if (event.key === 'Meta') {
+      isLeftMetaPressed.value = false
+    }
+  }
 }
 
 function onWindowBlurResetModifiers() {
   isAltPressed.value = false
+  isLeftAltPressed.value = false
+  isLeftShiftPressed.value = false
+  isLeftMetaPressed.value = false
 }
 
 function artistsChanged(data) {
@@ -4312,6 +4415,17 @@ function onM3uSourceSelect({ key }) {
 </script>
 
 <style>
+.vm-side-alert-dot {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9);
+}
+
 .overlay {
   position: fixed;
   top: 0;
@@ -4545,8 +4659,8 @@ table tr td.ant-table-cell {
 
 .vm-center-cover-frame {
   position: relative;
-  width: 168px;
-  height: 168px;
+  width: 193px;
+  height: 193px;
   aspect-ratio: 1 / 1;
   flex-shrink: 0;
   border-radius: 28px;
@@ -4562,8 +4676,8 @@ table tr td.ant-table-cell {
 }
 
 .vm-center-cover {
-  width: 148px;
-  height: 148px;
+  width: 170px;
+  height: 170px;
   aspect-ratio: 1 / 1;
   object-fit: cover;
   border-radius: 22px;
@@ -4571,18 +4685,18 @@ table tr td.ant-table-cell {
 }
 
 .vm-center-cover-fallback {
-  width: 148px;
-  height: 148px;
+  width: 170px;
+  height: 170px;
   aspect-ratio: 1 / 1;
   border-radius: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, var(--vm-player-wave-a), var(--vm-player-wave-b));
+  background: rgba(0, 0, 0, 0.5);
   color: #fff;
-  font-size: 1.1rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 4rem;
+  font-weight: 800;
+  line-height: 1;
   text-transform: uppercase;
 }
 

@@ -27,6 +27,7 @@ declare module 'vue' {
     ICarbonCheckbox: typeof import('~icons/carbon/checkbox')['default']
     IIcBaselineApple: typeof import('~icons/ic/baseline-apple')['default']
     IIcBaselineDownload: typeof import('~icons/ic/baseline-download')['default']
+    IIcBaselineUpdate: typeof import('~icons/ic/baseline-update')['default']
     IIcBaselineMoveDown: typeof import('~icons/ic/baseline-move-down')['default']
     IIcBaselineMoveUp: typeof import('~icons/ic/baseline-move-up')['default']
     IIcBaselineShuffle: typeof import('~icons/ic/baseline-shuffle')['default']
