@@ -207,7 +207,7 @@ const AUDIO_RECOGNITION_MAX_SAMPLE_SECONDS = 20
 const AUDIO_RECOGNITION_MIN_CONFIDENCE = 0.72
 const AUDIO_FEATURE_CACHE_FILE = path.join(__dirname, '.audio_feature_cache.json')
 const FADE_PROFILE_CACHE_FILE = path.join(__dirname, '.fade_profile_cache.json')
-const FADE_PROFILE_ANALYZER_VERSION = 'v9'
+const FADE_PROFILE_ANALYZER_VERSION = 'v11'
 const AUDIO_FEATURE_FREQUENCIES = [
   82, 110, 146, 196, 261, 329, 440, 523, 659, 783, 987, 1174,
   100, 150, 230, 350, 530, 800, 1200, 1800, 2600, 3400
@@ -579,7 +579,7 @@ async function getSongFadeProfile(song) {
   }
 
   const durationSeconds = Number(song.duration || 0)
-  const tailDuration = Math.min(10, Math.max(4, durationSeconds || 10))
+  const tailDuration = Math.min(10, Math.max(1, durationSeconds || 10))
   const tailStartSec = Math.max(0, durationSeconds - tailDuration)
   const pcm = await decodeAudioSegmentToPcmBuffer(songPath, tailStartSec, tailDuration)
   const series = computeRmsSeries(pcm, 11025, 0.2)

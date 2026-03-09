@@ -7,7 +7,7 @@
       <div
         v-for="row in virtualRows"
         :key="row.data.id"
-        class="multiselect-row flex items-center justify-between"
+        class="multiselect-row flex items-center justify-between relative"
         @mouseenter="onRowEnter(row.data.id)"
         @mouseleave="onRowLeave"
       >
@@ -18,6 +18,12 @@
         >
           {{ row.data.name }}
         </a-checkbox>
+        <span
+          v-if="effectiveAltPressed && hoveredRowId === row.data.id"
+          class="multiselect-solo-hint"
+        >
+          SOLO
+        </span>
       </div>
     </div>
   </div>
@@ -29,7 +35,7 @@ import { useVirtualList } from '@vueuse/core'
 
 const selected = ref([])
 const altPressed = ref(false)
-const soloHintId = ref(null)
+const hoveredRowId = ref(null)
 
 const props = defineProps({
   name: {
@@ -44,6 +50,11 @@ const props = defineProps({
     type: Array,
     required: false,
     default: () => ([])
+  },
+  altPressed: {
+    type: Boolean,
+    required: false,
+    default: false
   }
 })
 
@@ -51,6 +62,7 @@ const emit = defineEmits(['changed'])
 
 const sortedList = computed(() => [...(props.list || [])].sort((a, b) => a.name.localeCompare(b.name)))
 const selectedSet = computed(() => new Set((selected.value || []).map((value) => String(value))))
+const effectiveAltPressed = computed(() => props.altPressed || altPressed.value)
 
 const {
   list: virtualRows,
@@ -77,9 +89,8 @@ function selectionChanged() {
 function onCheckboxChange(id, checked) {
   const idKey = String(id)
 
-  if (altPressed.value) {
+  if (effectiveAltPressed.value) {
     selectOnly(id)
-    soloHintId.value = id
 
     return
   }
@@ -100,13 +111,11 @@ function selectOnly(id) {
 }
 
 function onRowEnter(id) {
-  if (altPressed.value) {
-    soloHintId.value = id
-  }
+  hoveredRowId.value = id
 }
 
 function onRowLeave() {
-  soloHintId.value = null
+  hoveredRowId.value = null
 }
 
 function handleKeyDown(event) {
@@ -118,7 +127,6 @@ function handleKeyDown(event) {
 function handleKeyUp(event) {
   if (event.key === 'Alt') {
     altPressed.value = false
-    soloHintId.value = null
   }
 }
 
@@ -172,10 +180,23 @@ defineExpose({
 
 .multiselect-row {
   border-bottom: 1px solid color-mix(in srgb, #9ca3af 18%, transparent);
-  padding: 2px 0;
+  padding: 2px 52px 2px 0;
 }
 
 .multiselect-row:last-child{
   border: none;
+}
+
+.multiselect-solo-hint {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #000000;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  user-select: none;
+  pointer-events: none;
 }
 </style>

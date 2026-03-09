@@ -388,21 +388,6 @@ function init() {
         resize: false
       })
     }
-
-    if (!hasManualEndMarker.value && fadeProfile.value?.hasFade && Number.isFinite(fadeProfile.value?.fadeStartSec)) {
-      const fadeStartPlayback = Math.max(0, toPlaybackTime(fadeProfile.value.fadeStartSec))
-      const fadeEndPlayback = Math.max(fadeStartPlayback, playbackEnd || totalDuration)
-      if (fadeEndPlayback - fadeStartPlayback > 0.05) {
-        wsRegions.addRegion({
-          id: 'fade-detected',
-          start: fadeStartPlayback,
-          end: fadeEndPlayback,
-          color: fadeRegionColor.value,
-          drag: false,
-          resize: false
-        })
-      }
-    }
   }
 
   player.on('decode', (d) => {
@@ -555,7 +540,7 @@ function calculateVolume(ct) {
   const crossfader_time = savedSettings.crossfaderTime
   const playbackEnd = toPlaybackTime(end.value)
   left.value = playbackEnd - ct
-  const canDetectNaturalFade = status.value === props.statuses.Reproduciendo && !hasManualEndMarker.value
+  const canDetectNaturalFade = status.value === props.statuses.Reproduciendo
   const realFadeDetected = canDetectNaturalFade && shouldTriggerBackendFade(ct, crossfader_time)
   const hasForcedFade = Number.isFinite(forcedFadeEndAt)
 
@@ -695,116 +680,36 @@ function toSourceTime(playbackTime) {
 }
 
 async function loadFadeProfile(song) {
+  const requestId = ++fadeProfileRequestSerial
+  fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
+
   if (!song?.id) return
-  if (hasManualEndMarker.value) {
-    fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
-    debugAudio('fade-profile-skip-manual-end', {
-      songId: song.id
-    })
 
-    return
-  }
-
-  fadeProfileRequestSerial += 1
-  const requestSerial = fadeProfileRequestSerial
   try {
-    const response = await window.electron2.backendRequest({
-      method: 'GET',
-      path: `/songs/fade-profile/${song.id}`
-    })
-    if (requestSerial !== fadeProfileRequestSerial) return
-    if (!songFull.value?.id || songFull.value.id !== song.id) return
-    if (Number(response?.status || 500) >= 400) {
-      fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
-      debugAudio('fade-profile-miss', {
-        songId: song.id,
-        status: Number(response?.status || 500),
-        data: response?.data || null
-      })
+    const response = await axios.get(`http://localhost:3000/songs/fade-profile/${song.id}`)
+    if (requestId !== fadeProfileRequestSerial) return
 
-      return
-    }
-    const data = response?.data || {}
-    const rawFadeStartSec = data?.fadeStartSec
-    const parsedFadeStartSec = rawFadeStartSec === null || rawFadeStartSec === undefined || rawFadeStartSec === '' ? null : (Number.isFinite(Number(rawFadeStartSec)) ? Number(rawFadeStartSec) : null)
+    const profile = response?.data || {}
     fadeProfile.value = {
-      hasFade: Boolean(data.hasFade),
-      fadeStartSec: parsedFadeStartSec,
-      confidence: Number.isFinite(Number(data.confidence)) ? Number(data.confidence) : 0
+      hasFade: Boolean(profile?.hasFade),
+      fadeStartSec: Number.isFinite(Number(profile?.fadeStartSec)) ? Number(profile.fadeStartSec) : null,
+      confidence: Number.isFinite(Number(profile?.confidence)) ? Number(profile.confidence) : 0
     }
-    if (wsRegions && Number.isFinite(waveformDuration.value) && waveformDuration.value > 0) {
-      const totalDuration = Number(waveformDuration.value)
-      const playbackStart = toPlaybackTime(start.value)
-      const playbackEnd = toPlaybackTime(end.value || toSourceTime(totalDuration))
-      wsRegions.clearRegions()
-      if (start.value && start.value !== 0) {
-        wsRegions.addRegion({
-          id: 'inicio',
-          start: 0,
-          end: playbackStart,
-          color: regionColor.value,
-          drag: false,
-          resize: false
-        })
-      }
-      if (end.value) {
-        wsRegions.addRegion({
-          id: 'final',
-          start: playbackEnd,
-          end: totalDuration,
-          color: regionColor.value,
-          drag: false,
-          resize: false
-        })
-      }
-      if (!hasManualEndMarker.value && fadeProfile.value?.hasFade && Number.isFinite(fadeProfile.value?.fadeStartSec)) {
-        const fadeStartPlayback = Math.max(0, toPlaybackTime(fadeProfile.value.fadeStartSec))
-        const fadeEndPlayback = Math.max(fadeStartPlayback, playbackEnd || totalDuration)
-        if (fadeEndPlayback - fadeStartPlayback > 0.05) {
-          wsRegions.addRegion({
-            id: 'fade-detected',
-            start: fadeStartPlayback,
-            end: fadeEndPlayback,
-            color: fadeRegionColor.value,
-            drag: false,
-            resize: false
-          })
-        }
-      }
-    }
-
-    debugAudio('fade-profile-loaded', {
-      songId: song.id,
-      song: song.name || '',
-      hasFade: fadeProfile.value.hasFade,
-      fadeStartSec: fadeProfile.value.fadeStartSec,
-      confidence: fadeProfile.value.confidence
-    })
   } catch (error) {
-    if (requestSerial !== fadeProfileRequestSerial) return
+    if (requestId !== fadeProfileRequestSerial) return
     fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
-    debugAudio('fade-profile-error', {
-      songId: song.id,
-      error: String(error?.message || error)
-    })
+    console.warn('[vmusic][fade-profile] failed to load fade profile', error)
   }
 }
 
 function shouldTriggerBackendFade(playbackCurrentTime, crossfaderTime) {
-  if (!songFull.value?.id) return false
-  if (!Number.isFinite(playbackCurrentTime)) return false
-  if (hasManualEndMarker.value) return false
   if (!fadeProfile.value?.hasFade) return false
-  if (!Number.isFinite(end.value) || end.value <= 0) return false
+  if (!Number.isFinite(playbackCurrentTime)) return false
 
-  const playbackEnd = toPlaybackTime(end.value)
-  const triggerAt = toPlaybackTime(fadeProfile.value.fadeStartSec)
-  if (!Number.isFinite(playbackEnd) || !Number.isFinite(triggerAt)) return false
+  const fadeStartPlayback = toPlaybackTime(fadeProfile.value.fadeStartSec)
+  if (!Number.isFinite(fadeStartPlayback) || fadeStartPlayback <= 0) return false
 
-  const maxTrigger = Math.max(0, playbackEnd - Math.max(0.1, Number(crossfaderTime || 0)))
-  const safeTriggerAt = Math.min(triggerAt, maxTrigger)
-
-  return playbackCurrentTime >= safeTriggerAt
+  return playbackCurrentTime >= fadeStartPlayback
 }
 
 function getCurrentPlayableStates() {
@@ -1108,6 +1013,7 @@ async function setSong(s) {
    * Get this value from db
    */
   songFull.value = s
+  status.value = props.statuses.Cargando
   hasManualEndMarker.value = hasExplicitEndMarker(s)
   fadeProfileRequestSerial += 1
   fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }

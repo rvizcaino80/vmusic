@@ -67,9 +67,9 @@
             <div class="h-full flex-1 flex flex-col min-h-[0]">
               <div class="flex items-center space-x-2 text-xs text-white mb-2">
                 <!--button
-                class="px-2 py-1 bg-gray-700 flex items-center space-x-1"
-                @click="selectAllArtists"
-              >
+              class="px-2 py-1 bg-gray-700 flex items-center space-x-1"
+              @click="selectAllArtists"
+            >
                 <Icon
                   class="w-4 h-4"
                   icon="ri:checkbox-line"
@@ -116,6 +116,7 @@
                   ref="artistMultiSelect"
                   name="artists"
                   :list="artists"
+                  :alt-pressed="isAltPressed"
                   :selected-default="selectedArtists"
                   @changed="artistsChanged"
                 />
@@ -152,6 +153,7 @@
                   ref="tagMultiSelect"
                   name="tags"
                   :list="tags"
+                  :alt-pressed="isAltPressed"
                   :selected-default="selectedTags"
                   @changed="tagsChanged"
                 />
@@ -853,6 +855,7 @@
             <button
               :disabled="
                 isDeckAInitialPreprocessBlockingPlayback ||
+                  isNextDeckSpeedPreprocessBlocking ||
                   (
                     (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
                       playerStatuses['Sin Carga'])
@@ -1483,6 +1486,7 @@ const player1 = ref(null)
 const player2 = ref(null)
 const isFirstPlay = ref(true)
 const lastActiveDeckPosition = ref(null)
+let initialDeckBLoadTimer = null
 let traySyncIntervalId = null
 let logoAnimationIntervalId = null
 const isWindowFullscreen = ref(false)
@@ -1493,6 +1497,7 @@ const KEYBOARD_SPEED_STEP = 1
 const CENTER_VISUALIZER_BAR_COUNT = 20
 const centerVisualizerEnabled = ref(true)
 const centerVisualizerBarHeights = ref(Array.from({ length: CENTER_VISUALIZER_BAR_COUNT }, () => 0.16))
+const centerVisualizerDebugRms = ref(0)
 let centerVisualizerAudioContext = null
 let centerVisualizerAnalyser = null
 let centerVisualizerSourceNode = null
@@ -1739,6 +1744,14 @@ const addRandomButtonDisabled = computed(() => {
 
 const isDeckAInitialPreprocessBlockingPlayback = computed(() => {
   return Boolean(player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed)
+})
+
+const isNextDeckSpeedPreprocessBlocking = computed(() => {
+  const topPlaying = player1.value?.status === playerStatuses.Reproduciendo
+  const bottomPlaying = player2.value?.status === playerStatuses.Reproduciendo
+  const nextDeck = topPlaying ? player2.value : (bottomPlaying ? player1.value : null)
+
+  return Boolean(nextDeck?.isInitialSpeedPreprocessPending || nextDeck?.isPreprocessingSpeed)
 })
 
 const customUpdaterVisible = computed(() => {
@@ -2046,6 +2059,10 @@ onUnmounted(() => {
   if (logoAnimationIntervalId) {
     clearInterval(logoAnimationIntervalId)
     logoAnimationIntervalId = null
+  }
+  if (initialDeckBLoadTimer) {
+    clearTimeout(initialDeckBLoadTimer)
+    initialDeckBLoadTimer = null
   }
   window.electron2?.offCustomUpdaterState?.(customUpdaterListener)
   window.electron2?.offMediaControlsCommand?.(onTrayMediaCommand)
@@ -3216,22 +3233,42 @@ function loadPlayers(play = false) {
 
   const player1Status = player1.value?.status
   const player2Status = player2.value?.status
+  const shouldLoadPlayer1 = player1Status === playerStatuses.Detenido || player1Status === playerStatuses['Sin Carga']
+  const shouldLoadPlayer2 = player2Status === playerStatuses.Detenido || player2Status === playerStatuses['Sin Carga']
 
-  if (
-    player1Status === playerStatuses.Detenido || player1Status === playerStatuses['Sin Carga']
-  ) {
+  if (initialDeckBLoadTimer) {
+    clearTimeout(initialDeckBLoadTimer)
+    initialDeckBLoadTimer = null
+  }
+
+  if (shouldLoadPlayer1) {
     let nextSong = getFirstUnplayedSong()
     if (nextSong && player1.value) {
       player1.value.setSong(nextSong)
+      rememberActiveDeck(player1.value)
     }
   }
 
-  if (
-    player2Status === playerStatuses.Detenido || player2Status === playerStatuses['Sin Carga']
-  ) {
-    let nextSong = getFirstUnplayedSong()
-    if (nextSong && player2.value) {
-      player2.value.setSong(nextSong)
+  if (shouldLoadPlayer2) {
+    const loadDeckB = () => {
+      initialDeckBLoadTimer = null
+      const currentPlayer2Status = player2.value?.status
+      const stillNeedsLoad = currentPlayer2Status === playerStatuses.Detenido || currentPlayer2Status === playerStatuses['Sin Carga']
+      if (!stillNeedsLoad) return
+
+      const nextSong = getFirstUnplayedSong()
+      if (nextSong && player2.value) {
+        player2.value.setSong(nextSong)
+        if (!lastActiveDeckPosition.value) {
+          rememberActiveDeck(player2.value)
+        }
+      }
+    }
+
+    if (shouldLoadPlayer1) {
+      initialDeckBLoadTimer = setTimeout(loadDeckB, 1000)
+    } else {
+      loadDeckB()
     }
   }
 
@@ -3351,13 +3388,19 @@ function pause() {
   }
 }
 
+function isDeckReadyForAutoTransition(playerRef) {
+  if (!playerRef) return false
+
+  return playerRef.status === playerStatuses.Listo || playerRef.status === playerStatuses.Pausado
+}
+
 function songFading(p) {
   if (p.position === 'top') {
-    if ((player2.value.status === playerStatuses.Listo) && !autopause.value) {
+    if (isDeckReadyForAutoTransition(player2.value) && !autopause.value) {
       player2.value.play()
     }
   } else if (p.position === 'bottom') {
-    if ((player1.value.status === playerStatuses.Listo) && !autopause.value) {
+    if (isDeckReadyForAutoTransition(player1.value) && !autopause.value) {
       player1.value.play()
     }
   } else {
@@ -3656,6 +3699,7 @@ function saveSpeed(p) {
 function next() {
   if (!player1.value || !player2.value) return
   if (isDeckAInitialPreprocessBlockingPlayback.value) return
+  if (isNextDeckSpeedPreprocessBlocking.value) return
   if (player1.value.status === playerStatuses.Reproduciendo) {
     player1.value.next()
   } else if (player2.value.status === playerStatuses.Reproduciendo) {
@@ -3674,13 +3718,16 @@ function getMediaTargetPlayer() {
   if (player1.value.status === playerStatuses.Reproduciendo) return player1.value
   if (player2.value.status === playerStatuses.Reproduciendo) return player2.value
 
-  if (lastActiveDeckPosition.value === 'top' && (player1.value.status === playerStatuses.Pausado || player1.value.status === playerStatuses.Listo)) {
+  if (lastActiveDeckPosition.value === 'top' && player1.value.songFull?.id) {
     return player1.value
   }
 
-  if (lastActiveDeckPosition.value === 'bottom' && (player2.value.status === playerStatuses.Pausado || player2.value.status === playerStatuses.Listo)) {
+  if (lastActiveDeckPosition.value === 'bottom' && player2.value.songFull?.id) {
     return player2.value
   }
+
+  if (player1.value.status === playerStatuses.Cargando && player1.value.songFull?.id) return player1.value
+  if (player2.value.status === playerStatuses.Cargando && player2.value.songFull?.id) return player2.value
 
   if (player1.value.status === playerStatuses.Pausado || player1.value.status === playerStatuses.Listo) return player1.value
   if (player2.value.status === playerStatuses.Pausado || player2.value.status === playerStatuses.Listo) return player2.value
@@ -3765,6 +3812,7 @@ const centerVisualizerTimeText = computed(() => {
 
 function resetCenterVisualizerBars() {
   centerVisualizerBarHeights.value = Array.from({ length: CENTER_VISUALIZER_BAR_COUNT }, () => 0.16)
+  centerVisualizerDebugRms.value = 0
 }
 
 function clearCenterVisualizerRetryListeners() {
@@ -3828,6 +3876,8 @@ function updateCenterVisualizerBars() {
   const buffer = centerVisualizerDataBuffer
   const segmentSize = Math.max(1, Math.floor(buffer.length / CENTER_VISUALIZER_BAR_COUNT))
   const nextHeights = []
+  let totalSumSquares = 0
+  let totalCount = 0
 
   for (let barIndex = 0; barIndex < CENTER_VISUALIZER_BAR_COUNT; barIndex++) {
     const startIndex = barIndex * segmentSize
@@ -3838,7 +3888,9 @@ function updateCenterVisualizerBars() {
     for (let index = startIndex; index < endIndex; index++) {
       const sample = buffer[index]
       sumSquares += sample * sample
+      totalSumSquares += sample * sample
       count += 1
+      totalCount += 1
     }
 
     const rms = count > 0 ? Math.sqrt(sumSquares / count) : 0
@@ -3848,6 +3900,7 @@ function updateCenterVisualizerBars() {
     nextHeights.push(smoothed)
   }
 
+  centerVisualizerDebugRms.value = totalCount > 0 ? Math.sqrt(totalSumSquares / totalCount) : 0
   centerVisualizerBarHeights.value = nextHeights
   centerVisualizerFrameId = requestAnimationFrame(updateCenterVisualizerBars)
 }
@@ -4694,7 +4747,7 @@ table tr td.ant-table-cell {
   justify-content: center;
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
-  font-size: 4rem;
+  font-size: 8rem;
   font-weight: 800;
   line-height: 1;
   text-transform: uppercase;
@@ -4751,6 +4804,14 @@ table tr td.ant-table-cell {
   margin-top: 8px;
   color: #ffffff;
   font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.vm-center-debug-rms {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.74rem;
   letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
 }
