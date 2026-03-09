@@ -30,7 +30,9 @@ if (process.contextIsolated) {
       offWindowFullscreenChanged: (listener) => ipcRenderer.removeListener('window-fullscreen-changed', listener),
       onMediaControlsCommand: (listener) => ipcRenderer.on('media-controls:command', listener),
       offMediaControlsCommand: (listener) => ipcRenderer.removeListener('media-controls:command', listener),
-      updateMediaControlsState: (payload) => ipcRenderer.send('media-controls:update-state', payload)
+      updateMediaControlsState: (payload) => ipcRenderer.send('media-controls:update-state', payload),
+      onSystemPowerEvent: (listener) => ipcRenderer.on('system-power-event', listener),
+      offSystemPowerEvent: (listener) => ipcRenderer.removeListener('system-power-event', listener)
     })
 
     contextBridge.exposeInMainWorld('api', api)

@@ -680,11 +680,18 @@ function toSourceTime(playbackTime) {
 }
 
 async function loadFadeProfile(song) {
-  const requestId = ++fadeProfileRequestSerial
-  fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
-
   if (!song?.id) return
+  if (hasManualEndMarker.value) {
+    fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
+    debugAudio('fade-profile-skip-manual-end', {
+      songId: song.id
+    })
 
+    return
+  }
+
+  fadeProfileRequestSerial += 1
+  const requestSerial = fadeProfileRequestSerial
   try {
     const response = await axios.get(`http://localhost:3000/songs/fade-profile/${song.id}`)
     if (requestId !== fadeProfileRequestSerial) return
@@ -704,12 +711,16 @@ async function loadFadeProfile(song) {
 
 function shouldTriggerBackendFade(playbackCurrentTime, crossfaderTime) {
   if (!fadeProfile.value?.hasFade) return false
-  if (!Number.isFinite(playbackCurrentTime)) return false
+  if (!Number.isFinite(end.value) || end.value <= 0) return false
 
-  const fadeStartPlayback = toPlaybackTime(fadeProfile.value.fadeStartSec)
-  if (!Number.isFinite(fadeStartPlayback) || fadeStartPlayback <= 0) return false
+  const playbackEnd = toPlaybackTime(end.value)
+  const triggerAt = toPlaybackTime(fadeProfile.value.fadeStartSec)
+  if (!Number.isFinite(playbackEnd) || !Number.isFinite(triggerAt)) return false
 
-  return playbackCurrentTime >= fadeStartPlayback
+  const maxTrigger = Math.max(0, playbackEnd - Math.max(0.1, Number(crossfaderTime || 0)))
+  const safeTriggerAt = Math.min(triggerAt, maxTrigger)
+
+  return playbackCurrentTime >= safeTriggerAt
 }
 
 function getCurrentPlayableStates() {

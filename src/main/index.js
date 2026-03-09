@@ -106,6 +106,14 @@ function broadcastCustomUpdateState() {
     })
 }
 
+function broadcastSystemPowerEvent(type) {
+  BrowserWindow.getAllWindows()
+    .filter((window) => !window.isDestroyed())
+    .forEach((window) => {
+      window.webContents.send('system-power-event', { type })
+    })
+}
+
 function setCustomUpdateState(nextState) {
   customUpdateState = {
     ...customUpdateState,
@@ -739,9 +747,17 @@ app.whenReady().then(() => {
 
   powerMonitor.on('lock-screen', () => {
     powerSaveBlocker.start('prevent-display-sleep')
+    broadcastSystemPowerEvent('lock-screen')
   })
   powerMonitor.on('suspend', () => {
     powerSaveBlocker.start('prevent-app-suspension')
+    broadcastSystemPowerEvent('suspend')
+  })
+  powerMonitor.on('resume', () => {
+    broadcastSystemPowerEvent('resume')
+  })
+  powerMonitor.on('unlock-screen', () => {
+    broadcastSystemPowerEvent('unlock-screen')
   })
 
   app.on('activate', function() {

@@ -1,29 +1,31 @@
 <template>
-  <div
-    v-bind="containerProps"
-    class="multiselect-list"
-  >
-    <div v-bind="wrapperProps">
-      <div
-        v-for="row in virtualRows"
-        :key="row.data.id"
-        class="multiselect-row flex items-center justify-between relative"
-        @mouseenter="onRowEnter(row.data.id)"
-        @mouseleave="onRowLeave"
-      >
-        <a-checkbox
-          :checked="selectedSet.has(String(row.data.id))"
-          :value="row.data.id"
-          @change="onCheckboxChange(row.data.id, $event.target.checked)"
+  <div class="multiselect-shell">
+    <div
+      v-bind="containerProps"
+      class="multiselect-list"
+    >
+      <div v-bind="wrapperProps">
+        <div
+          v-for="row in virtualRows"
+          :key="row.data.id"
+          class="multiselect-row flex items-center justify-between relative"
+          @mouseenter="onRowEnter(row.data.id)"
+          @mouseleave="onRowLeave"
         >
-          {{ row.data.name }}
-        </a-checkbox>
-        <span
-          v-if="effectiveAltPressed && hoveredRowId === row.data.id"
-          class="multiselect-solo-hint"
-        >
-          SOLO
-        </span>
+          <a-checkbox
+            :checked="selectedSet.has(String(row.data.id))"
+            :value="row.data.id"
+            @change="onCheckboxChange(row.data.id, $event.target.checked)"
+          >
+            {{ row.data.name }}
+          </a-checkbox>
+          <span
+            v-if="effectiveAltPressed && hoveredRowId === row.data.id"
+            class="multiselect-solo-hint"
+          >
+            SOLO
+          </span>
+        </div>
       </div>
     </div>
   </div>
@@ -55,12 +57,23 @@ const props = defineProps({
     type: Boolean,
     required: false,
     default: false
+  },
+  filterQuery: {
+    type: String,
+    required: false,
+    default: ''
   }
 })
 
 const emit = defineEmits(['changed'])
 
 const sortedList = computed(() => [...(props.list || [])].sort((a, b) => a.name.localeCompare(b.name)))
+const filteredList = computed(() => {
+  const query = normalizeSearchText(props.filterQuery)
+  if (!query) return sortedList.value
+
+  return sortedList.value.filter((item) => normalizeSearchText(item?.name).includes(query))
+})
 const selectedSet = computed(() => new Set((selected.value || []).map((value) => String(value))))
 const effectiveAltPressed = computed(() => props.altPressed || altPressed.value)
 
@@ -68,7 +81,7 @@ const {
   list: virtualRows,
   containerProps,
   wrapperProps
-} = useVirtualList(sortedList, {
+} = useVirtualList(filteredList, {
   itemHeight: 26,
   overscan: 10
 })
@@ -161,6 +174,14 @@ function normalizeIds(ids = []) {
     .filter((value) => value !== null && value !== undefined)
 }
 
+function normalizeSearchText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
 defineExpose({
   selectAll,
   setSelected,
@@ -173,8 +194,16 @@ defineExpose({
   flex: 1;
 }
 
-.multiselect-list {
+.multiselect-shell {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.multiselect-list {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 

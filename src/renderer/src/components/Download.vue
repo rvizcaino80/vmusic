@@ -887,15 +887,45 @@ async function fillSongAndArtist(title, artistName) {
   }
 
   if (artistName) {
-    const { artist: match, isPerfect } = findArtistMatchDetails(artistName)
+    const rawArtistName = String(artistName || '').trim()
+    const splitCandidates = rawArtistName
+      .split(/\s*(?:,|;|\/|&|\+|\s+y\s+|\s+and\s+|\s+feat\.?\s+|\s+featuring\s+|\s+ft\.?\s+|\s+x\s+)\s*/i)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+    const normalizedSeen = new Set()
+    const uniqueCandidates = (splitCandidates.length > 1 ? splitCandidates : [rawArtistName])
+      .filter((candidate) => {
+        const normalized = normalizeExactArtistName(candidate)
+        if (!normalized || normalizedSeen.has(normalized)) return false
+        normalizedSeen.add(normalized)
 
-    if (match) {
-      await nextTick()
-      selectedArtists.value[1] = match.id
-      notFoundArtist.value = isPerfect ? null : artistName
-    } else {
+        return true
+      })
+    const selected = []
+    const missingArtists = []
+    let foundCount = 0
+
+    uniqueCandidates.forEach((candidate, index) => {
+      const { artist: match } = findArtistMatchDetails(candidate)
+      if (match) {
+        selected[index + 1] = match.id
+        foundCount += 1
+      } else {
+        selected[index + 1] = null
+        missingArtists.push(candidate)
+      }
+    })
+
+    if (uniqueCandidates.length <= 0) {
       notFoundArtist.value = artistName
+
+      return
     }
+
+    await nextTick()
+    totalArtists.value = Math.max(1, uniqueCandidates.length)
+    selectedArtists.value = selected
+    notFoundArtist.value = missingArtists.length > 0 ? missingArtists.join(', ') : foundCount === uniqueCandidates.length ? null : artistName
   }
 }
 

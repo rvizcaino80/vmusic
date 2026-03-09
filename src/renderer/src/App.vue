@@ -109,6 +109,15 @@
                   un-checked-children="Unión"
                   @change="artistFilterModeToggled"
                 />
+                <span class="text-xs text-black tabular-nums whitespace-nowrap">
+                  {{ selectedArtists.length }}/{{ artists.length }}
+                </span>
+                <a-input
+                  v-model:value="artistFilterQuery"
+                  class="vm-filter-input vm-filter-input-compact flex-1 min-w-0"
+                  placeholder="Filtrar artistas"
+                  allow-clear
+                />
               </div>
 
               <div class="bg-gray-300 flex-1 min-h-0">
@@ -117,6 +126,7 @@
                   name="artists"
                   :list="artists"
                   :alt-pressed="isAltPressed"
+                  :filter-query="artistFilterQuery"
                   :selected-default="selectedArtists"
                   @changed="artistsChanged"
                 />
@@ -146,6 +156,15 @@
                   un-checked-children="Unión"
                   @change="tagFilterModeToggled"
                 />
+                <span class="text-xs text-black tabular-nums whitespace-nowrap">
+                  {{ selectedTags.length }}/{{ tags.length }}
+                </span>
+                <a-input
+                  v-model:value="tagFilterQuery"
+                  class="vm-filter-input vm-filter-input-compact flex-1 min-w-0"
+                  placeholder="Filtrar tags"
+                  allow-clear
+                />
               </div>
 
               <div class="bg-gray-300 flex-1 min-h-0">
@@ -154,6 +173,7 @@
                   name="tags"
                   :list="tags"
                   :alt-pressed="isAltPressed"
+                  :filter-query="tagFilterQuery"
                   :selected-default="selectedTags"
                   @changed="tagsChanged"
                 />
@@ -1378,6 +1398,8 @@ const songs = ref([])
 const filteredSongs = ref([])
 const selectedTags = ref([])
 const selectedArtists = ref([])
+const artistFilterQuery = ref('')
+const tagFilterQuery = ref('')
 const artistFilterMode = ref('any')
 const tagFilterMode = ref('any')
 const selectedSongs = ref([])
@@ -1401,6 +1423,7 @@ const previewSinkId = ref(null)
 const previewOutputs = ref([])
 const previewPlaylistEntryId = ref(null)
 const deckSinkId = ref(null)
+const playbackStateBeforePowerInterruption = ref({ top: false, bottom: false })
 const waveEditorPreviewActive = ref(false)
 const PREVIEW_DECK_DUCK_MULTIPLIER = 0.2
 const hasStoredSettings = Boolean(localStorage.getItem('vmusic_settings'))
@@ -1444,6 +1467,7 @@ const customUpdaterListener = (_event, payload) => {
     ...(payload || {})
   }
 }
+let systemPowerResumeTimerId = null
 
 // Tags
 const tags = ref([])
@@ -1746,14 +1770,6 @@ const isDeckAInitialPreprocessBlockingPlayback = computed(() => {
   return Boolean(player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed)
 })
 
-const isNextDeckSpeedPreprocessBlocking = computed(() => {
-  const topPlaying = player1.value?.status === playerStatuses.Reproduciendo
-  const bottomPlaying = player2.value?.status === playerStatuses.Reproduciendo
-  const nextDeck = topPlaying ? player2.value : (bottomPlaying ? player1.value : null)
-
-  return Boolean(nextDeck?.isInitialSpeedPreprocessPending || nextDeck?.isPreprocessingSpeed)
-})
-
 const customUpdaterVisible = computed(() => {
   if (!isMacPlatform) return false
 
@@ -2033,6 +2049,7 @@ onMounted(() => {
     pageSizeRef.value = getRowsPerPageByMode()
   })
   window.electron2?.onMediaControlsCommand?.(onTrayMediaCommand)
+  window.electron2?.onSystemPowerEvent?.(onSystemPowerEvent)
   traySyncIntervalId = setInterval(() => {
     sendTrayMediaControlsState()
   }, 1000)
@@ -2060,12 +2077,9 @@ onUnmounted(() => {
     clearInterval(logoAnimationIntervalId)
     logoAnimationIntervalId = null
   }
-  if (initialDeckBLoadTimer) {
-    clearTimeout(initialDeckBLoadTimer)
-    initialDeckBLoadTimer = null
-  }
   window.electron2?.offCustomUpdaterState?.(customUpdaterListener)
   window.electron2?.offMediaControlsCommand?.(onTrayMediaCommand)
+  window.electron2?.offSystemPowerEvent?.(onSystemPowerEvent)
   window.removeEventListener('keydown', onHardwareMediaKey)
   window.removeEventListener('keydown', onKeyboardSeekKey, true)
   window.removeEventListener('keydown', onModifierKeyDown, true)
@@ -2074,6 +2088,10 @@ onUnmounted(() => {
   window.removeEventListener('storage', onDownloadTasksStorageChanged)
   window.removeEventListener('vmusic-download-tasks-changed', onDownloadTasksStorageChanged)
   stopCenterVisualizerAnalysis()
+  if (systemPowerResumeTimerId) {
+    clearTimeout(systemPowerResumeTimerId)
+    systemPowerResumeTimerId = null
+  }
   if (centerVisualizerAudioContext && typeof centerVisualizerAudioContext.close === 'function') {
     centerVisualizerAudioContext.close()
     centerVisualizerAudioContext = null
@@ -3726,9 +3744,6 @@ function getMediaTargetPlayer() {
     return player2.value
   }
 
-  if (player1.value.status === playerStatuses.Cargando && player1.value.songFull?.id) return player1.value
-  if (player2.value.status === playerStatuses.Cargando && player2.value.songFull?.id) return player2.value
-
   if (player1.value.status === playerStatuses.Pausado || player1.value.status === playerStatuses.Listo) return player1.value
   if (player2.value.status === playerStatuses.Pausado || player2.value.status === playerStatuses.Listo) return player2.value
 
@@ -4173,6 +4188,55 @@ function resetActivePlayerSpeed() {
   return true
 }
 
+function isPlayerActivelyPlaying(playerRef) {
+  if (!playerRef) return false
+
+  return playerRef.status === playerStatuses.Reproduciendo || playerRef.status === playerStatuses.Cambiando || playerRef.status === playerStatuses.Nivelando
+}
+
+function capturePlaybackStateBeforePowerInterruption() {
+  playbackStateBeforePowerInterruption.value = {
+    top: isPlayerActivelyPlaying(player1.value),
+    bottom: isPlayerActivelyPlaying(player2.value)
+  }
+}
+
+function restorePlaybackAfterPowerInterruption() {
+  if (systemPowerResumeTimerId) {
+    clearTimeout(systemPowerResumeTimerId)
+    systemPowerResumeTimerId = null
+  }
+
+  systemPowerResumeTimerId = setTimeout(() => {
+    if (player1.value?.setSinkId && deckSinkId.value) {
+      player1.value.setSinkId(deckSinkId.value)
+    }
+    if (player2.value?.setSinkId && deckSinkId.value) {
+      player2.value.setSinkId(deckSinkId.value)
+    }
+
+    if (playbackStateBeforePowerInterruption.value.top && player1.value?.songFull?.id) {
+      player1.value?.play?.()
+    }
+    if (playbackStateBeforePowerInterruption.value.bottom && player2.value?.songFull?.id) {
+      player2.value?.play?.()
+    }
+  }, 900)
+}
+
+function onSystemPowerEvent(_event, payload = {}) {
+  const type = String(payload?.type || '')
+  if (type === 'suspend' || type === 'lock-screen') {
+    capturePlaybackStateBeforePowerInterruption()
+
+    return
+  }
+
+  if (type === 'resume' || type === 'unlock-screen') {
+    restorePlaybackAfterPowerInterruption()
+  }
+}
+
 function onKeyboardSeekKey(event) {
   if (event.defaultPrevented || event.repeat) return
   if (isEditableKeyboardTarget(event.target)) return
@@ -4357,6 +4421,8 @@ function selectAllLibraryFilters() {
 
   selectedArtists.value = allArtistIds
   selectedTags.value = allowedTagIds
+  artistFilterQuery.value = ''
+  tagFilterQuery.value = ''
 
   if (artistMultiSelect.value?.setSelected) {
     artistMultiSelect.value.setSelected(allArtistIds)
@@ -4808,14 +4874,6 @@ table tr td.ant-table-cell {
   font-variant-numeric: tabular-nums;
 }
 
-.vm-center-debug-rms {
-  margin-top: 4px;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 0.74rem;
-  letter-spacing: 0.08em;
-  font-variant-numeric: tabular-nums;
-}
-
 .vm-center-rms-bars {
   display: flex;
   align-items: end;
@@ -5015,6 +5073,18 @@ table tr td.ant-table-cell {
 #app .vmusic-app .playlist-list-container::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+#app .vm-filter-input-compact.ant-input,
+#app .vm-filter-input-compact.ant-input-affix-wrapper,
+#app .vm-filter-input-compact .ant-input {
+  font-size: 0.875rem !important;
+}
+
+#app .vm-filter-input-compact.ant-input-affix-wrapper {
+  min-height: 24px;
+  padding-top: 1px !important;
+  padding-bottom: 1px !important;
 }
 
 </style>
