@@ -1770,6 +1770,20 @@ const isDeckAInitialPreprocessBlockingPlayback = computed(() => {
   return Boolean(player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed)
 })
 
+const isNextDeckSpeedPreprocessBlocking = computed(() => {
+  if (!player1.value || !player2.value) return false
+
+  if (player1.value.status === playerStatuses.Reproduciendo) {
+    return Boolean(player2.value?.isInitialSpeedPreprocessPending || player2.value?.isPreprocessingSpeed)
+  }
+
+  if (player2.value.status === playerStatuses.Reproduciendo) {
+    return Boolean(player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed)
+  }
+
+  return false
+})
+
 const customUpdaterVisible = computed(() => {
   if (!isMacPlatform) return false
 
@@ -1810,6 +1824,10 @@ const customUpdaterTitle = computed(() => {
 const customUpdaterMessage = computed(() => {
   return customUpdaterState.value.message || 'Actualización personal para macOS.'
 })
+
+function shouldAutoOpenLibraryAtStartup(status) {
+  return !['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(String(status || ''))
+}
 
 async function checkCustomUpdater() {
   if (!window.electron2?.checkCustomUpdater) return
@@ -2029,7 +2047,6 @@ function refreshDownloadCount() {
 
 onMounted(() => {
   refreshDownloadCount()
-  setOption(options.library)
   if (window.electron2?.getCustomUpdaterState) {
     window.electron2.getCustomUpdaterState()
       .then((state) => {
@@ -2037,8 +2054,15 @@ onMounted(() => {
           ...customUpdaterState.value,
           ...(state || {})
         }
+        if (shouldAutoOpenLibraryAtStartup(customUpdaterState.value.status)) {
+          setOption(options.library)
+        }
       })
-      .catch(() => {})
+      .catch(() => {
+        setOption(options.library)
+      })
+  } else {
+    setOption(options.library)
   }
   window.electron2?.onCustomUpdaterState?.(customUpdaterListener)
   setupMediaSessionHandlers()
@@ -2307,9 +2331,21 @@ async function onPreviewSinkChange(deviceId) {
       await previewAudio.value.setSinkId(previewSinkId.value)
     } catch (error) {
       console.warn('No se pudo cambiar la salida de preview', error)
+      if (isMissingAudioDeviceError(error)) {
+        previewSinkId.value = null
+
+        return
+      }
       alert('No se pudo cambiar la salida de previsualización.')
     }
   }
+}
+
+function isMissingAudioDeviceError(error) {
+  const name = String(error?.name || '')
+  const message = String(error?.message || '')
+
+  return name === 'NotFoundError' || message.toLowerCase().includes('requested device not found')
 }
 
 function resetPreviewState() {
@@ -2342,6 +2378,9 @@ async function startPreview(song, options = {}) {
         await audio.setSinkId(previewSinkId.value)
       } catch (error) {
         console.warn('No se pudo aplicar la salida de preview seleccionada', error)
+        if (isMissingAudioDeviceError(error)) {
+          previewSinkId.value = null
+        }
       }
     }
 

@@ -694,7 +694,7 @@ async function loadFadeProfile(song) {
   const requestSerial = fadeProfileRequestSerial
   try {
     const response = await axios.get(`http://localhost:3000/songs/fade-profile/${song.id}`)
-    if (requestId !== fadeProfileRequestSerial) return
+    if (requestSerial !== fadeProfileRequestSerial) return
 
     const profile = response?.data || {}
     fadeProfile.value = {
@@ -703,7 +703,7 @@ async function loadFadeProfile(song) {
       confidence: Number.isFinite(Number(profile?.confidence)) ? Number(profile.confidence) : 0
     }
   } catch (error) {
-    if (requestId !== fadeProfileRequestSerial) return
+    if (requestSerial !== fadeProfileRequestSerial) return
     fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
     console.warn('[vmusic][fade-profile] failed to load fade profile', error)
   }
@@ -1207,7 +1207,12 @@ function setPreviewDucking(active, multiplier = 0.2) {
 function setSinkId(sinkId) {
   if (!sinkId || sinkId === 'default' || !player || typeof player.setSinkId !== 'function') return
   try {
-    player.setSinkId(sinkId)
+    const maybePromise = player.setSinkId(sinkId)
+    if (maybePromise && typeof maybePromise.catch === 'function') {
+      maybePromise.catch((error) => {
+        console.warn('No se pudo cambiar la salida del deck', error)
+      })
+    }
   } catch (error) {
     console.warn('No se pudo cambiar la salida del deck', error)
   }

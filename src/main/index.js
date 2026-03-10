@@ -536,6 +536,12 @@ function refreshTrayMenu() {
   tray.setContextMenu(buildTrayMenu())
 }
 
+function destroyTray() {
+  if (!tray) return
+  tray.destroy()
+  tray = null
+}
+
 function createTray() {
   if (tray) return
 
@@ -613,7 +619,10 @@ function createWindow() {
       title: '',
       artist: ''
     }
-    refreshTrayMenu()
+    destroyTray()
+    if (BrowserWindow.getAllWindows().length === 0 && !app.isQuiting) {
+      app.quit()
+    }
   })
 
   mainWindow.webContents.on('did-finish-load', sendWindowDisplayMode)
@@ -769,18 +778,13 @@ app.whenReady().then(() => {
   })
 })
 
-/*
- * Quit when all windows are closed, except on macOS. There, it's common
- * for applications and their menu bar to stay active until the user quits
- * explicitly with Cmd + Q.
- */
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  app.quit()
 })
 
 app.on('before-quit', () => {
+  app.isQuiting = true
+  destroyTray()
   if (customUpdateCheckTimer) {
     clearInterval(customUpdateCheckTimer)
     customUpdateCheckTimer = null

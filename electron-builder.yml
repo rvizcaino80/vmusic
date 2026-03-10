@@ -1,4 +1,4 @@
-appId: com.electron.app
+appId: com.rvizcaino80.salsamania
 productName: 'Salsamania'
 directories:
   buildResources: build
@@ -31,6 +31,7 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 mac:
+  icon: icon.icns
   target:
     - dmg
     - zip
@@ -44,6 +45,7 @@ mac:
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
+  background: build/dmg-background.png
 linux:
   target:
     - AppImage
