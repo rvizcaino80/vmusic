@@ -21,6 +21,7 @@ if (process.contextIsolated) {
       getMediaUrl: (payload) => ipcRenderer.invoke('backend:get-media-url', payload),
       getCustomUpdaterState: () => ipcRenderer.invoke('custom-updater:get-state'),
       checkCustomUpdater: () => ipcRenderer.invoke('custom-updater:check'),
+      checkAndPrepareCustomUpdater: () => ipcRenderer.invoke('custom-updater:check-and-prepare'),
       installCustomUpdaterNow: () => ipcRenderer.invoke('custom-updater:install-now'),
       onCustomUpdaterState: (listener) => ipcRenderer.on('custom-updater:state', listener),
       offCustomUpdaterState: (listener) => ipcRenderer.removeListener('custom-updater:state', listener),
@@ -28,9 +29,6 @@ if (process.contextIsolated) {
       offWindowDisplayModeChanged: (listener) => ipcRenderer.removeListener('window-display-mode-changed', listener),
       onWindowFullscreenChanged: (listener) => ipcRenderer.on('window-fullscreen-changed', listener),
       offWindowFullscreenChanged: (listener) => ipcRenderer.removeListener('window-fullscreen-changed', listener),
-      onMediaControlsCommand: (listener) => ipcRenderer.on('media-controls:command', listener),
-      offMediaControlsCommand: (listener) => ipcRenderer.removeListener('media-controls:command', listener),
-      updateMediaControlsState: (payload) => ipcRenderer.send('media-controls:update-state', payload),
       onSystemPowerEvent: (listener) => ipcRenderer.on('system-power-event', listener),
       offSystemPowerEvent: (listener) => ipcRenderer.removeListener('system-power-event', listener)
     })
@@ -49,6 +47,7 @@ if (process.contextIsolated) {
     getMediaUrl: (payload) => ipcRenderer.invoke('backend:get-media-url', payload),
     getCustomUpdaterState: () => ipcRenderer.invoke('custom-updater:get-state'),
     checkCustomUpdater: () => ipcRenderer.invoke('custom-updater:check'),
+    checkAndPrepareCustomUpdater: () => ipcRenderer.invoke('custom-updater:check-and-prepare'),
     installCustomUpdaterNow: () => ipcRenderer.invoke('custom-updater:install-now'),
     onCustomUpdaterState: (listener) => ipcRenderer.on('custom-updater:state', listener),
     offCustomUpdaterState: (listener) => ipcRenderer.removeListener('custom-updater:state', listener),
@@ -56,9 +55,6 @@ if (process.contextIsolated) {
     offWindowDisplayModeChanged: (listener) => ipcRenderer.removeListener('window-display-mode-changed', listener),
     onWindowFullscreenChanged: (listener) => ipcRenderer.on('window-fullscreen-changed', listener),
     offWindowFullscreenChanged: (listener) => ipcRenderer.removeListener('window-fullscreen-changed', listener),
-    onMediaControlsCommand: (listener) => ipcRenderer.on('media-controls:command', listener),
-    offMediaControlsCommand: (listener) => ipcRenderer.removeListener('media-controls:command', listener),
-    updateMediaControlsState: (payload) => ipcRenderer.send('media-controls:update-state', payload),
     onSystemPowerEvent: (listener) => ipcRenderer.on('system-power-event', listener),
     offSystemPowerEvent: (listener) => ipcRenderer.removeListener('system-power-event', listener)
   }

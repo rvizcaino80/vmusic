@@ -140,6 +140,25 @@
         />
       </a-form-item>
 
+      <a-form-item
+        label="Actualizaciones"
+      >
+        <div class="flex flex-col gap-2">
+          <a-button
+            :loading="isCheckingUpdate"
+            @click="checkForUpdates"
+          >
+            Buscar actualización
+          </a-button>
+          <span
+            v-if="updateCheckMessage"
+            class="text-xs text-gray-600"
+          >
+            {{ updateCheckMessage }}
+          </span>
+        </div>
+      </a-form-item>
+
       <a-form-item :wrapper-col="{ offset: 8, span: 16 }">
         <a-button
           type="primary"
@@ -199,6 +218,8 @@ export default {
     const audioOutputs = ref([])
     const isLoadingOutputs = ref(false)
     const isLoadingTags = ref(false)
+    const isCheckingUpdate = ref(false)
+    const updateCheckMessage = ref('')
 
     const enumerateOutputs = async() => {
       if (!navigator.mediaDevices?.enumerateDevices) return []
@@ -249,6 +270,47 @@ export default {
       if (open) enumerateOutputs()
     }
 
+    const checkForUpdates = async() => {
+      updateCheckMessage.value = ''
+
+      if (!window.electron2?.checkAndPrepareCustomUpdater) {
+        updateCheckMessage.value = 'Las actualizaciones manuales solo están disponibles en la app instalada.'
+
+        return
+      }
+
+      try {
+        isCheckingUpdate.value = true
+        const state = await window.electron2.checkAndPrepareCustomUpdater()
+
+        if (state?.status === 'up-to-date') {
+          updateCheckMessage.value = 'No hay actualización pendiente.'
+
+          return
+        }
+
+        if (state?.status === 'downloaded') {
+          updateCheckMessage.value = 'Actualización descargada. Sigue el flujo normal para instalar.'
+
+          return
+        }
+
+        if (state?.status === 'downloading' || state?.status === 'available' || state?.status === 'installing') {
+          updateCheckMessage.value = state.message || 'Actualización en progreso.'
+
+          return
+        }
+
+        if (state?.status === 'error') {
+          updateCheckMessage.value = state.message || 'No se pudo buscar la actualización.'
+        }
+      } catch (error) {
+        updateCheckMessage.value = error?.message || 'No se pudo buscar la actualización.'
+      } finally {
+        isCheckingUpdate.value = false
+      }
+    }
+
     onMounted(() => {
       enumerateOutputs()
       loadTags()
@@ -283,9 +345,12 @@ export default {
       audioOutputs,
       isLoadingOutputs,
       isLoadingTags,
+      isCheckingUpdate,
+      updateCheckMessage,
       onFinish,
       onOutputsDropdown,
-      onFinishFailed
+      onFinishFailed,
+      checkForUpdates
     }
   }
 }

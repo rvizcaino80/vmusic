@@ -1513,7 +1513,6 @@ const player2 = ref(null)
 const isFirstPlay = ref(true)
 const lastActiveDeckPosition = ref(null)
 let initialDeckBLoadTimer = null
-let traySyncIntervalId = null
 let logoAnimationIntervalId = null
 const isWindowFullscreen = ref(false)
 const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
@@ -2070,15 +2069,10 @@ onMounted(() => {
   setupMediaSessionHandlers()
   updateMediaSessionState()
   updateMediaSessionMetadata()
-  sendTrayMediaControlsState()
   syncWindowDisplayMode().finally(() => {
     pageSizeRef.value = getRowsPerPageByMode()
   })
-  window.electron2?.onMediaControlsCommand?.(onTrayMediaCommand)
   window.electron2?.onSystemPowerEvent?.(onSystemPowerEvent)
-  traySyncIntervalId = setInterval(() => {
-    sendTrayMediaControlsState()
-  }, 1000)
   window.addEventListener('keydown', onHardwareMediaKey)
   window.addEventListener('keydown', onKeyboardSeekKey, true)
   window.addEventListener('keydown', onModifierKeyDown, true)
@@ -2090,21 +2084,15 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearMediaSessionHandlers()
-  sendTrayMediaControlsState({ canControl: false })
   if (filterQueryDebounceTimer) {
     clearTimeout(filterQueryDebounceTimer)
     filterQueryDebounceTimer = null
-  }
-  if (traySyncIntervalId) {
-    clearInterval(traySyncIntervalId)
-    traySyncIntervalId = null
   }
   if (logoAnimationIntervalId) {
     clearInterval(logoAnimationIntervalId)
     logoAnimationIntervalId = null
   }
   window.electron2?.offCustomUpdaterState?.(customUpdaterListener)
-  window.electron2?.offMediaControlsCommand?.(onTrayMediaCommand)
   window.electron2?.offSystemPowerEvent?.(onSystemPowerEvent)
   window.removeEventListener('keydown', onHardwareMediaKey)
   window.removeEventListener('keydown', onKeyboardSeekKey, true)
@@ -2175,7 +2163,6 @@ watch(() => [
 ], () => {
   updateMediaSessionState()
   updateMediaSessionMetadata()
-  sendTrayMediaControlsState()
 })
 
 watch(() => [
@@ -4095,58 +4082,6 @@ function updateMediaSessionMetadata() {
     artist: artistNames || 'Sin artista',
     album: 'Salsamanía'
   })
-}
-
-function sendTrayMediaControlsState(overrides = {}) {
-  if (!window.electron2?.updateMediaControlsState) return
-  const activePlayer = getMediaTargetPlayer()
-  const song = activePlayer?.songFull
-  const isPlaying = player1.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Reproduciendo
-  const canControl = Boolean(player1.value?.status === playerStatuses.Listo || player1.value?.status === playerStatuses.Pausado || player1.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Listo || player2.value?.status === playerStatuses.Pausado || player2.value?.status === playerStatuses.Reproduciendo)
-  const artistNames = Array.isArray(song?.Artists) ? song.Artists.map((artist) => artist.name).join(', ') : ''
-
-  window.electron2.updateMediaControlsState({
-    canControl,
-    isPlaying,
-    title: song?.name || '',
-    artist: artistNames || '',
-    ...overrides
-  })
-}
-
-function onTrayMediaCommand(_event, command) {
-  if (command === 'playpause') {
-    const currentlyPlaying = player1.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Reproduciendo
-    if (currentlyPlaying) {
-      pause()
-    } else {
-      play()
-    }
-
-    return
-  }
-
-  if (command === 'play') {
-    play()
-
-    return
-  }
-
-  if (command === 'pause') {
-    pause()
-
-    return
-  }
-
-  if (command === 'next') {
-    next()
-
-    return
-  }
-
-  if (command === 'previous') {
-    previousTrack()
-  }
 }
 
 function onHardwareMediaKey(event) {

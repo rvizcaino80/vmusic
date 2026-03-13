@@ -1,24 +1,15 @@
-import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveBlocker, Menu, Tray } from 'electron'
+import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveBlocker } from 'electron'
 import os from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import fs from 'fs'
 import { spawn } from 'child_process'
 import https from 'https'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app'
 import icon from '../../resources/icon.png?asset'
-import traySIcon from '../../resources/tray-icon.png?asset'
-import trayTemplateIcon from '../../resources/tray-icon-template.png?asset'
 import backendService from './backend/service.cjs'
 
 let mainWindow = null
-let tray = null
-let mediaControlsState = {
-  canControl: false,
-  isPlaying: false,
-  title: '',
-  artist: ''
-}
 let customUpdateCheckTimer = null
 let customUpdateState = {
   status: 'idle',
@@ -427,6 +418,15 @@ async function downloadCustomMacUpdate() {
   return customUpdateState
 }
 
+async function prepareCustomMacUpdate({ silent = false } = {}) {
+  const state = await checkCustomMacUpdate({ silent })
+  if (state.status === 'available') {
+    return downloadCustomMacUpdate()
+  }
+
+  return state
+}
+
 function launchCustomMacInstallHelper() {
   if (customUpdateContext.helperLaunched || !customUpdateContext.extractedAppPath || !customUpdateContext.targetAppPath) {
     return
@@ -477,14 +477,7 @@ function scheduleCustomMacUpdateChecks() {
     customUpdateCheckTimer = null
   }
 
-  checkCustomMacUpdate({ silent: false })
-    .then((state) => {
-      if (state.status === 'available') {
-        return downloadCustomMacUpdate()
-      }
-
-      return null
-    })
+  prepareCustomMacUpdate({ silent: false })
     .catch((error) => {
       setCustomUpdateState({
         status: 'error',
@@ -493,112 +486,9 @@ function scheduleCustomMacUpdateChecks() {
     })
 
   customUpdateCheckTimer = setInterval(() => {
-    checkCustomMacUpdate({ silent: true })
-      .then((state) => {
-        if (state.status === 'available' && !customUpdateState.downloaded) {
-          return downloadCustomMacUpdate()
-        }
-
-        return null
-      })
+    prepareCustomMacUpdate({ silent: true })
       .catch(() => {})
   }, CUSTOM_UPDATE_INTERVAL_MS)
-}
-
-function getWindowForMediaControls() {
-  if (mainWindow && !mainWindow.isDestroyed()) return mainWindow
-
-  return BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) || null
-}
-
-function sendMediaControlCommand(command) {
-  const win = getWindowForMediaControls()
-  if (!win || win.webContents.isDestroyed()) return
-  win.webContents.send('media-controls:command', command)
-}
-
-function getTrayPlayPauseLabel() {
-  if (!mediaControlsState.canControl) return 'Play'
-
-  return mediaControlsState.isPlaying ? 'Pause' : 'Play'
-}
-
-function buildTrayMenu() {
-  const currentTitle = mediaControlsState.title || 'Sin canción'
-  const currentArtist = mediaControlsState.artist || 'Sin artista'
-  const hasSong = Boolean(mediaControlsState.title || mediaControlsState.artist)
-
-  return Menu.buildFromTemplate([
-    {
-      label: hasSong ? `${currentTitle} - ${currentArtist}` : 'Sin reproducción activa',
-      enabled: false
-    },
-    { type: 'separator' },
-    {
-      label: 'Anterior',
-      enabled: mediaControlsState.canControl,
-      click: () => sendMediaControlCommand('previous')
-    },
-    {
-      label: getTrayPlayPauseLabel(),
-      enabled: mediaControlsState.canControl,
-      click: () => sendMediaControlCommand('playpause')
-    },
-    {
-      label: 'Siguiente',
-      enabled: mediaControlsState.canControl,
-      click: () => sendMediaControlCommand('next')
-    },
-    { type: 'separator' },
-    {
-      label: 'Mostrar ventana',
-      click: () => {
-        const win = getWindowForMediaControls()
-        if (!win) return
-        if (win.isMinimized()) {
-          win.restore()
-        }
-        win.show()
-        win.focus()
-      }
-    },
-    {
-      label: 'Salir',
-      click: () => {
-        app.quit()
-      }
-    }
-  ])
-}
-
-function refreshTrayMenu() {
-  if (!tray) return
-  tray.setContextMenu(buildTrayMenu())
-}
-
-function destroyTray() {
-  if (!tray) return
-  tray.destroy()
-  tray = null
-}
-
-function createTray() {
-  if (tray) return
-
-  let trayIcon = process.platform === 'darwin' ? nativeImage.createFromPath(trayTemplateIcon) : nativeImage.createFromPath(icon)
-  if (trayIcon.isEmpty()) {
-    trayIcon = nativeImage.createFromPath(traySIcon)
-  }
-  if (!trayIcon.isEmpty()) {
-    const traySize = process.platform === 'darwin' ? 18 : 16
-    trayIcon = trayIcon.resize({ width: traySize, height: traySize })
-    if (process.platform === 'darwin') {
-      trayIcon.setTemplateImage(true)
-    }
-  }
-  tray = new Tray(trayIcon)
-  tray.setToolTip('Salsamanía')
-  refreshTrayMenu()
 }
 
 function createWindow() {
@@ -653,13 +543,6 @@ function createWindow() {
   mainWindow.on('resized', sendWindowDisplayMode)
   mainWindow.on('closed', () => {
     mainWindow = null
-    mediaControlsState = {
-      canControl: false,
-      isPlaying: false,
-      title: '',
-      artist: ''
-    }
-    destroyTray()
     if (BrowserWindow.getAllWindows().length === 0 && !app.isQuiting) {
       app.quit()
     }
@@ -772,23 +655,14 @@ app.whenReady().then(() => {
   })
   ipcMain.handle('custom-updater:get-state', async() => customUpdateState)
   ipcMain.handle('custom-updater:check', async() => checkCustomMacUpdate({ silent: false }))
+  ipcMain.handle('custom-updater:check-and-prepare', async() => prepareCustomMacUpdate({ silent: false }))
   ipcMain.handle('custom-updater:install-now', async() => {
     requestCustomMacInstallNow()
 
     return { ok: true }
   })
-  ipcMain.on('media-controls:update-state', (_event, payload = {}) => {
-    mediaControlsState = {
-      canControl: Boolean(payload.canControl),
-      isPlaying: Boolean(payload.isPlaying),
-      title: String(payload.title || ''),
-      artist: String(payload.artist || '')
-    }
-    refreshTrayMenu()
-  })
 
   createWindow()
-  createTray()
   scheduleCustomMacUpdateChecks()
 
   powerMonitor.on('lock-screen', () => {
@@ -821,7 +695,6 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   app.isQuiting = true
-  destroyTray()
   if (customUpdateCheckTimer) {
     clearInterval(customUpdateCheckTimer)
     customUpdateCheckTimer = null
