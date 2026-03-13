@@ -2069,6 +2069,11 @@ onMounted(() => {
   setupMediaSessionHandlers()
   updateMediaSessionState()
   updateMediaSessionMetadata()
+  preparePreviewOutput()
+    .then(() => initializePreferredOutputDevices())
+    .catch((error) => {
+      console.warn('No se pudieron inicializar los dispositivos de salida', error)
+    })
   syncWindowDisplayMode().finally(() => {
     pageSizeRef.value = getRowsPerPageByMode()
   })
@@ -2268,17 +2273,91 @@ async function requestOutputDevices() {
   }
 }
 
+function buildOutputOptions(outputs) {
+  return [
+    { label: 'Predeterminada (sistema)', value: 'default' },
+    ...(Array.isArray(outputs) ? outputs : []).map((device) => ({
+      label: device.label || 'Salida predeterminada',
+      value: device.deviceId
+    }))
+  ]
+}
+
+function pickPreferredOutputDevice(outputs, preferredId = null) {
+  if (!Array.isArray(outputs) || outputs.length === 0) return null
+
+  const normalizedPreferredId = preferredId && preferredId !== 'default' ? preferredId : null
+  if (normalizedPreferredId) {
+    const remembered = outputs.find((device) => device.deviceId === normalizedPreferredId)
+    if (remembered) {
+      return remembered.deviceId
+    }
+  }
+
+  const builtInDevice = outputs.find((device) => String(device.label || '').toLowerCase()
+    .includes('built-in'))
+  if (builtInDevice) {
+    return builtInDevice.deviceId
+  }
+
+  return outputs[0]?.deviceId || null
+}
+
+function persistResolvedOutputSettings(nextValues = {}) {
+  const currentSettings = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
+  localStorage.setItem('vmusic_settings', JSON.stringify({
+    ...currentSettings,
+    ...nextValues
+  }))
+}
+
+function applyDeckSinkToPlayers() {
+  if (player1.value?.setSinkId && deckSinkId.value) {
+    player1.value.setSinkId(deckSinkId.value)
+  }
+  if (player2.value?.setSinkId && deckSinkId.value) {
+    player2.value.setSinkId(deckSinkId.value)
+  }
+}
+
 async function loadPreviewOutputs() {
   const outputs = await requestOutputDevices()
-  const options = outputs.map((d) => ({
-    label: d.label || 'Salida predeterminada',
-    value: d.deviceId
-  }))
+  previewOutputs.value = buildOutputOptions(outputs)
 
-  previewOutputs.value = [
-    { label: 'Predeterminada (sistema)', value: 'default' },
-    ...options
-  ]
+  return outputs
+}
+
+async function resolvePreferredOutputDevices() {
+  const outputs = await loadPreviewOutputs()
+  const resolvedPreviewSinkId = pickPreferredOutputDevice(outputs, previewSinkId.value)
+  const resolvedDeckSinkId = pickPreferredOutputDevice(outputs, deckSinkId.value)
+
+  previewSinkId.value = resolvedPreviewSinkId
+  deckSinkId.value = resolvedDeckSinkId
+  persistResolvedOutputSettings({
+    previewSinkId: resolvedPreviewSinkId,
+    deckSinkId: resolvedDeckSinkId
+  })
+
+  return {
+    previewSinkId: resolvedPreviewSinkId,
+    deckSinkId: resolvedDeckSinkId
+  }
+}
+
+async function initializePreferredOutputDevices() {
+  const resolved = await resolvePreferredOutputDevices()
+  applyDeckSinkToPlayers()
+
+  if (previewAudio.value && typeof previewAudio.value.setSinkId === 'function' && resolved.previewSinkId) {
+    try {
+      await previewAudio.value.setSinkId(resolved.previewSinkId)
+    } catch (error) {
+      console.warn('No se pudo aplicar la salida de preview inicial', error)
+    }
+  }
+
+  return resolved
 }
 
 async function ensurePreviewPlayer() {
@@ -3605,13 +3684,8 @@ async function settingsSaved() {
   deckSinkId.value = s.deckSinkId || null
   excludedTags.value = s.excludeTags || []
   colorSchema.value = applyColorSchema(s.colorSchema)
-  preparePreviewOutput()
-  if (player1.value?.setSinkId && deckSinkId.value) {
-    player1.value.setSinkId(deckSinkId.value)
-  }
-  if (player2.value?.setSinkId && deckSinkId.value) {
-    player2.value.setSinkId(deckSinkId.value)
-  }
+  await preparePreviewOutput()
+  await initializePreferredOutputDevices()
   if (player1.value?.refreshBaseSpeed) {
     player1.value.refreshBaseSpeed()
   }
