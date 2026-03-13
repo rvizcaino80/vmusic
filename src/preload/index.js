@@ -41,5 +41,26 @@ if (process.contextIsolated) {
   }
 } else {
   window.electron = electronAPI
+  window.electron2 = {
+    getClipboardText: () => ipcRenderer.invoke('get-clipboard-text'),
+    emptyClipboard: () => ipcRenderer.invoke('empty-clipboard'),
+    getWindowDisplayMode: () => ipcRenderer.invoke('get-window-display-mode'),
+    backendRequest: (payload) => ipcRenderer.invoke('backend:request', payload),
+    getMediaUrl: (payload) => ipcRenderer.invoke('backend:get-media-url', payload),
+    getCustomUpdaterState: () => ipcRenderer.invoke('custom-updater:get-state'),
+    checkCustomUpdater: () => ipcRenderer.invoke('custom-updater:check'),
+    installCustomUpdaterNow: () => ipcRenderer.invoke('custom-updater:install-now'),
+    onCustomUpdaterState: (listener) => ipcRenderer.on('custom-updater:state', listener),
+    offCustomUpdaterState: (listener) => ipcRenderer.removeListener('custom-updater:state', listener),
+    onWindowDisplayModeChanged: (listener) => ipcRenderer.on('window-display-mode-changed', listener),
+    offWindowDisplayModeChanged: (listener) => ipcRenderer.removeListener('window-display-mode-changed', listener),
+    onWindowFullscreenChanged: (listener) => ipcRenderer.on('window-fullscreen-changed', listener),
+    offWindowFullscreenChanged: (listener) => ipcRenderer.removeListener('window-fullscreen-changed', listener),
+    onMediaControlsCommand: (listener) => ipcRenderer.on('media-controls:command', listener),
+    offMediaControlsCommand: (listener) => ipcRenderer.removeListener('media-controls:command', listener),
+    updateMediaControlsState: (payload) => ipcRenderer.send('media-controls:update-state', payload),
+    onSystemPowerEvent: (listener) => ipcRenderer.on('system-power-event', listener),
+    offSystemPowerEvent: (listener) => ipcRenderer.removeListener('system-power-event', listener)
+  }
   window.api = api
 }
