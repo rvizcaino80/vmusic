@@ -729,7 +729,7 @@
           :output-sink-id="deckSinkId"
           class="transition-opacity duration-300"
           @artist-click="openLibraryForArtist"
-          @song-click="openLibraryForSong"
+          @song-click="openInfoForSong"
           @preview-start="previewStartFromPlayer"
           @preview-stop="stopPreview"
           @loaded="checkPlayers(player1)"
@@ -814,7 +814,7 @@
           :output-sink-id="deckSinkId"
           class="transition-opacity duration-300"
           @artist-click="openLibraryForArtist"
-          @song-click="openLibraryForSong"
+          @song-click="openInfoForSong"
           @preview-start="previewStartFromPlayer"
           @preview-stop="stopPreview"
           @loaded="checkPlayers(player2)"
@@ -4559,6 +4559,14 @@ async function openLibraryForSong(songData) {
 
   saveLibraryView()
   await nextTick()
+}
+
+function openInfoForSong(songData) {
+  const songId = typeof songData === 'number' ? songData : songData?.id
+  if (!songId) return
+
+  selectedSongs.value = [songId]
+  currentSelectedOption.value = options.edit
 }
 
 async function previewStartFromPlayer({ song, status }) {

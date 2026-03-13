@@ -65,7 +65,7 @@
                 v-if="songFull?.id"
                 type="button"
                 class="hover:underline"
-                title="Ver esta canción en biblioteca"
+                title="Ver información de esta canción"
                 @click.stop="emitSongClick"
               >
                 {{ song || 'Sin canción' }}
