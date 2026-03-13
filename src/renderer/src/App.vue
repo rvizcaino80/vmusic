@@ -4697,7 +4697,7 @@ table tr td.ant-table-cell {
   border-radius: 22px;
   background: linear-gradient(145deg, var(--vm-player-wave-a), var(--vm-player-wave-b));
   color: #fff;
-  font-size: 2rem;
+  font-size: 12rem;
   font-weight: 800;
   line-height: 1;
 }
@@ -4831,7 +4831,7 @@ table tr td.ant-table-cell {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  padding: 20px;
+  padding: 12px;
   box-sizing: border-box;
   box-shadow: none;
 }
@@ -4849,7 +4849,7 @@ table tr td.ant-table-cell {
   aspect-ratio: 1 / 1;
   object-fit: cover;
   border-radius: 999px;
-  opacity: 0.72;
+  opacity: 0.64;
   box-shadow: none;
 }
 
@@ -4861,10 +4861,10 @@ table tr td.ant-table-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000000;
+  background: var(--vm-center-accent);
   color: #fff;
   opacity: 0.72;
-  font-size: 10rem;
+  font-size: 3.6rem;
   font-weight: 800;
   line-height: 1;
   text-transform: uppercase;
@@ -4996,7 +4996,7 @@ table tr td.ant-table-cell {
   .vm-center-cover-fallback {
     width: 100%;
     height: 100%;
-    font-size: 8rem;
+    font-size: 3.2rem;
   }
 
   .vm-center-meta {
