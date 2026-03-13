@@ -23,6 +23,7 @@ extraResources:
     to: bin
     filter:
       - '**/*'
+afterSign: scripts/clear-mac-bundle-icon-flags.cjs
 win:
   executableName: salsamania
 nsis:
@@ -31,7 +32,6 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 mac:
-  icon: icon.icns
   target:
     - dmg
     - zip

@@ -78,7 +78,17 @@
       </div>
 
       <div>
-        <label class="text-sm text-gray-500 block">URL de metadata (Spotify / Shazam)</label>
+        <div class="flex items-center justify-between">
+          <label class="text-sm text-gray-500 block">URL de metadata (Spotify / Shazam)</label>
+          <a
+            v-if="spotifySearchUrl"
+            :href="spotifySearchUrl"
+            class="text-sm hover:underline"
+            style="color: var(--vm-ant-primary);"
+            target="_blank"
+            rel="noopener"
+          >Buscar en Spotify</a>
+        </div>
         <a-input
           v-model:value="metadataUrl"
           class="w-full"
@@ -155,6 +165,23 @@ const metadataUrl = ref('')
 const coverUrl = ref('')
 const noteText = ref('')
 const isUpdateDisabled = computed(() => isSaving.value || selectedTags.value.length === 0)
+const selectedArtistNames = computed(() => {
+  const artistIds = Object.values(selectedArtists.value || {}).filter(Boolean)
+  if (!artistIds.length) return []
+  const artistMap = new Map(localArtists.value.map((item) => [item.id, item.name]))
+
+  return artistIds
+    .map((id) => artistMap.get(id))
+    .filter(Boolean)
+})
+const spotifySearchUrl = computed(() => {
+  const title = song.value?.trim() || ''
+  const artists = selectedArtistNames.value.join(' ').trim()
+  const term = `${artists} ${title}`.trim()
+  if (!term) return ''
+
+  return `https://open.spotify.com/search/${encodeURIComponent(term)}`
+})
 
 const emit = defineEmits(['updated'])
 const COVER_MAP_STORAGE_KEY = 'vmusic_cover_map'

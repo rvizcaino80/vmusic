@@ -16,7 +16,7 @@
         >
           <img
             :src="songImage"
-            class="select-none"
+            class="select-none rounded-lg"
             draggable="false"
           >
         </div>

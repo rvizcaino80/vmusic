@@ -1,4 +1,4 @@
-import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveBlocker, Menu, Tray, nativeImage } from 'electron'
+import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveBlocker, Menu, Tray } from 'electron'
 import os from 'os'
 import { join } from 'path'
 import fs from 'fs'
@@ -171,6 +171,46 @@ function getWritableTargetAppPath() {
   }
 
   return preferredPath
+}
+
+function isInstalledInApplicationsDir(bundlePath = getCurrentBundlePath()) {
+  const normalizedPath = String(bundlePath || '')
+  const userApplicationsDir = ensureUserApplicationsDir()
+
+  return normalizedPath.startsWith('/Applications/') || normalizedPath.startsWith(`${userApplicationsDir}/`) || normalizedPath === '/Applications/Salsamania.app' || normalizedPath === join(userApplicationsDir, 'Salsamania.app')
+}
+
+function relaunchFromUserApplications() {
+  if (process.platform !== 'darwin' || is.dev) return false
+
+  const currentBundlePath = getCurrentBundlePath()
+  const targetAppPath = getWritableTargetAppPath()
+  if (!currentBundlePath.endsWith('.app')) return false
+  if (isInstalledInApplicationsDir(currentBundlePath)) return false
+  if (currentBundlePath === targetAppPath) return false
+
+  const helperScriptPath = join(os.tmpdir(), `salsamania-relocate-${Date.now()}.sh`)
+  const escapedSource = currentBundlePath.replace(/"/g, '\\"')
+  const escapedTarget = targetAppPath.replace(/"/g, '\\"')
+  const escapedApplicationsDir = dirname(targetAppPath).replace(/"/g, '\\"')
+  const script = `#!/bin/bash
+set -e
+mkdir -p "${escapedApplicationsDir}"
+rm -rf "${escapedTarget}"
+ditto "${escapedSource}" "${escapedTarget}"
+open "${escapedTarget}"
+`
+
+  fs.writeFileSync(helperScriptPath, script, { mode: 0o755 })
+  const child = spawn('/bin/bash', [helperScriptPath], {
+    detached: true,
+    stdio: 'ignore'
+  })
+  child.unref()
+  app.isQuiting = true
+  app.quit()
+
+  return true
 }
 
 function runCommand(command, args, options = {}) {
@@ -659,11 +699,8 @@ app.whenReady().then(() => {
     app.setName('Salsamania-DEV')
   }
 
-  if (process.platform === 'darwin') {
-    const dockIcon = nativeImage.createFromPath(icon)
-    if (!dockIcon.isEmpty()) {
-      app.dock.setIcon(dockIcon)
-    }
+  if (relaunchFromUserApplications()) {
+    return
   }
 
   // Set app user model id for windows

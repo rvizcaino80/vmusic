@@ -751,6 +751,7 @@
               <div
                 class="vm-center-cover-frame"
                 :class="{ 'has-cover': Boolean(centerVisualizerCover) }"
+                :style="{ backgroundImage: `url(${vinylBgUrl})` }"
               >
                 <img
                   v-if="centerVisualizerCover"
@@ -771,8 +772,8 @@
                 <div class="vm-center-kicker">
                   <span>{{ centerVisualizerStateLabel }} {{ centerVisualizerDeckLabel }}</span>
                 </div>
-                <h2>{{ centerVisualizerTitle }}</h2>
                 <p>{{ centerVisualizerArtist }}</p>
+                <h2>{{ centerVisualizerTitle }}</h2>
                 <div class="vm-center-times">
                   {{ centerVisualizerTimeText }}
                 </div>
@@ -1262,6 +1263,7 @@ import { onMounted, onUnmounted, computed, ref, watch, reactive, nextTick } from
 import { useVirtualList } from '@vueuse/core'
 import dayjs from 'dayjs'
 import logoSvgMarkup from './assets/logo.svg?raw'
+import vinylBgUrl from './assets/vinyl-bg.png'
 
 /* Components */
 import Artists from './components/Artists.vue'
@@ -4764,7 +4766,7 @@ table tr td.ant-table-cell {
 }
 
 .vm-center-stage {
-  min-height: 184px;
+  min-height: 260px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4795,7 +4797,7 @@ table tr td.ant-table-cell {
 .vm-center-visualizer {
   position: relative;
   width: 100%;
-  min-height: 184px;
+  min-height: 260px;
   overflow: hidden;
   border-radius: 28px;
   border: 1px solid transparent;
@@ -4806,53 +4808,63 @@ table tr td.ant-table-cell {
 .vm-center-content {
   position: relative;
   z-index: 2;
-  min-height: 184px;
+  min-height: 260px;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 22px;
-  padding: 0;
+  gap: 28px;
+  padding: 8px 0;
 }
 
 .vm-center-cover-frame {
   position: relative;
-  width: 193px;
-  height: 193px;
+  width: 240px;
+  height: 240px;
   aspect-ratio: 1 / 1;
   flex-shrink: 0;
-  border-radius: 28px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background-color: #000000;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 20px;
+  box-sizing: border-box;
   box-shadow: none;
 }
 
 .vm-center-cover-frame.has-cover {
-  background: transparent;
+  background-color: #000000;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .vm-center-cover {
-  width: 170px;
-  height: 170px;
+  width: 100%;
+  height: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  border-radius: 22px;
+  border-radius: 999px;
+  opacity: 0.72;
   box-shadow: none;
 }
 
 .vm-center-cover-fallback {
-  width: 170px;
-  height: 170px;
+  width: 100%;
+  height: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 22px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
+  background: #000000;
   color: #fff;
-  font-size: 8rem;
+  opacity: 0.72;
+  font-size: 10rem;
   font-weight: 800;
   line-height: 1;
   text-transform: uppercase;
@@ -4866,6 +4878,11 @@ table tr td.ant-table-cell {
   animation: vm-center-cover-pulse 3.2s ease-in-out infinite;
 }
 
+.vm-center-visualizer.is-playing .vm-center-cover,
+.vm-center-visualizer.is-playing .vm-center-cover-fallback {
+  animation: vm-center-lp-spin 8s linear infinite;
+}
+
 .vm-center-meta {
   display: flex;
   flex-direction: column;
@@ -4873,7 +4890,7 @@ table tr td.ant-table-cell {
   justify-content: center;
   text-align: left;
   min-width: 0;
-  max-width: min(420px, 100%);
+  max-width: min(520px, 100%);
 }
 
 .vm-center-kicker {
@@ -4881,8 +4898,8 @@ table tr td.ant-table-cell {
   justify-content: flex-start;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 6px;
-  font-size: 0.72rem;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -4892,7 +4909,7 @@ table tr td.ant-table-cell {
 .vm-center-meta h2 {
   margin: 0;
   color: #fff;
-  font-size: clamp(0.98rem, 1.75vw, 1.45rem);
+  font-size: clamp(1.02rem, 2vw, 1.65rem);
   font-weight: 700;
   line-height: 1.08;
   max-width: 100%;
@@ -4901,14 +4918,14 @@ table tr td.ant-table-cell {
 .vm-center-meta p {
   margin: 6px 0 0;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 0.88rem;
+  font-size: 1.05rem;
   max-width: 100%;
 }
 
 .vm-center-times {
-  margin-top: 8px;
+  margin-top: 10px;
   color: #ffffff;
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
 }
@@ -4917,12 +4934,12 @@ table tr td.ant-table-cell {
   display: flex;
   align-items: end;
   gap: 4px;
-  height: 32px;
-  margin-top: 10px;
+  height: 40px;
+  margin-top: 12px;
 }
 
 .vm-center-rms-bar {
-  width: 4px;
+  width: 5px;
   height: 100%;
   border-radius: 999px;
   transform-origin: center bottom;
@@ -4951,10 +4968,35 @@ table tr td.ant-table-cell {
   }
 }
 
+@keyframes vm-center-lp-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 900px) {
   .vm-center-content {
     flex-direction: column;
     gap: 18px;
+  }
+
+  .vm-center-cover-frame {
+    width: 200px;
+    height: 200px;
+  }
+
+  .vm-center-cover {
+    width: 100%;
+    height: 100%;
+  }
+
+  .vm-center-cover-fallback {
+    width: 100%;
+    height: 100%;
+    font-size: 8rem;
   }
 
   .vm-center-meta {
