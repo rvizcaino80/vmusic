@@ -114,6 +114,7 @@
                   {{ selectedArtists.length }}/{{ artists.length }}
                 </span>
                 <a-input
+                  v-if="showAdvancedFunctions"
                   v-model:value="artistFilterQuery"
                   class="vm-filter-input vm-filter-input-compact flex-1 min-w-0"
                   placeholder="Filtrar artistas"
@@ -162,6 +163,7 @@
                   {{ selectedTags.length }}/{{ tags.length }}
                 </span>
                 <a-input
+                  v-if="showAdvancedFunctions"
                   v-model:value="tagFilterQuery"
                   class="vm-filter-input vm-filter-input-compact flex-1 min-w-0"
                   placeholder="Filtrar tags"
@@ -666,7 +668,12 @@
             class="vm-update-mark"
             :class="{ 'vm-update-mark-error': customUpdaterState.status === 'error' }"
           >
-            S
+            <img
+              src="/logo.png"
+              alt="Salsamania"
+              class="vm-update-mark-image"
+              draggable="false"
+            >
           </div>
           <div class="vm-update-name">
             Salsamania
@@ -1542,6 +1549,13 @@ function syncPreviewDeckDucking() {
 watch([previewStatus, previewSinkId, deckSinkId, waveEditorPreviewActive, player1, player2], () => {
   syncPreviewDeckDucking()
 }, { immediate: true })
+
+watch(showAdvancedFunctions, (enabled) => {
+  if (enabled) return
+
+  artistFilterQuery.value = ''
+  tagFilterQuery.value = ''
+})
 
 function onWavePreviewPlayState(isPlaying) {
   waveEditorPreviewActive.value = Boolean(isPlaying)
@@ -4699,14 +4713,17 @@ table tr td.ant-table-cell {
   justify-content: center;
   border-radius: 22px;
   background: linear-gradient(145deg, var(--vm-player-wave-a), var(--vm-player-wave-b));
-  color: #fff;
-  font-size: 12rem;
-  font-weight: 800;
-  line-height: 1;
+  overflow: hidden;
 }
 
 .vm-update-mark-error {
   background: linear-gradient(145deg, #7f1d1d, #ef4444);
+}
+
+.vm-update-mark-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .vm-update-name {

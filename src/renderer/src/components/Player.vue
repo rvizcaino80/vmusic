@@ -189,8 +189,8 @@ const props = defineProps({
 })
 
 let player = null
-const cdBgUrl = '/cd-bg.png'
-const cdCenterUrl = '/cd-center.png'
+const cdBgUrl = new URL('./cd-bg.png', window.location.href).href
+const cdCenterUrl = new URL('./cd-center.png', window.location.href).href
 const duration = ref(0.0)
 const songFull = ref({ })
 const songId = ref(null)
@@ -1586,14 +1586,17 @@ defineExpose({
 
 .player-vinyl-cover,
 .player-vinyl-fallback {
+  position: absolute;
+  top: 3%;
+  left: 3%;
   width: 94%;
   height: 94%;
   border-radius: 999px;
-  flex: none;
   z-index: 1;
 }
 
 .player-vinyl-cover {
+  display: block;
   object-fit: cover;
   opacity: 0.9;
 }
