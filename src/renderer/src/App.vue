@@ -751,19 +751,21 @@
           >
             <div class="vm-center-content">
               <div class="vm-center-meter">
-                <div class="vm-center-times">
-                  {{ centerVisualizerTimeText }}
-                </div>
-                <div
-                  class="vm-center-rms-bars"
-                  aria-hidden="true"
-                >
-                  <span
-                    v-for="(height, index) in centerVisualizerBarHeights"
-                    :key="index"
-                    class="vm-center-rms-bar"
-                    :style="{ transform: `scaleY(${height})` }"
-                  />
+                <div class="vm-center-bars-wrap">
+                  <div class="vm-center-times">
+                    {{ centerVisualizerTimeText }}
+                  </div>
+                  <div
+                    class="vm-center-rms-bars"
+                    aria-hidden="true"
+                  >
+                    <span
+                      v-for="(height, index) in centerVisualizerBarHeights"
+                      :key="index"
+                      class="vm-center-rms-bar"
+                      :style="{ transform: `scaleY(${height})` }"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1498,7 +1500,7 @@ const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'sto
 const mediaKeyCodes = new Set(['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaStop'])
 const KEYBOARD_SEEK_SECONDS = 5
 const KEYBOARD_SPEED_STEP = 1
-const CENTER_VISUALIZER_BAR_COUNT = 20
+const CENTER_VISUALIZER_BAR_COUNT = 8
 const centerVisualizerEnabled = ref(true)
 const centerVisualizerBarHeights = ref(Array.from({ length: CENTER_VISUALIZER_BAR_COUNT }, () => 0.16))
 const centerVisualizerDebugRms = ref(0)
@@ -1510,6 +1512,10 @@ let centerVisualizerFrameId = null
 let centerVisualizerDataBuffer = null
 let centerVisualizerRetryMedia = null
 let centerVisualizerRetryHandler = null
+let centerVisualizerRetryTimeoutId = null
+let centerVisualizerRetryAttempt = 0
+const CENTER_VISUALIZER_RETRY_DELAY_MS = 180
+const CENTER_VISUALIZER_RETRY_MAX_ATTEMPTS = 24
 
 function normalizeOutputDeviceId(deviceId) {
   return deviceId && deviceId !== 'default' ? deviceId : 'default'
@@ -3698,9 +3704,8 @@ async function updated(songId) {
   await filterSongs()
   const updatedSong = await refreshSongInLibrary(targetId)
   refreshEditedSongInLoadedPlayers(updatedSong)
-  currentSelectedOption.value = options.library
-  selectedSongs.value = []
   isLoadingLibrary.value = false
+  await setOption(null)
 }
 
 async function refreshSongInLibrary(id) {
@@ -3843,7 +3848,7 @@ const centerVisualizerPlayer = computed(() => {
 })
 
 const shouldShowCenterVisualizer = computed(() => {
-  return centerVisualizerEnabled.value && Boolean(centerVisualizerPlayer.value?.songFull?.id)
+  return false && centerVisualizerEnabled.value && Boolean(centerVisualizerPlayer.value?.songFull?.id)
 })
 
 const centerVisualizerDeckClass = computed(() => {
@@ -3881,31 +3886,64 @@ function resetCenterVisualizerBars() {
 }
 
 function clearCenterVisualizerRetryListeners() {
+  if (centerVisualizerRetryTimeoutId) {
+    clearTimeout(centerVisualizerRetryTimeoutId)
+    centerVisualizerRetryTimeoutId = null
+  }
+
   if (!centerVisualizerRetryMedia || !centerVisualizerRetryHandler) return
 
   centerVisualizerRetryMedia.removeEventListener('loadeddata', centerVisualizerRetryHandler)
+  centerVisualizerRetryMedia.removeEventListener('loadedmetadata', centerVisualizerRetryHandler)
   centerVisualizerRetryMedia.removeEventListener('canplay', centerVisualizerRetryHandler)
+  centerVisualizerRetryMedia.removeEventListener('play', centerVisualizerRetryHandler)
   centerVisualizerRetryMedia.removeEventListener('playing', centerVisualizerRetryHandler)
   centerVisualizerRetryMedia.removeEventListener('timeupdate', centerVisualizerRetryHandler)
+  centerVisualizerRetryMedia.removeEventListener('seeked', centerVisualizerRetryHandler)
+  centerVisualizerRetryMedia.removeEventListener('ratechange', centerVisualizerRetryHandler)
   centerVisualizerRetryMedia = null
   centerVisualizerRetryHandler = null
+  centerVisualizerRetryAttempt = 0
+}
+
+function scheduleCenterVisualizerRetryTick() {
+  if (!centerVisualizerRetryMedia) return
+  if (centerVisualizerRetryAttempt >= CENTER_VISUALIZER_RETRY_MAX_ATTEMPTS) return
+
+  if (centerVisualizerRetryTimeoutId) {
+    clearTimeout(centerVisualizerRetryTimeoutId)
+  }
+
+  centerVisualizerRetryAttempt += 1
+  centerVisualizerRetryTimeoutId = setTimeout(() => {
+    centerVisualizerRetryTimeoutId = null
+    ensureCenterVisualizerAnalysis()
+  }, CENTER_VISUALIZER_RETRY_DELAY_MS)
 }
 
 function scheduleCenterVisualizerRetry(media) {
   if (!media) return
-  if (centerVisualizerRetryMedia === media && centerVisualizerRetryHandler) return
+  if (centerVisualizerRetryMedia === media && centerVisualizerRetryHandler) {
+    scheduleCenterVisualizerRetryTick()
+
+    return
+  }
 
   clearCenterVisualizerRetryListeners()
   centerVisualizerRetryMedia = media
   centerVisualizerRetryHandler = () => {
-    clearCenterVisualizerRetryListeners()
     ensureCenterVisualizerAnalysis()
   }
 
   media.addEventListener('loadeddata', centerVisualizerRetryHandler, { once: true })
+  media.addEventListener('loadedmetadata', centerVisualizerRetryHandler, { once: true })
   media.addEventListener('canplay', centerVisualizerRetryHandler, { once: true })
+  media.addEventListener('play', centerVisualizerRetryHandler, { once: true })
   media.addEventListener('playing', centerVisualizerRetryHandler, { once: true })
   media.addEventListener('timeupdate', centerVisualizerRetryHandler, { once: true })
+  media.addEventListener('seeked', centerVisualizerRetryHandler, { once: true })
+  media.addEventListener('ratechange', centerVisualizerRetryHandler, { once: true })
+  scheduleCenterVisualizerRetryTick()
 }
 
 function stopCenterVisualizerAnalysis() {
@@ -4785,38 +4823,92 @@ table tr td.ant-table-cell {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: min(100%, 980px);
-  padding: 0 12px;
+  width: 100%;
+  padding: 0;
+}
+
+.vm-center-bars-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .vm-center-times {
-  margin-top: 0;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+  align-items: center;
+  justify-content: center;
   color: #ffffff;
-  font-size: clamp(1.2rem, 2vw, 1.8rem);
+  font-size: clamp(0.78rem, 1.12vw, 1rem);
   font-weight: 700;
   letter-spacing: 0.18em;
   font-variant-numeric: tabular-nums;
   text-align: center;
-  text-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  text-shadow:
+    0 0 12px rgba(0, 0, 0, 0.9),
+    0 0 28px rgba(0, 0, 0, 0.72),
+    0 8px 18px rgba(0, 0, 0, 0.62);
 }
 
 .vm-center-rms-bars {
   display: flex;
-  align-items: end;
-  justify-content: center;
-  gap: 10px;
+  align-items: center;
+  justify-content: stretch;
+  gap: 4px;
   width: 100%;
-  height: 148px;
-  margin-top: 22px;
+  height: 296px;
+  margin-top: 0;
+  padding-left: 25px;
+  box-sizing: border-box;
 }
 
 .vm-center-rms-bar {
-  width: clamp(10px, 1.3vw, 16px);
+  position: relative;
+  flex: 1 1 0;
+  min-width: 2px;
   height: 100%;
-  border-radius: 999px;
-  transform-origin: center bottom;
+  border-radius: 0;
+  transform-origin: center center;
   transition: transform 90ms linear;
-  background: linear-gradient(to top, var(--vm-player-wave-a), var(--vm-player-wave-b));
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--vm-player-wave-a) 72%, transparent) 0%,
+    color-mix(in srgb, var(--vm-player-wave-b) 88%, white 12%) 30%,
+    #ffffff 50%,
+    color-mix(in srgb, var(--vm-player-wave-b) 88%, white 12%) 70%,
+    color-mix(in srgb, var(--vm-player-wave-a) 72%, transparent) 100%
+  );
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--vm-player-wave-b) 45%, transparent),
+    0 0 18px color-mix(in srgb, #ffffff 24%, transparent);
+}
+
+.vm-center-rms-bar::before,
+.vm-center-rms-bar::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 0;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, #ffffff 78%, var(--vm-player-wave-b) 22%);
+  box-shadow:
+    0 0 8px color-mix(in srgb, #ffffff 65%, transparent),
+    0 0 14px color-mix(in srgb, var(--vm-player-wave-b) 38%, transparent);
+}
+
+.vm-center-rms-bar::before {
+  top: 0;
+}
+
+.vm-center-rms-bar::after {
+  bottom: 0;
 }
 
 .vm-center-visualizer-a {
@@ -4838,8 +4930,8 @@ table tr td.ant-table-cell {
   }
 
   .vm-center-rms-bars {
-    gap: 6px;
-    height: 108px;
+    gap: 3px;
+    height: 216px;
   }
 }
 
@@ -4957,11 +5049,17 @@ table tr td.ant-table-cell {
 }
 
 #app .vmusic-app {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--vm-player-wave-a) 35%, black 65%) 0%,
-    color-mix(in srgb, var(--vm-player-wave-b) 35%, black 65%) 100%
-  ) !important;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.42) 0%,
+      rgba(0, 0, 0, 0) 52%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vm-player-wave-a) 35%, black 65%) 0%,
+      color-mix(in srgb, var(--vm-player-wave-b) 35%, black 65%) 100%
+    ) !important;
 }
 
 #app .vmusic-app .vm-side-nav svg {

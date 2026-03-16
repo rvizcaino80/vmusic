@@ -10,7 +10,7 @@
           'player-deck-a': props.position === 'top'
         }"
         class="player-vinyl-frame"
-        :style="{ backgroundImage: `url(${vinylBgUrl})` }"
+        :style="{ backgroundImage: `url(${cdBgUrl})` }"
       >
         <img
           v-if="songImage"
@@ -25,17 +25,13 @@
             'player-deck-a': props.position === 'top'
           }"
           class="player-vinyl-fallback player-text text-bold text-center"
+        />
+        <img
+          :src="cdCenterUrl"
+          class="player-vinyl-center select-none"
+          alt=""
+          draggable="false"
         >
-          <span
-            v-if="props.position === 'top'"
-            class="select-none"
-          >A</span>
-          <span
-            v-if="props.position === 'bottom'"
-            class="select-none"
-          >B</span>
-        </div>
-        <div class="player-vinyl-hole" />
       </div>
     </div>
 
@@ -176,7 +172,6 @@ import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 import axios from 'axios'
-import vinylBgUrl from '../assets/vinyl-bg.png'
 
 const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'song-click', 'preview-start', 'preview-stop', 'finished'])
 
@@ -194,6 +189,8 @@ const props = defineProps({
 })
 
 let player = null
+const cdBgUrl = '/cd-bg.png'
+const cdCenterUrl = '/cd-center.png'
 const duration = ref(0.0)
 const songFull = ref({ })
 const songId = ref(null)
@@ -1578,8 +1575,9 @@ defineExpose({
   background-color: #000;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: cover;
+  background-size: contain;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
 }
 
 .player-vinyl-playing {
@@ -1588,15 +1586,16 @@ defineExpose({
 
 .player-vinyl-cover,
 .player-vinyl-fallback {
-  width: 38%;
-  height: 38%;
+  width: 94%;
+  height: 94%;
   border-radius: 999px;
   flex: none;
+  z-index: 1;
 }
 
 .player-vinyl-cover {
   object-fit: cover;
-  opacity: 0.92;
+  opacity: 0.9;
 }
 
 .player-vinyl-fallback {
@@ -1604,18 +1603,28 @@ defineExpose({
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: clamp(2rem, 3vw, 2.8rem);
+  font-size: clamp(2.2rem, 3.2vw, 3rem);
   line-height: 1;
   text-transform: uppercase;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.player-vinyl-hole {
+.player-vinyl-fallback.player-deck-a {
+  background-color: color-mix(in srgb, var(--vm-player-wave-a) 70%, transparent);
+}
+
+.player-vinyl-fallback.player-deck-b {
+  background-color: color-mix(in srgb, var(--vm-player-wave-b) 70%, transparent);
+}
+
+.player-vinyl-center {
   position: absolute;
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  background: #0b0b0b;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+  width: 28%;
+  height: 28%;
+  object-fit: contain;
+  opacity: 0.8;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .player-layout-reverse .player-header {
