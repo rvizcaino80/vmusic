@@ -518,6 +518,7 @@ function saveNoteLocally(ytid, note) {
       delete parsed[ytid]
     }
     localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(parsed))
+    window.dispatchEvent(new CustomEvent('vmusic-song-notes-changed'))
   } catch (error) {
     // ignore storage errors
   }

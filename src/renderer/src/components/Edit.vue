@@ -238,12 +238,12 @@ onMounted(async() => {
 async function getTags() {
   const response = await fetch('http://localhost:3000/tags')
   const data = await response.json()
-  const indexedData = data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data)
-    .every((key) => (/^\d+$/).test(key))
-? Object.keys(data.data).map((key) => Number(key))
+  let indexedData = []
+  if (data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data).every((key) => (/^\d+$/).test(key))) {
+    indexedData = Object.keys(data.data).map((key) => Number(key))
       .sort((a, b) => a - b)
       .map((index) => data.data[String(index)])
-: []
+  }
   const normalized = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : indexedData
 
   return normalized.sort((a, b) => a.name.localeCompare(b.name)).filter((t) => t.id !== 9998)
@@ -252,12 +252,12 @@ async function getTags() {
 async function getArtists() {
   const response = await fetch('http://localhost:3000/artists')
   const data = await response.json()
-  const indexedData = data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data)
-    .every((key) => (/^\d+$/).test(key))
-? Object.keys(data.data).map((key) => Number(key))
+  let indexedData = []
+  if (data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data).every((key) => (/^\d+$/).test(key))) {
+    indexedData = Object.keys(data.data).map((key) => Number(key))
       .sort((a, b) => a - b)
       .map((index) => data.data[String(index)])
-: []
+  }
   const normalized = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : indexedData
 
   return normalized.sort((a, b) => a.name.localeCompare(b.name))
@@ -358,6 +358,7 @@ function saveNoteLocally(ytidValue, note) {
       delete parsed[ytidValue]
     }
     localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(parsed))
+    window.dispatchEvent(new CustomEvent('vmusic-song-notes-changed'))
   } catch (error) {
     // ignore
   }
