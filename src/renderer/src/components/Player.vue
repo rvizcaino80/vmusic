@@ -1,33 +1,30 @@
 <template>
   <div
-    :class="{
-      'player-layout-reverse': props.position === 'top'
-    }"
-    class="player player-fixed-layout p-6 min-w-0"
+    class="player player-shell p-6 min-w-0"
   >
-    <div class="player-header flex justify-between space-x-3">
-      <div class="flex space-x-3 flex-1 min-w-0">
-        <div
+    <div class="player-vinyl-column">
+      <div
+        :class="{
+          'player-vinyl-playing': status === props.statuses.Reproduciendo,
+          'player-deck-b': props.position === 'bottom',
+          'player-deck-a': props.position === 'top'
+        }"
+        class="player-vinyl-frame"
+        :style="{ backgroundImage: `url(${vinylBgUrl})` }"
+      >
+        <img
           v-if="songImage"
-          :class="{
-            'pulsate-bck': status === props.statuses.Reproduciendo,
-          }"
-          class="flex h-[80px] w-[80px] items-center justify-center"
+          :src="songImage"
+          class="player-vinyl-cover select-none"
+          draggable="false"
         >
-          <img
-            :src="songImage"
-            class="select-none rounded-lg"
-            draggable="false"
-          >
-        </div>
         <div
           v-else
           :class="{
-            'pulsate-bck': status === props.statuses.Reproduciendo,
             'player-deck-b': props.position === 'bottom',
             'player-deck-a': props.position === 'top'
           }"
-          class="flex rounded-xl text-[70px] player-text text-bold text-center h-[80px] w-[80px] items-center justify-center"
+          class="player-vinyl-fallback player-text text-bold text-center"
         >
           <span
             v-if="props.position === 'top'"
@@ -38,6 +35,17 @@
             class="select-none"
           >B</span>
         </div>
+        <div class="player-vinyl-hole" />
+      </div>
+    </div>
+
+    <div
+      :class="{
+        'player-layout-reverse': props.position === 'top'
+      }"
+      class="player-main player-fixed-layout min-w-0"
+    >
+      <div class="player-header flex justify-between space-x-3">
         <div class="flex-1 min-w-0">
           <h2 class="text-white text-xl select-none w-full truncate">
             <template v-if="artistsList.length">
@@ -99,66 +107,66 @@
               ({{ Math.round(volume * 100) }})</span>
           </div>
         </div>
-      </div>
 
-      <div class="flex flex-col items-center text-gray-500 translate-y-[6px]">
-        <div
-          v-if="status !== props.statuses['Sin Carga']"
-          class="flex flex-col items-center"
-        >
-          <span class="text-sm mb-0.5 select-none flex items-center gap-1">
-            Velocidad
-            <Icon
-              v-if="isUsingNativeRateMode"
-              class="w-4 h-4 text-cyan-300"
-              icon="mdi:sine-wave"
-              title="Usando playbackRate + preservesPitch"
-            />
-            <Icon
-              v-else-if="isUsingProcessedSpeedFile"
-              class="w-4 h-4 text-lime-300"
-              icon="mdi:content-save"
-              title="Usando audio preprocesado en disco"
-            />
-          </span>
-          <div class="flex flex-col items-center space-y-0.5">
-            <div class="flex items-center space-x-1">
+        <div class="flex flex-col items-center text-gray-500 translate-y-[6px]">
+          <div
+            v-if="status !== props.statuses['Sin Carga']"
+            class="flex flex-col items-center"
+          >
+            <span class="text-sm mb-0.5 select-none flex items-center gap-1">
+              Velocidad
               <Icon
-                class="cursor-pointer w-6 h-6 text-white"
-                icon="teenyicons:left-solid"
-                @click="setSpeed(-1)"
+                v-if="isUsingNativeRateMode"
+                class="w-4 h-4 text-cyan-300"
+                icon="mdi:sine-wave"
+                title="Usando playbackRate + preservesPitch"
               />
-              <span
-                v-if="speed_added > 0"
-                class="text-lime-500 font-bold text-xl select-none"
-              >+</span>
-              <span
-                :class="{
-                  'text-lime-500': speed_added > 0,
-                  'text-red-500': speed_added < 0,
-                  'text-white': speed_added === 0
-                }"
-                class="font-bold text-xl select-none"
-              >
-                {{ speed_added }}
-              </span>
               <Icon
-                class="cursor-pointer w-6 h-6 text-white"
-                icon="teenyicons:right-solid"
-                @click="setSpeed(1)"
+                v-else-if="isUsingProcessedSpeedFile"
+                class="w-4 h-4 text-lime-300"
+                icon="mdi:content-save"
+                title="Usando audio preprocesado en disco"
               />
+            </span>
+            <div class="flex flex-col items-center space-y-0.5">
+              <div class="flex items-center space-x-1">
+                <Icon
+                  class="cursor-pointer w-6 h-6 text-white"
+                  icon="teenyicons:left-solid"
+                  @click="setSpeed(-1)"
+                />
+                <span
+                  v-if="speed_added > 0"
+                  class="text-lime-500 font-bold text-xl select-none"
+                >+</span>
+                <span
+                  :class="{
+                    'text-lime-500': speed_added > 0,
+                    'text-red-500': speed_added < 0,
+                    'text-white': speed_added === 0
+                  }"
+                  class="font-bold text-xl select-none"
+                >
+                  {{ speed_added }}
+                </span>
+                <Icon
+                  class="cursor-pointer w-6 h-6 text-white"
+                  icon="teenyicons:right-solid"
+                  @click="setSpeed(1)"
+                />
+              </div>
+              <span class="text-xs text-gray-400 select-none">Base: {{ baseSpeedLabel }}</span>
             </div>
-            <span class="text-xs text-gray-400 select-none">Base: {{ baseSpeedLabel }}</span>
           </div>
         </div>
       </div>
+      <div
+        v-show="status !== props.statuses['Sin Carga']"
+        :id="playerId"
+        :class="{ 'mt-3': props.position === 'bottom' }"
+        class="wavesurfer wavesurfer-fixed-height min-w-0 w-full overflow-hidden"
+      />
     </div>
-    <div
-      v-show="status !== props.statuses['Sin Carga']"
-      :id="playerId"
-      :class="{ 'mt-3': props.position === 'bottom' }"
-      class="wavesurfer wavesurfer-fixed-height min-w-0 w-full overflow-hidden"
-    />
   </div>
 </template>
 
@@ -168,6 +176,7 @@ import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 import axios from 'axios'
+import vinylBgUrl from '../assets/vinyl-bg.png'
 
 const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'song-click', 'preview-start', 'preview-stop', 'finished'])
 
@@ -1519,6 +1528,13 @@ defineExpose({
   color: var(--vm-player-text);
 }
 
+.player-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+
 .player-deck-a {
   background-color: var(--vm-player-wave-a);
 }
@@ -1537,8 +1553,69 @@ defineExpose({
   row-gap: 12px;
 }
 
+.player-main {
+  min-width: 0;
+}
+
 .player-header {
   min-width: 0;
+}
+
+.player-vinyl-column {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-vinyl-frame {
+  position: relative;
+  width: clamp(174px, 15.84vw, 242px);
+  height: clamp(174px, 15.84vw, 242px);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #000;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+}
+
+.player-vinyl-playing {
+  animation: vm-player-vinyl-spin 8s linear infinite;
+}
+
+.player-vinyl-cover,
+.player-vinyl-fallback {
+  width: 38%;
+  height: 38%;
+  border-radius: 999px;
+  flex: none;
+}
+
+.player-vinyl-cover {
+  object-fit: cover;
+  opacity: 0.92;
+}
+
+.player-vinyl-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: clamp(2rem, 3vw, 2.8rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.player-vinyl-hole {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #0b0b0b;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
 }
 
 .player-layout-reverse .player-header {
@@ -1552,9 +1629,9 @@ defineExpose({
 .wavesurfer-fixed-height {
   flex: none !important;
   align-self: stretch;
-  height: 180px !important;
-  min-height: 180px !important;
-  max-height: 180px !important;
+  height: 132px !important;
+  min-height: 132px !important;
+  max-height: 132px !important;
 }
 
 .wavesurfer::part(scroll) {
@@ -1570,5 +1647,25 @@ defineExpose({
   max-width: 100% !important;
   height: 100% !important;
   max-height: 100% !important;
+}
+
+@keyframes vm-player-vinyl-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .player-shell {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+
+  .player-main {
+    width: 100%;
+  }
 }
 </style>

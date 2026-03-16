@@ -103,6 +103,7 @@
                 </a-button>
 
                 <a-switch
+                  v-if="showAdvancedFunctions"
                   size="small"
                   :checked="artistFilterMode === 'all'"
                   checked-children="Intersección"
@@ -150,6 +151,7 @@
                 </a-button>
 
                 <a-switch
+                  v-if="showAdvancedFunctions"
                   size="small"
                   :checked="tagFilterMode === 'all'"
                   checked-children="Intersección"
@@ -748,32 +750,7 @@
             ]"
           >
             <div class="vm-center-content">
-              <div
-                class="vm-center-cover-frame"
-                :class="{ 'has-cover': Boolean(centerVisualizerCover) }"
-                :style="{ backgroundImage: `url(${vinylBgUrl})` }"
-              >
-                <img
-                  v-if="centerVisualizerCover"
-                  :src="centerVisualizerCover"
-                  class="vm-center-cover"
-                  draggable="false"
-                >
-                <div
-                  v-else
-                  class="vm-center-cover-fallback"
-                >
-                  {{ centerVisualizerDeckLetter }}
-                </div>
-                <div class="vm-center-cover-ring" />
-              </div>
-
-              <div class="vm-center-meta">
-                <div class="vm-center-kicker">
-                  <span>{{ centerVisualizerStateLabel }} {{ centerVisualizerDeckLabel }}</span>
-                </div>
-                <p>{{ centerVisualizerArtist }}</p>
-                <h2>{{ centerVisualizerTitle }}</h2>
+              <div class="vm-center-meter">
                 <div class="vm-center-times">
                   {{ centerVisualizerTimeText }}
                 </div>
@@ -825,7 +802,7 @@
         />
       </div>
 
-      <div class="flex-[6] flex flex-col p-4 space-y-2 min-w-0">
+      <div class="flex-[5] flex flex-col p-4 space-y-2 min-w-0">
         <div class="flex items-center space-x-10 justify-between">
           <div class="control-buttons flex items-center space-x-3">
             <button
@@ -1263,7 +1240,6 @@ import { onMounted, onUnmounted, computed, ref, watch, reactive, nextTick } from
 import { useVirtualList } from '@vueuse/core'
 import dayjs from 'dayjs'
 import logoSvgMarkup from './assets/logo.svg?raw'
-import vinylBgUrl from './assets/vinyl-bg.png'
 
 /* Components */
 import Artists from './components/Artists.vue'
@@ -1433,13 +1409,15 @@ const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || 
 const normalizedHistoryLimit = normalizeHistoryLimit(savedSettingsRef.historyLimit)
 const normalizedRowsPerPage = normalizeRowsPerPage(savedSettingsRef.rowsPerPage, 24)
 const normalizedRowsPerPageFs = normalizeRowsPerPage(savedSettingsRef.rowsPerPageFs, normalizedRowsPerPage)
+const normalizedShowAdvancedFunctions = Boolean(savedSettingsRef.showAdvancedFunctions)
 previewSinkId.value = savedSettingsRef.previewSinkId || null
 deckSinkId.value = savedSettingsRef.deckSinkId || null
 const excludedTags = ref(savedSettingsRef.excludeTags || [])
 const colorSchema = ref(applyColorSchema(savedSettingsRef.colorSchema))
+const showAdvancedFunctions = ref(normalizedShowAdvancedFunctions)
 if (
   hasStoredSettings && (
-    savedSettingsRef.colorSchema !== colorSchema.value || savedSettingsRef.historyLimit !== normalizedHistoryLimit || savedSettingsRef.rowsPerPage !== normalizedRowsPerPage || savedSettingsRef.rowsPerPageFs !== normalizedRowsPerPageFs
+    savedSettingsRef.colorSchema !== colorSchema.value || savedSettingsRef.historyLimit !== normalizedHistoryLimit || savedSettingsRef.rowsPerPage !== normalizedRowsPerPage || savedSettingsRef.rowsPerPageFs !== normalizedRowsPerPageFs || savedSettingsRef.showAdvancedFunctions !== normalizedShowAdvancedFunctions
   )
 ) {
   localStorage.setItem('vmusic_settings', JSON.stringify({
@@ -1447,7 +1425,8 @@ if (
     colorSchema: colorSchema.value,
     historyLimit: normalizedHistoryLimit,
     rowsPerPage: normalizedRowsPerPage,
-    rowsPerPageFs: normalizedRowsPerPageFs
+    rowsPerPageFs: normalizedRowsPerPageFs,
+    showAdvancedFunctions: normalizedShowAdvancedFunctions
   }))
 }
 const downloadTasksCount = ref(0)
@@ -1881,7 +1860,8 @@ if (!localStorage.getItem('vmusic_settings')) {
     previewSinkId: null,
     deckSinkId: null,
     baseSpeed: 0,
-    colorSchema: COLOR_SCHEMA_DEFAULT
+    colorSchema: COLOR_SCHEMA_DEFAULT,
+    showAdvancedFunctions: false
   }
   localStorage.setItem('vmusic_settings', JSON.stringify(initialSettings))
 }
@@ -3684,6 +3664,7 @@ async function settingsSaved() {
   deckSinkId.value = s.deckSinkId || null
   excludedTags.value = s.excludeTags || []
   colorSchema.value = applyColorSchema(s.colorSchema)
+  showAdvancedFunctions.value = Boolean(s.showAdvancedFunctions)
   await preparePreviewOutput()
   await initializePreferredOutputDevices()
   if (player1.value?.refreshBaseSpeed) {
@@ -3865,22 +3846,6 @@ const shouldShowCenterVisualizer = computed(() => {
   return centerVisualizerEnabled.value && Boolean(centerVisualizerPlayer.value?.songFull?.id)
 })
 
-const centerVisualizerSong = computed(() => centerVisualizerPlayer.value?.songFull || null)
-const centerVisualizerCover = computed(() => centerVisualizerPlayer.value?.songImage || '')
-const centerVisualizerDeckLabel = computed(() => {
-  if (centerVisualizerPlayer.value?.position === 'top') return 'Deck A'
-  if (centerVisualizerPlayer.value?.position === 'bottom') return 'Deck B'
-
-  return 'Salsamania'
-})
-
-const centerVisualizerDeckLetter = computed(() => {
-  if (centerVisualizerPlayer.value?.position === 'top') return 'A'
-  if (centerVisualizerPlayer.value?.position === 'bottom') return 'B'
-
-  return 'S'
-})
-
 const centerVisualizerDeckClass = computed(() => {
   if (centerVisualizerPlayer.value?.position === 'top') return 'vm-center-visualizer-a'
   if (centerVisualizerPlayer.value?.position === 'bottom') return 'vm-center-visualizer-b'
@@ -3892,23 +3857,6 @@ const centerVisualizerAnimating = computed(() => {
   const status = centerVisualizerPlayer.value?.status
 
   return status === playerStatuses.Reproduciendo || status === playerStatuses.Cambiando || status === playerStatuses.Nivelando
-})
-
-const centerVisualizerStateLabel = computed(() => {
-  const status = centerVisualizerPlayer.value?.status
-
-  return Object.entries(playerStatuses).find(([, value]) => value === status)?.[0] || 'Visual'
-})
-
-const centerVisualizerTitle = computed(() => centerVisualizerSong.value?.name || 'Salsamania')
-
-const centerVisualizerArtist = computed(() => {
-  const artists = centerVisualizerSong.value?.Artists
-  if (Array.isArray(artists) && artists.length > 0) {
-    return artists.map((artist) => artist.name).join(', ')
-  }
-
-  return centerVisualizerEnabled.value ? 'Modo visual activo' : ''
 })
 
 function formatVisualizerTime(totalSeconds) {
@@ -4814,7 +4762,7 @@ table tr td.ant-table-cell {
 .vm-center-visualizer {
   position: relative;
   width: 100%;
-  min-height: 260px;
+  min-height: 340px;
   overflow: hidden;
   border-radius: 28px;
   border: 1px solid transparent;
@@ -4825,138 +4773,45 @@ table tr td.ant-table-cell {
 .vm-center-content {
   position: relative;
   z-index: 2;
-  min-height: 260px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 28px;
-  padding: 8px 0;
-}
-
-.vm-center-cover-frame {
-  position: relative;
-  width: 240px;
-  height: 240px;
-  aspect-ratio: 1 / 1;
-  flex-shrink: 0;
-  border-radius: 999px;
+  min-height: 340px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #000000;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  padding: 12px;
-  box-sizing: border-box;
-  box-shadow: none;
+  padding: 20px 0;
 }
 
-.vm-center-cover-frame.has-cover {
-  background-color: #000000;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.vm-center-cover {
-  width: 100%;
-  height: 100%;
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
-  border-radius: 999px;
-  opacity: 0.64;
-  box-shadow: none;
-}
-
-.vm-center-cover-fallback {
-  width: 100%;
-  height: 100%;
-  aspect-ratio: 1 / 1;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--vm-center-accent);
-  color: #fff;
-  opacity: 0.72;
-  font-size: 3.6rem;
-  font-weight: 800;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.vm-center-cover-ring {
-  display: none;
-}
-
-.vm-center-visualizer.is-playing .vm-center-cover-frame {
-  animation: vm-center-cover-pulse 3.2s ease-in-out infinite;
-}
-
-.vm-center-visualizer.is-playing .vm-center-cover,
-.vm-center-visualizer.is-playing .vm-center-cover-fallback {
-  animation: vm-center-lp-spin 8s linear infinite;
-}
-
-.vm-center-meta {
+.vm-center-meter {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  text-align: left;
-  min-width: 0;
-  max-width: min(520px, 100%);
-}
-
-.vm-center-kicker {
-  display: flex;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 8px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.vm-center-meta h2 {
-  margin: 0;
-  color: #fff;
-  font-size: clamp(1.02rem, 2vw, 1.65rem);
-  font-weight: 700;
-  line-height: 1.08;
-  max-width: 100%;
-}
-
-.vm-center-meta p {
-  margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 1.05rem;
-  max-width: 100%;
+  width: min(100%, 980px);
+  padding: 0 12px;
 }
 
 .vm-center-times {
-  margin-top: 10px;
+  margin-top: 0;
   color: #ffffff;
-  font-size: 0.95rem;
-  letter-spacing: 0.08em;
+  font-size: clamp(1.2rem, 2vw, 1.8rem);
+  font-weight: 700;
+  letter-spacing: 0.18em;
   font-variant-numeric: tabular-nums;
+  text-align: center;
+  text-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 .vm-center-rms-bars {
   display: flex;
   align-items: end;
-  gap: 4px;
-  height: 40px;
-  margin-top: 12px;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 148px;
+  margin-top: 22px;
 }
 
 .vm-center-rms-bar {
-  width: 5px;
+  width: clamp(10px, 1.3vw, 16px);
   height: 100%;
   border-radius: 999px;
   transform-origin: center bottom;
@@ -4976,53 +4831,15 @@ table tr td.ant-table-cell {
   --vm-center-accent: color-mix(in srgb, var(--vm-player-wave-a) 50%, var(--vm-player-wave-b) 50%);
 }
 
-@keyframes vm-center-cover-pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.04);
-  }
-}
-
-@keyframes vm-center-lp-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @media (max-width: 900px) {
+  .vm-center-visualizer,
   .vm-center-content {
-    flex-direction: column;
-    gap: 18px;
+    min-height: 260px;
   }
 
-  .vm-center-cover-frame {
-    width: 200px;
-    height: 200px;
-  }
-
-  .vm-center-cover {
-    width: 100%;
-    height: 100%;
-  }
-
-  .vm-center-cover-fallback {
-    width: 100%;
-    height: 100%;
-    font-size: 3.2rem;
-  }
-
-  .vm-center-meta {
-    align-items: center;
-    text-align: center;
-  }
-
-  .vm-center-kicker {
-    justify-content: center;
+  .vm-center-rms-bars {
+    gap: 6px;
+    height: 108px;
   }
 }
 

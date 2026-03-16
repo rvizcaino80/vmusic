@@ -8,7 +8,8 @@ module.exports = async function clearMacBundleIconFlags(context) {
   const appPath = join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
 
   try {
-    execFileSync('SetFile', ['-a', 'C', appPath])
+    // Lowercase "c" clears Finder's custom icon flag; uppercase "C" sets it.
+    execFileSync('SetFile', ['-a', 'c', appPath])
   } catch (error) {
     console.warn('[afterPack] failed to clear custom icon flag', error?.message || error)
   }

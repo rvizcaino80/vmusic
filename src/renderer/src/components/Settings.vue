@@ -141,6 +141,13 @@
       </a-form-item>
 
       <a-form-item
+        label="Funciones Avanzadas"
+        name="showAdvancedFunctions"
+      >
+        <a-checkbox v-model:checked="formState.showAdvancedFunctions" />
+      </a-form-item>
+
+      <a-form-item
         label="Actualizaciones"
       >
         <div class="flex flex-col gap-2">
@@ -175,6 +182,7 @@
 import { reactive, ref, onMounted } from 'vue'
 
 export default {
+  name: 'AppSettings',
   emits: ['saved'],
   setup(props, context) {
     const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings')) || {
@@ -185,7 +193,8 @@ export default {
       historyLimit: 15,
       baseSpeed: 0,
       excludeTags: [],
-      colorSchema: 'sunset'
+      colorSchema: 'sunset',
+      showAdvancedFunctions: false
     }
 
     const formState = reactive({
@@ -198,7 +207,8 @@ export default {
       previewSinkId: savedSettings.previewSinkId || null,
       deckSinkId: savedSettings.deckSinkId || null,
       excludeTags: savedSettings.excludeTags || [],
-      colorSchema: savedSettings.colorSchema || 'sunset'
+      colorSchema: savedSettings.colorSchema || 'sunset',
+      showAdvancedFunctions: Boolean(savedSettings.showAdvancedFunctions)
     })
 
     const tagOptions = ref([])
@@ -250,12 +260,13 @@ export default {
         isLoadingTags.value = true
         const response = await fetch('http://localhost:3000/tags')
         const data = await response.json()
-        const indexedData = data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data)
-          .every((key) => (/^\d+$/).test(key))
-? Object.keys(data.data).map((key) => Number(key))
+        let indexedData = []
+        if (data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data).every((key) => (/^\d+$/).test(key))) {
+          indexedData = Object.keys(data.data)
+            .map((key) => Number(key))
             .sort((a, b) => a - b)
             .map((index) => data.data[String(index)])
-: []
+        }
         const normalized = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : indexedData
         tagOptions.value = normalized.sort((a, b) => a.name.localeCompare(b.name))
           .map((t) => ({ label: t.name, value: t.id }))
@@ -327,7 +338,8 @@ export default {
         previewSinkId: formState.previewSinkId === 'default' ? null : formState.previewSinkId || null,
         deckSinkId: formState.deckSinkId === 'default' ? null : formState.deckSinkId || null,
         excludeTags: formState.excludeTags || [],
-        colorSchema: formState.colorSchema || 'sunset'
+        colorSchema: formState.colorSchema || 'sunset',
+        showAdvancedFunctions: Boolean(formState.showAdvancedFunctions)
       }
       localStorage.setItem('vmusic_settings', JSON.stringify(s))
       context.emit('saved')
