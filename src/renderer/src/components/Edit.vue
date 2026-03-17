@@ -79,20 +79,30 @@
 
       <div>
         <div class="flex items-center justify-between">
-          <label class="text-sm text-gray-500 block">URL de metadata (Spotify / Shazam)</label>
-          <a
-            v-if="spotifySearchUrl"
-            :href="spotifySearchUrl"
-            class="text-sm hover:underline"
-            style="color: var(--vm-ant-primary);"
-            target="_blank"
-            rel="noopener"
-          >Buscar en Spotify</a>
+          <label class="text-sm text-gray-500 block">URL de portada o metadata</label>
+          <div class="flex items-center gap-3">
+            <a
+              href="#"
+              class="text-sm hover:underline"
+              style="color: var(--vm-ant-primary);"
+              @click.prevent="selectCoverFromDisk"
+            >
+              Seleccionar imagen
+            </a>
+            <a
+              v-if="spotifySearchUrl"
+              :href="spotifySearchUrl"
+              class="text-sm hover:underline"
+              style="color: var(--vm-ant-primary);"
+              target="_blank"
+              rel="noopener"
+            >Buscar en Spotify</a>
+          </div>
         </div>
         <a-input
           v-model:value="metadataUrl"
           class="w-full"
-          placeholder="Pega el enlace de Spotify o Shazam"
+          placeholder="Pega una URL de imagen, Spotify o Shazam"
         />
       </div>
 
@@ -225,6 +235,7 @@ onMounted(async() => {
       }
 
       selectedTags.value = response.data.Tags.map((item) => (item.id))
+      coverUrl.value = getStoredCoverUrl(response.data.ytid)
       loadNote()
     })
     .catch(function(error) {
@@ -272,10 +283,12 @@ function saveSong() {
   let artistIds = selectedArtists.value.filter((item) => item)
   let composerIds = selectedComposers.value.filter((item) => item)
 
-  const metadataPromise = metadataUrl.value.trim().length > 0 ? extractCoverFromMetadata(metadataUrl.value.trim()) : Promise.resolve(null)
+  const metadataPromise = metadataUrl.value.trim().length > 0 ? resolveCoverFromInput(metadataUrl.value.trim()) : Promise.resolve(coverUrl.value || null)
 
   metadataPromise.then((cover) => {
-    coverUrl.value = cover || ''
+    if (cover) {
+      coverUrl.value = cover
+    }
     if (ytid.value && coverUrl.value) {
       try {
         const stored = localStorage.getItem(COVER_MAP_STORAGE_KEY)
@@ -296,7 +309,7 @@ function saveSong() {
       })
       .then(function(response) {
         saveNoteLocally(ytid.value, note)
-        emit('updated', props.id)
+        emit('updated', { id: props.id, coverUrl: coverUrl.value || '', ytid: ytid.value || '' })
       })
       .catch(function(error) {})
       .finally(function() {
@@ -305,7 +318,7 @@ function saveSong() {
   })
 }
 
-async function extractCoverFromMetadata(value) {
+async function resolveCoverFromInput(value) {
   try {
     const isSpotify = value.includes('open.spotify.com')
     const isShazam = value.includes('shazam.com/song/')
@@ -316,12 +329,48 @@ async function extractCoverFromMetadata(value) {
 
       return $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content') || null
     }
+
+    const parsed = new URL(value)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.toString()
+    }
   } catch (error) {
     return null
   }
 
   return null
 }
+
+function getStoredCoverUrl(ytidValue) {
+  if (!ytidValue) return ''
+
+  try {
+    const stored = localStorage.getItem(COVER_MAP_STORAGE_KEY)
+    const parsed = stored ? JSON.parse(stored) : {}
+
+    return parsed[ytidValue] || ''
+  } catch (error) {
+    return ''
+  }
+}
+
+async function selectCoverFromDisk() {
+  if (!ytid.value || !window.electron2?.importCoverFile) return
+
+  try {
+    const importedCoverUrl = await window.electron2.importCoverFile({ cacheKey: ytid.value })
+    if (!importedCoverUrl) return
+
+    coverUrl.value = importedCoverUrl
+    const stored = localStorage.getItem(COVER_MAP_STORAGE_KEY)
+    const parsed = stored ? JSON.parse(stored) : {}
+    parsed[ytid.value] = importedCoverUrl
+    localStorage.setItem(COVER_MAP_STORAGE_KEY, JSON.stringify(parsed))
+  } catch (error) {
+    console.warn('[vmusic][edit] no se pudo importar portada', error)
+  }
+}
+
 function addArtist() {
   totalArtists.value += 1
 }

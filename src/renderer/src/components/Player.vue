@@ -1,6 +1,6 @@
 <template>
   <div
-    class="player player-shell p-6 min-w-0"
+    class="player player-shell min-w-0"
   >
     <div class="player-vinyl-column">
       <div
@@ -28,6 +28,7 @@
         />
         <img
           :src="cdCenterUrl"
+          :class="{ 'player-vinyl-center-no-cover': !songImage }"
           class="player-vinyl-center select-none"
           alt=""
           draggable="false"
@@ -251,6 +252,7 @@ let volumeAnimationToken = 0
 const previewDuckMultiplier = ref(1)
 const isPreprocessingSpeed = ref(false)
 const isInitialSpeedPreprocessPending = ref(false)
+const coverCacheRequests = new Map()
 const isUsingProcessedSpeedFile = computed(() => {
   if (ratesMatch(speed.value, 1)) return false
 
@@ -429,6 +431,9 @@ function init() {
     applyPreservePitch()
     setSinkId(props.outputSinkId)
     songImage.value = getStoredCoverForSong(songFull.value)
+    if (songImage.value) {
+      cacheCoverInBackground(songFull.value, songImage.value)
+    }
 
     player.setOptions(originalOptions)
     player.toggleInteraction(false)
@@ -1227,6 +1232,15 @@ function setSinkId(sinkId) {
 function getStoredCoverForSong(song) {
   if (!song) return ''
 
+  try {
+    const stored = localStorage.getItem('vmusic_cover_map')
+    if (stored && song.ytid) {
+      const parsed = JSON.parse(stored)
+      const mappedCover = parsed[song.ytid] || ''
+      if (mappedCover) return mappedCover
+    }
+  } catch (error) {}
+
   const directCover = song.songImage || song.coverUrl || song.cover || song.image || song.artwork || ''
   if (directCover) return directCover
 
@@ -1239,6 +1253,47 @@ function getStoredCoverForSong(song) {
   } catch (error) {
     return ''
   }
+}
+
+function isRemoteCoverUrl(value) {
+  try {
+    const parsed = new URL(String(value || '').trim())
+
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+async function cacheCoverInBackground(song, coverUrl) {
+  const cacheKey = String(song?.ytid || '').trim()
+  if (!cacheKey || !coverUrl || !isRemoteCoverUrl(coverUrl) || !window.electron2?.cacheCoverImage) return
+  if (coverCacheRequests.has(cacheKey)) return
+
+  console.debug('Descargando portada', { ytid: cacheKey, url: coverUrl })
+  const request = window.electron2.cacheCoverImage({ cacheKey, url: coverUrl })
+    .then((localUrl) => {
+      if (!localUrl) return
+
+      try {
+        const stored = localStorage.getItem('vmusic_cover_map')
+        const parsed = stored ? JSON.parse(stored) : {}
+        parsed[cacheKey] = localUrl
+        localStorage.setItem('vmusic_cover_map', JSON.stringify(parsed))
+      } catch (error) {}
+
+      if (songFull.value?.ytid === cacheKey) {
+        songImage.value = localUrl
+      }
+    })
+    .catch((error) => {
+      console.warn('[vmusic][cover-cache] no se pudo cachear portada', error)
+    })
+    .finally(() => {
+      coverCacheRequests.delete(cacheKey)
+    })
+
+  coverCacheRequests.set(cacheKey, request)
 }
 
 function applySongMetadata(songData) {
@@ -1255,8 +1310,9 @@ function applySongMetadata(songData) {
   composer.value = (songFull.value.Composers || []).map((i) => i.name).join(', ')
 
   const nextCover = getStoredCoverForSong(songFull.value)
+  songImage.value = nextCover || ''
   if (nextCover) {
-    songImage.value = nextCover
+    cacheCoverInBackground(songFull.value, nextCover)
   }
 }
 
@@ -1625,9 +1681,13 @@ defineExpose({
   width: 28%;
   height: 28%;
   object-fit: contain;
-  opacity: 0.8;
+  opacity: 0.3;
   z-index: 2;
   pointer-events: none;
+}
+
+.player-vinyl-center-no-cover {
+  opacity: 0.75;
 }
 
 .player-layout-reverse .player-header {

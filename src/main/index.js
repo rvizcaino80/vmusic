@@ -1,9 +1,10 @@
-import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveBlocker } from 'electron'
+import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveBlocker, dialog } from 'electron'
 import os from 'os'
-import { dirname, join } from 'path'
+import { dirname, extname, join } from 'path'
 import fs from 'fs'
 import { spawn } from 'child_process'
 import https from 'https'
+import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app'
 import icon from '../../resources/icon.png?asset'
@@ -32,6 +33,145 @@ let customUpdateContext = {
 const CUSTOM_UPDATE_INTERVAL_MS = 10 * 60 * 1000
 const CUSTOM_UPDATE_OWNER = 'rvizcaino80'
 const CUSTOM_UPDATE_REPO = 'vmusic'
+const COVER_CACHE_DIRNAME = 'covers'
+
+function sanitizeCoverId(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+function getCoverCacheDir() {
+  const dir = join(app.getPath('userData'), COVER_CACHE_DIRNAME)
+  fs.mkdirSync(dir, { recursive: true })
+
+  return dir
+}
+
+function findExistingCoverPath(cacheKey) {
+  if (!cacheKey) return null
+
+  const cacheDir = getCoverCacheDir()
+  const prefix = `${cacheKey}.`
+
+  try {
+    const match = fs.readdirSync(cacheDir).find((entry) => entry.startsWith(prefix))
+    return match ? join(cacheDir, match) : null
+  } catch {
+    return null
+  }
+}
+
+function resolveCoverExtension(url, contentType = '') {
+  const normalizedType = String(contentType || '').toLowerCase()
+  if (normalizedType.includes('image/png')) return '.png'
+  if (normalizedType.includes('image/webp')) return '.webp'
+  if (normalizedType.includes('image/gif')) return '.gif'
+  if (normalizedType.includes('image/avif')) return '.avif'
+  if (normalizedType.includes('image/jpeg') || normalizedType.includes('image/jpg')) return '.jpg'
+
+  try {
+    const parsed = new URL(url)
+    const parsedExt = extname(parsed.pathname || '').toLowerCase()
+    if (['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'].includes(parsedExt)) {
+      return parsedExt === '.jpeg' ? '.jpg' : parsedExt
+    }
+  } catch {}
+
+  return '.jpg'
+}
+
+function toVersionedFileUrl(filePath) {
+  const fileUrl = pathToFileURL(filePath)
+  try {
+    const stats = fs.statSync(filePath)
+    fileUrl.searchParams.set('v', String(stats.mtimeMs || Date.now()))
+  } catch {
+    fileUrl.searchParams.set('v', String(Date.now()))
+  }
+
+  return fileUrl.toString()
+}
+
+async function cacheCoverImage(payload = {}) {
+  const rawUrl = String(payload?.url || '').trim()
+  const cacheKey = sanitizeCoverId(payload?.cacheKey)
+  if (!rawUrl || !cacheKey) return null
+
+  let parsedUrl
+  try {
+    parsedUrl = new URL(rawUrl)
+  } catch {
+    return null
+  }
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    return rawUrl
+  }
+
+  const existingCoverPath = findExistingCoverPath(cacheKey)
+  if (existingCoverPath && fs.existsSync(existingCoverPath)) {
+    return toVersionedFileUrl(existingCoverPath)
+  }
+
+  const response = await fetch(parsedUrl.toString(), {
+    headers: {
+      'User-Agent': 'Salsamania/1.0'
+    }
+  })
+  if (!response.ok) {
+    throw new Error(`Cover request failed with status ${response.status}`)
+  }
+
+  const arrayBuffer = await response.arrayBuffer()
+  const buffer = Buffer.from(arrayBuffer)
+  const ext = resolveCoverExtension(parsedUrl.toString(), response.headers.get('content-type'))
+  const cacheDir = getCoverCacheDir()
+  const targetPath = join(cacheDir, `${cacheKey}${ext}`)
+
+  const previousPath = findExistingCoverPath(cacheKey)
+  if (previousPath && previousPath !== targetPath) {
+    try {
+      fs.unlinkSync(previousPath)
+    } catch {}
+  }
+
+  fs.writeFileSync(targetPath, buffer)
+
+  return toVersionedFileUrl(targetPath)
+}
+
+async function importCoverFile(payload = {}) {
+  const cacheKey = sanitizeCoverId(payload?.cacheKey)
+  if (!cacheKey) return null
+
+  const ownerWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || null
+  const result = await dialog.showOpenDialog(ownerWindow, {
+    title: 'Seleccionar portada',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Imagenes', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'] }
+    ]
+  })
+
+  if (result.canceled || !result.filePaths?.[0]) return null
+
+  const sourcePath = result.filePaths[0]
+  const ext = resolveCoverExtension(sourcePath)
+  const cacheDir = getCoverCacheDir()
+  const targetPath = join(cacheDir, `${cacheKey}${ext}`)
+  const previousPath = findExistingCoverPath(cacheKey)
+
+  if (previousPath && previousPath !== targetPath) {
+    try {
+      fs.unlinkSync(previousPath)
+    } catch {}
+  }
+
+  fs.copyFileSync(sourcePath, targetPath)
+
+  return toVersionedFileUrl(targetPath)
+}
 
 function extractGithubRepo(repository) {
   if (!repository) return null
@@ -652,6 +792,12 @@ app.whenReady().then(() => {
 
   ipcMain.handle('backend:get-media-url', async(_event, payload) => {
     return backendService.getMediaUrl(payload?.folder, payload?.ytid)
+  })
+  ipcMain.handle('covers:cache-image', async(_event, payload) => {
+    return cacheCoverImage(payload)
+  })
+  ipcMain.handle('covers:import-file', async(_event, payload) => {
+    return importCoverFile(payload)
   })
   ipcMain.handle('custom-updater:get-state', async() => customUpdateState)
   ipcMain.handle('custom-updater:check', async() => checkCustomMacUpdate({ silent: false }))

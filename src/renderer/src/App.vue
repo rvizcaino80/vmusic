@@ -804,7 +804,7 @@
       v-else
       class="vmusic-app flex items-stretch min-w-0"
     >
-      <div class="flex-[5] flex flex-col justify-between min-w-0">
+      <div class="flex-[5] flex flex-col justify-between min-w-0 p-6">
         <Player
           ref="player1"
           :class="{
@@ -4071,12 +4071,22 @@ async function settingsSaved() {
   setOption(null)
 }
 
-async function updated(songId) {
-  const targetId = songId || selectedSongs.value[0]
+async function updated(payload) {
+  const targetId = typeof payload === 'object' ? payload?.id : payload
+  const targetCoverUrl = typeof payload === 'object' ? payload?.coverUrl : ''
+  const targetYtid = typeof payload === 'object' ? payload?.ytid : ''
+  const resolvedTargetId = targetId || selectedSongs.value[0]
   isLoadingLibrary.value = true
   await filterSongs()
-  const updatedSong = await refreshSongInLibrary(targetId)
-  refreshEditedSongInLoadedPlayers(updatedSong)
+  const updatedSong = await refreshSongInLibrary(resolvedTargetId)
+  const hydratedSong = updatedSong
+    ? {
+        ...updatedSong,
+        coverUrl: targetCoverUrl || updatedSong.coverUrl || '',
+        ytid: targetYtid || updatedSong.ytid
+      }
+    : updatedSong
+  refreshEditedSongInLoadedPlayers(hydratedSong)
   isLoadingLibrary.value = false
   await setOption(null)
 }
