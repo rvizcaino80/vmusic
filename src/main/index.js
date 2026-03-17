@@ -96,6 +96,7 @@ function toVersionedFileUrl(filePath) {
 async function cacheCoverImage(payload = {}) {
   const rawUrl = String(payload?.url || '').trim()
   const cacheKey = sanitizeCoverId(payload?.cacheKey)
+  const forceRefresh = Boolean(payload?.forceRefresh)
   if (!rawUrl || !cacheKey) return null
 
   let parsedUrl
@@ -110,7 +111,7 @@ async function cacheCoverImage(payload = {}) {
   }
 
   const existingCoverPath = findExistingCoverPath(cacheKey)
-  if (existingCoverPath && fs.existsSync(existingCoverPath)) {
+  if (!forceRefresh && existingCoverPath && fs.existsSync(existingCoverPath)) {
     return toVersionedFileUrl(existingCoverPath)
   }
 

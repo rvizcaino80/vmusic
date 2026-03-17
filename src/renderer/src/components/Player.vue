@@ -1582,6 +1582,7 @@ defineExpose({
 }
 
 .player-shell {
+  flex: none;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;

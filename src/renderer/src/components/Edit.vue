@@ -285,9 +285,23 @@ function saveSong() {
 
   const metadataPromise = metadataUrl.value.trim().length > 0 ? resolveCoverFromInput(metadataUrl.value.trim()) : Promise.resolve(coverUrl.value || null)
 
-  metadataPromise.then((cover) => {
+  metadataPromise.then(async(cover) => {
     if (cover) {
       coverUrl.value = cover
+      if (
+        ytid.value &&
+        window.electron2?.cacheCoverImage &&
+        /^https?:/i.test(coverUrl.value)
+      ) {
+        const cachedCoverUrl = await window.electron2.cacheCoverImage({
+          cacheKey: ytid.value,
+          url: coverUrl.value,
+          forceRefresh: true
+        })
+        if (cachedCoverUrl) {
+          coverUrl.value = cachedCoverUrl
+        }
+      }
     }
     if (ytid.value && coverUrl.value) {
       try {

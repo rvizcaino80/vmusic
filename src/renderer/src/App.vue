@@ -804,7 +804,7 @@
       v-else
       class="vmusic-app flex items-stretch min-w-0"
     >
-      <div class="flex-[5] flex flex-col justify-between min-w-0 p-6">
+      <div class="flex-[5] flex flex-col min-w-0 min-h-0 overflow-hidden p-6 gap-4">
         <Player
           ref="player1"
           :class="{
@@ -5458,7 +5458,7 @@ table tr td.ant-table-cell {
 }
 
 .vm-center-stage {
-  min-height: 260px;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5737,6 +5737,8 @@ table tr td.ant-table-cell {
 }
 
 #app .vmusic-app {
+  height: 100vh;
+  overflow: hidden;
   background:
     linear-gradient(90deg, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0) 52%),
     linear-gradient(
