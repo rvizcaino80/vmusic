@@ -359,6 +359,13 @@
             </div>
 
             <div class="flex items-center space-x-3">
+              <a-select
+                v-model:value="coverFilterMode"
+                :options="coverFilterOptions"
+                class="vm-filter-input"
+                style="width: 150px"
+                @change="onCoverFilterChange"
+              />
               <a-input
                 v-model:value="filterQuery"
                 :disabled="isLoadingLibrary"
@@ -916,15 +923,7 @@
 
             <button
               v-else
-              :disabled="
-                isDeckAInitialPreprocessBlockingPlayback ||
-                  ((!player1 ||
-                    player1.status === playerStatuses.Cambiando ||
-                    player1.status === playerStatuses['Sin Carga']) &&
-                    (!player2 ||
-                      player2.status === playerStatuses['Sin Carga'] ||
-                      player2.status === playerStatuses.Cambiando))
-              "
+              :disabled="!canManualPlay"
               type="button"
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="play"
@@ -933,16 +932,7 @@
             </button>
 
             <button
-              :disabled="
-                isDeckAInitialPreprocessBlockingPlayback ||
-                  isNextDeckSpeedPreprocessBlocking ||
-                  ((!player1 ||
-                    player1.status === playerStatuses.Cambiando ||
-                    player1.status === playerStatuses['Sin Carga']) &&
-                    (!player2 ||
-                      player2.status === playerStatuses['Sin Carga'] ||
-                      player2.status === playerStatuses.Cambiando))
-              "
+              :disabled="!canManualNext"
               type="button"
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="next"
@@ -1669,6 +1659,39 @@ function getSongNote(record) {
   return String(songNotesMap.value[ytid] || '').trim()
 }
 
+function getStoredCoverMap() {
+  try {
+    const stored = localStorage.getItem('vmusic_cover_map')
+    const parsed = stored ? JSON.parse(stored) : {}
+
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function getSongCoverUrl(song, storedCoverMap = null) {
+  if (!song) return ''
+
+  const directCover = song.songImage || song.coverUrl || song.cover || song.image || song.artwork || ''
+  if (directCover) return directCover
+
+  const ytid = String(song.ytid || '').trim()
+  if (!ytid) return ''
+
+  const coverMap = storedCoverMap || getStoredCoverMap()
+
+  return String(coverMap[ytid] || '')
+}
+
+function songHasCover(song, storedCoverMap = null) {
+  return Boolean(getSongCoverUrl(song, storedCoverMap))
+}
+
+function normalizeCoverFilterMode(value) {
+  return ['all', 'with', 'without'].includes(value) ? value : 'all'
+}
+
 function onSongNotesChanged() {
   loadSongNotesMap()
 }
@@ -1699,6 +1722,12 @@ const PLAYLIST_ROW_HEIGHT = 26
 let playlistPreviewPressTimer = null
 let isPlaylistPressPreviewActive = false
 const m3uExportSourceFilter = ref('any')
+const coverFilterMode = ref('all')
+const coverFilterOptions = [
+  { label: 'Todas', value: 'all' },
+  { label: 'Con portada', value: 'with' },
+  { label: 'Sin portada', value: 'without' }
+]
 const m3uSourceLabel = computed(() => {
   switch (m3uExportSourceFilter.value) {
   case 'apple':
@@ -1794,7 +1823,8 @@ const libraryState = ref({
   tags: [],
   page: 1,
   artistMode: 'any',
-  tagMode: 'any'
+  tagMode: 'any',
+  coverMode: 'all'
 })
 
 const downloadSelectedArtist = ref(null)
@@ -1851,6 +1881,12 @@ const filteredSongs2 = computed(() => {
     filtered = filtered.filter((item) => Boolean(item.isAppleMusic))
   } else if (m3uExportSourceFilter.value === 'youtube') {
     filtered = filtered.filter((item) => !Boolean(item.isAppleMusic))
+  }
+
+  if (coverFilterMode.value === 'with') {
+    filtered = filtered.filter((item) => Boolean(item.hasCover))
+  } else if (coverFilterMode.value === 'without') {
+    filtered = filtered.filter((item) => !Boolean(item.hasCover))
   }
 
   if (!normalizedQuery) {
@@ -2005,6 +2041,46 @@ const isNextDeckSpeedPreprocessBlocking = computed(() => {
   }
 
   return false
+})
+
+function isPlayerReady(playerRef) {
+  return playerRef?.status === playerStatuses.Listo
+}
+
+function isPlayerPlaying(playerRef) {
+  return playerRef?.status === playerStatuses.Reproduciendo
+}
+
+function getReadyPlayerForPlayback() {
+  if (!player1.value || !player2.value) return null
+  if (isFirstPlay.value) {
+    return isPlayerReady(player1.value) ? player1.value : null
+  }
+
+  if (isPlayerReady(player2.value)) return player2.value
+  if (isPlayerReady(player1.value)) return player1.value
+
+  return null
+}
+
+function getActivePlayerForManualNext() {
+  if (!player1.value || !player2.value) return null
+  if (isPlayerPlaying(player1.value) && isPlayerReady(player2.value)) return player1.value
+  if (isPlayerPlaying(player2.value) && isPlayerReady(player1.value)) return player2.value
+
+  return null
+}
+
+const canManualPlay = computed(() => {
+  if (isDeckAInitialPreprocessBlockingPlayback.value) return false
+
+  return Boolean(getReadyPlayerForPlayback())
+})
+
+const canManualNext = computed(() => {
+  if (isDeckAInitialPreprocessBlockingPlayback.value || isNextDeckSpeedPreprocessBlocking.value) return false
+
+  return Boolean(getActivePlayerForManualNext())
 })
 
 const customUpdaterVisible = computed(() => {
@@ -2947,6 +3023,7 @@ function saveLibraryView(currentPage = null, sorter = null) {
     artists: selectedArtists.value,
     artistMode: artistFilterMode.value,
     tagMode: tagFilterMode.value,
+    coverMode: normalizeCoverFilterMode(coverFilterMode.value),
     page: p,
     search: filterQuery.value,
     sort: s
@@ -2979,6 +3056,9 @@ async function setOption(option, extraArtists = [], recent = false) {
     }
     if (!libraryState.value.tagMode) {
       libraryState.value.tagMode = 'any'
+    }
+    if (!libraryState.value.coverMode) {
+      libraryState.value.coverMode = 'all'
     }
 
     const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
@@ -3013,6 +3093,7 @@ async function setOption(option, extraArtists = [], recent = false) {
 
     artistFilterMode.value = libraryState.value.artistMode === 'all' ? 'all' : 'any'
     tagFilterMode.value = libraryState.value.tagMode === 'all' ? 'all' : 'any'
+    coverFilterMode.value = normalizeCoverFilterMode(libraryState.value.coverMode)
 
     if (extraArtists.length > 0) {
       selectedArtists.value.push(...extraArtists)
@@ -3163,6 +3244,7 @@ async function filterSongs() {
   const response = await fetch('http://localhost:3000/songs/filter', options)
   const data = await response.json()
   const normalized = toArrayPayload(data)
+  const storedCoverMap = getStoredCoverMap()
   console.log('[vmusic][filterSongs]', {
     status: response.status,
     requestArtists: params.artists?.length || 0,
@@ -3179,6 +3261,8 @@ async function filterSongs() {
     Artists: Array.isArray(item.Artists) ? item.Artists : [],
     Composers: Array.isArray(item.Composers) ? item.Composers : [],
     Tags: Array.isArray(item.Tags) ? item.Tags : [],
+    coverUrl: getSongCoverUrl(item, storedCoverMap),
+    hasCover: songHasCover(item, storedCoverMap),
     key: item.id,
     artistsJoined: (Array.isArray(item.Artists) ? item.Artists : [])
       .map((artist) => artist.name)
@@ -3759,12 +3843,9 @@ function loadPlayers(play = false) {
         player1.value.play()
       }
     } else {
-      if (!autopause.value) {
-        if (player1.value.status === playerStatuses.Pausado) {
-          player1.value.play()
-        } else if (player2.value.status === playerStatuses.Pausado) {
-          player2.value.play()
-        }
+      const targetPlayer = getReadyPlayerForPlayback()
+      if (!autopause.value && targetPlayer) {
+        targetPlayer.play()
       }
     }
   }
@@ -3845,19 +3926,14 @@ function play() {
   if (!player1.value || !player2.value) return
   if (isDeckAInitialPreprocessBlockingPlayback.value) return
   autopause.value = false
+  const targetPlayer = getReadyPlayerForPlayback()
+  if (!targetPlayer) return
 
-  if (isFirstPlay.value && player1.value.status === playerStatuses.Listo) {
+  if (isFirstPlay.value && targetPlayer === player1.value) {
     isFirstPlay.value = false
-    player1.value.play()
-  } else {
-    if (!autopause.value) {
-      if (player2.value.status === playerStatuses.Pausado) {
-        player2.value.play()
-      } else {
-        player1.value.play()
-      }
-    }
   }
+
+  targetPlayer.play()
 }
 
 function pause() {
@@ -3875,7 +3951,7 @@ function pause() {
 function isDeckReadyForAutoTransition(playerRef) {
   if (!playerRef) return false
 
-  return playerRef.status === playerStatuses.Listo || playerRef.status === playerStatuses.Pausado
+  return isPlayerReady(playerRef)
 }
 
 function songFading(p) {
@@ -4079,13 +4155,15 @@ async function updated(payload) {
   isLoadingLibrary.value = true
   await filterSongs()
   const updatedSong = await refreshSongInLibrary(resolvedTargetId)
-  const hydratedSong = updatedSong
-    ? {
-        ...updatedSong,
-        coverUrl: targetCoverUrl || updatedSong.coverUrl || '',
-        ytid: targetYtid || updatedSong.ytid
-      }
-    : updatedSong
+  let hydratedSong = updatedSong
+  if (updatedSong) {
+    hydratedSong = {
+      ...updatedSong,
+      coverUrl: targetCoverUrl || updatedSong.coverUrl || '',
+      hasCover: Boolean(targetCoverUrl || updatedSong.coverUrl || updatedSong.hasCover),
+      ytid: targetYtid || updatedSong.ytid
+    }
+  }
   refreshEditedSongInLoadedPlayers(hydratedSong)
   isLoadingLibrary.value = false
   await setOption(null)
@@ -4097,13 +4175,20 @@ async function refreshSongInLibrary(id) {
   try {
     const response = await axios.get(`http://localhost:3000/songs/${id}`)
     const updatedSong = response.data
+    const storedCoverMap = getStoredCoverMap()
     const normalizedSong = {
       ...updatedSong,
       key: updatedSong.id,
-      artistsJoined: updatedSong.Artists.map((artist) => artist.name).join(', '),
-      composersJoined: updatedSong.Composers.map((composer) => composer.name).join(', '),
+      coverUrl: getSongCoverUrl(updatedSong, storedCoverMap),
+      hasCover: songHasCover(updatedSong, storedCoverMap),
+      artistsJoined: (Array.isArray(updatedSong.Artists) ? updatedSong.Artists : [])
+        .map((artist) => artist.name)
+        .join(', '),
+      composersJoined: (Array.isArray(updatedSong.Composers) ? updatedSong.Composers : [])
+        .map((composer) => composer.name)
+        .join(', '),
       nameNorm: removeAccents((updatedSong.name || '').toLowerCase()),
-      artistsNorm: removeAccents((updatedSong.Artists || [])
+      artistsNorm: removeAccents((Array.isArray(updatedSong.Artists) ? updatedSong.Artists : [])
         .map((artist) => artist.name)
         .join(' ')
         .toLowerCase())
@@ -4191,11 +4276,9 @@ function next() {
   if (!player1.value || !player2.value) return
   if (isDeckAInitialPreprocessBlockingPlayback.value) return
   if (isNextDeckSpeedPreprocessBlocking.value) return
-  if (player1.value.status === playerStatuses.Reproduciendo) {
-    player1.value.next()
-  } else if (player2.value.status === playerStatuses.Reproduciendo) {
-    player2.value.next()
-  }
+  const activePlayer = getActivePlayerForManualNext()
+  if (!activePlayer) return
+  activePlayer.next()
 }
 
 function rememberActiveDeck(playerRef) {
@@ -4594,6 +4677,7 @@ function isEditableKeyboardTarget(target) {
 function seekActivePlayer(deltaSeconds) {
   const targetPlayer = getMediaTargetPlayer()
   if (!targetPlayer || typeof targetPlayer.seekBy !== 'function') return false
+  if (!isPlayerReady(targetPlayer)) return false
 
   targetPlayer.seekBy(deltaSeconds)
 
@@ -4650,10 +4734,10 @@ function restorePlaybackAfterPowerInterruption() {
       player2.value.setSinkId(deckSinkId.value)
     }
 
-    if (playbackStateBeforePowerInterruption.value.top && player1.value?.songFull?.id) {
+    if (playbackStateBeforePowerInterruption.value.top && player1.value?.songFull?.id && isPlayerReady(player1.value)) {
       player1.value?.play?.()
     }
-    if (playbackStateBeforePowerInterruption.value.bottom && player2.value?.songFull?.id) {
+    if (playbackStateBeforePowerInterruption.value.bottom && player2.value?.songFull?.id && isPlayerReady(player2.value)) {
       player2.value?.play?.()
     }
   }, 900)
@@ -4820,6 +4904,7 @@ function quickFilterByArtist(artistId) {
   libraryState.value.page = 1
   selectedArtists.value = [artistId]
   selectedTags.value = tags.value.map((tag) => tag.id)
+  coverFilterMode.value = 'all'
   filterQuery.value = ''
   debouncedFilterQuery.value = ''
   m3uExportSourceFilter.value = 'any'
@@ -4858,6 +4943,8 @@ function selectAllLibraryFilters() {
 
   selectedArtists.value = allArtistIds
   selectedTags.value = allowedTagIds
+  coverFilterMode.value = 'all'
+  m3uExportSourceFilter.value = 'any'
   artistFilterQuery.value = ''
   tagFilterQuery.value = ''
 
@@ -4921,6 +5008,7 @@ async function openLibraryForSong(songData) {
   // Ensure the song is visible regardless of previous filters.
   selectedArtists.value = artists.value.map((a) => a.id)
   selectedTags.value = tags.value.map((tag) => tag.id)
+  coverFilterMode.value = 'all'
   filterQuery.value = songName || ''
   debouncedFilterQuery.value = songName || ''
   m3uExportSourceFilter.value = 'any'
@@ -4973,6 +5061,11 @@ function onTableChange(pagination, filters, sorter, { action, currentDataSource 
 
 function onM3uSourceSelect({ key }) {
   m3uExportSourceFilter.value = key
+  libraryState.value.page = 1
+  saveLibraryView()
+}
+
+function onCoverFilterChange() {
   libraryState.value.page = 1
   saveLibraryView()
 }

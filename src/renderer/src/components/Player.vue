@@ -174,10 +174,17 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 import axios from 'axios'
 
+defineOptions({
+  name: 'MusicPlayer'
+})
+
 const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'song-click', 'preview-start', 'preview-stop', 'finished'])
 
 const props = defineProps({
-  position: String,
+  position: {
+    type: String,
+    default: ''
+  },
   statuses: {
     type: Object,
     required: true
@@ -275,6 +282,10 @@ const visibleStatusLabel = computed(() => {
   return getStatusName(status.value)
 })
 
+function isReadyStatus() {
+  return status.value === props.statuses.Listo
+}
+
 function debugAudio(event, payload = null) {
   if (!AUDIO_DEBUG) return
   const deck = props.position === 'top' ? 'A' : 'B'
@@ -287,6 +298,7 @@ function debugAudio(event, payload = null) {
 }
 
 function safePlay() {
+  if (!isReadyStatus()) return
   if (!player || typeof player.play !== 'function') return
   try {
     const maybePromise = player.play()
@@ -1093,12 +1105,14 @@ function stop() {
 }
 
 function restart() {
+  if (!isReadyStatus()) return
   if (!player) return
   const restartAt = Number.isFinite(start.value) ? Math.max(0, toPlaybackTime(start.value)) : 0
   player.setTime(restartAt)
 }
 
 function seekBy(deltaSeconds) {
+  if (!isReadyStatus()) return
   if (!player || !songFull.value?.id || typeof player.getCurrentTime !== 'function') return
 
   const now = player.getCurrentTime()
