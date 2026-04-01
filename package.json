@@ -1,6 +1,6 @@
 {
   "name": "salsamania",
-  "version": "1.1.23",
+  "version": "1.1.24",
   "description": "An Electron application with Vue",
   "main": "./out/main/index.js",
   "author": "Rogers Vizcaino",
@@ -54,7 +54,7 @@
     "@vue/compiler-sfc": "^3.4.37",
     "@vue/eslint-config-prettier": "^9.0.0",
     "autoprefixer": "^10.4.19",
-    "electron": "^36.2.0",
+    "electron": "^36.9.5",
     "electron-builder": "^26.0.15",
     "electron-vite": "^3.1.0",
     "eslint": "^9.5.0",

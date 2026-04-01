@@ -154,6 +154,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import axios from 'axios'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
+import { buildSpotifySearchUrl } from '../lib/spotify-cover'
 
 // Download
 const song = ref('')
@@ -185,12 +186,7 @@ const selectedArtistNames = computed(() => {
     .filter(Boolean)
 })
 const spotifySearchUrl = computed(() => {
-  const title = song.value?.trim() || ''
-  const artists = selectedArtistNames.value.join(' ').trim()
-  const term = `${artists} ${title}`.trim()
-  if (!term) return ''
-
-  return `https://open.spotify.com/search/${encodeURIComponent(term)}`
+  return buildSpotifySearchUrl(song.value, selectedArtistNames.value)
 })
 
 const emit = defineEmits(['updated'])

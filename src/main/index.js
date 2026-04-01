@@ -1,4 +1,4 @@
-import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveBlocker, dialog } from 'electron'
+import { clipboard, app, shell, BrowserWindow, ipcMain, powerMonitor, powerSaveBlocker, dialog, session as electronSession } from 'electron'
 import os from 'os'
 import { dirname, extname, join } from 'path'
 import fs from 'fs'
@@ -34,6 +34,7 @@ const CUSTOM_UPDATE_INTERVAL_MS = 10 * 60 * 1000
 const CUSTOM_UPDATE_OWNER = 'rvizcaino80'
 const CUSTOM_UPDATE_REPO = 'vmusic'
 const COVER_CACHE_DIRNAME = 'covers'
+let appSleepBlockerId = null
 
 function sanitizeCoverId(value) {
   return String(value || '')
@@ -93,6 +94,34 @@ function toVersionedFileUrl(filePath) {
   return fileUrl.toString()
 }
 
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function startAppSleepBlocker() {
+  if (appSleepBlockerId && powerSaveBlocker.isStarted(appSleepBlockerId)) {
+    return appSleepBlockerId
+  }
+
+  appSleepBlockerId = powerSaveBlocker.start('prevent-app-suspension')
+
+  return appSleepBlockerId
+}
+
+function stopAppSleepBlocker() {
+  if (!appSleepBlockerId) return
+
+  try {
+    if (powerSaveBlocker.isStarted(appSleepBlockerId)) {
+      powerSaveBlocker.stop(appSleepBlockerId)
+    }
+  } catch {}
+
+  appSleepBlockerId = null
+}
+
 async function cacheCoverImage(payload = {}) {
   const rawUrl = String(payload?.url || '').trim()
   const cacheKey = sanitizeCoverId(payload?.cacheKey)
@@ -140,6 +169,1017 @@ async function cacheCoverImage(payload = {}) {
   fs.writeFileSync(targetPath, buffer)
 
   return toVersionedFileUrl(targetPath)
+}
+
+async function readSpotifyValue(webContents, script) {
+  try {
+    return await webContents.executeJavaScript(script, true)
+  } catch {
+    return ''
+  }
+}
+
+async function waitForSpotifyValue(webContents, script, timeoutMs = 15000, intervalMs = 300) {
+  const startedAt = Date.now()
+  while (Date.now() - startedAt < timeoutMs) {
+    const value = await readSpotifyValue(webContents, script)
+    if (value) return value
+    await delay(intervalMs)
+  }
+
+  return ''
+}
+
+async function seedSpotifySearchInput(webContents, searchTerm = '') {
+  const normalizedSearchTerm = String(searchTerm || '').trim()
+  if (!normalizedSearchTerm) return { seeded: false, reason: 'empty-search-term' }
+
+  return readSpotifyValue(
+    webContents,
+    `(() => {
+      const value = ${JSON.stringify(normalizedSearchTerm)}
+      const inputs = Array.from(document.querySelectorAll('input'))
+      const inputDetails = inputs.slice(0, 20).map((element) => ({
+        type: String(element?.type || ''),
+        placeholder: String(element?.placeholder || ''),
+        ariaLabel: String(element?.getAttribute?.('aria-label') || ''),
+        dataTestId: String(element?.getAttribute?.('data-testid') || ''),
+        role: String(element?.getAttribute?.('role') || ''),
+        value: String(element?.value || '')
+      }))
+      const input = inputs.find((element) => {
+        if (!element) return false
+        const type = String(element.type || '').toLowerCase()
+        const placeholder = String(element.placeholder || '').toLowerCase()
+        const ariaLabel = String(element.getAttribute?.('aria-label') || '').toLowerCase()
+        const dataTestId = String(element.getAttribute?.('data-testid') || '').toLowerCase()
+        return type === 'search'
+          || type === 'text'
+          || placeholder.includes('search')
+          || ariaLabel.includes('search')
+          || dataTestId.includes('search')
+      })
+      if (!input) {
+        return { seeded: false, reason: 'no-search-input', inputCount: inputs.length, inputDetails }
+      }
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+      if (!setter) {
+        return { seeded: false, reason: 'no-input-setter', inputCount: inputs.length, inputDetails }
+      }
+      setter.call(input, value)
+      input.focus()
+      input.dispatchEvent(new Event('input', { bubbles: true, composed: true }))
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }))
+      input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }))
+      return { seeded: true, inputCount: inputs.length, value: input.value || '', inputDetails }
+    })()`
+  )
+}
+
+async function activateSpotifySearchView(webContents) {
+  return readSpotifyValue(
+    webContents,
+    `(() => {
+      const candidates = Array.from(document.querySelectorAll('a, button, [role="link"], [role="button"]'))
+      const target = candidates.find((element) => {
+        const text = String(element?.innerText || element?.textContent || '').trim().toLowerCase()
+        const ariaLabel = String(element?.getAttribute?.('aria-label') || '').trim().toLowerCase()
+        const href = String(element?.href || element?.getAttribute?.('href') || '').trim().toLowerCase()
+        return text === 'search'
+          || text.includes('search')
+          || ariaLabel.includes('search')
+          || href.includes('/search')
+      })
+      if (!target) {
+        return { activated: false, reason: 'no-search-target', candidateCount: candidates.length }
+      }
+      target.click()
+      return { activated: true, candidateCount: candidates.length, text: String(target.innerText || target.textContent || '').trim() }
+    })()`
+  )
+}
+
+async function dismissSpotifyCookieBanner(webContents) {
+  return readSpotifyValue(
+    webContents,
+    `(() => {
+      const candidates = Array.from(document.querySelectorAll('button, [role="button"], a'))
+      const target = candidates.find((element) => {
+        const text = String(element?.innerText || element?.textContent || '').trim().toLowerCase()
+        const ariaLabel = String(element?.getAttribute?.('aria-label') || '').trim().toLowerCase()
+        return /accept|agree|allow all|reject all|deny|dismiss|close|got it|continue/i.test(text)
+          || /accept|agree|allow all|reject all|deny|dismiss|close|got it|continue/i.test(ariaLabel)
+      })
+      if (!target) {
+        return { dismissed: false, reason: 'no-cookie-target', candidateCount: candidates.length }
+      }
+      target.click()
+      return { dismissed: true, candidateCount: candidates.length, text: String(target.innerText || target.textContent || '').trim() }
+    })()`
+  )
+}
+
+function normalizeSpotifyUrl(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+  if (raw.startsWith('/')) return `https://open.spotify.com${raw}`
+
+  return `https://open.spotify.com/${raw}`
+}
+
+function buildSpotifyTrackUrl(trackId) {
+  const raw = String(trackId || '').trim()
+  if (!raw) return ''
+
+  return `https://open.spotify.com/track/${raw}`
+}
+
+function extractSpotifyTrackId(value = '') {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const uriMatch = raw.match(/spotify:track:([a-zA-Z0-9]+)/i)
+  if (uriMatch?.[1]) return uriMatch[1]
+  const urlMatch = raw.match(/open\.spotify\.com\/track\/([a-zA-Z0-9]+)/i)
+  if (urlMatch?.[1]) return urlMatch[1]
+
+  return ''
+}
+
+async function getSpotifyCookieHeader() {
+  try {
+    const cookies = await electronSession.defaultSession.cookies.get({ domain: '.spotify.com' })
+    if (!Array.isArray(cookies) || cookies.length === 0) return ''
+
+    return cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ')
+  } catch {
+    return ''
+  }
+}
+
+async function getSpotifyAccessToken() {
+  const cookie = await getSpotifyCookieHeader()
+  const tokenUrl = 'https://open.spotify.com/get_access_token?reason=transport&productType=web_player'
+  const response = await fetch(tokenUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      Accept: 'application/json',
+      Referer: 'https://open.spotify.com/',
+      Cookie: cookie
+    }
+  })
+  if (!response.ok) {
+    const body = await response.text().catch(() => '')
+    throw new Error(`Spotify token request failed (${response.status}): ${body.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const accessToken = String(data?.accessToken || '').trim()
+  if (!accessToken) {
+    throw new Error('Spotify token response missing accessToken')
+  }
+
+  return accessToken
+}
+
+function pickFirstSpotifyTrackFromSearchData(data) {
+  const search = data?.data?.search
+    || data?.data?.searchV2
+    || data?.search?.results
+    || data?.searchResults
+    || data?.results
+    || data?.data
+    || data
+    || {}
+  const candidates = []
+  const visited = new Set()
+
+    const pushCandidate = (item) => {
+      if (!item || typeof item !== 'object') return
+      const uri = item?.uri || item?.data?.uri || item?.track?.uri || item?.item?.uri || ''
+      const trackId = extractSpotifyTrackId(uri)
+      if (!trackId) return
+
+      const coverSource = item?.coverArt?.sources
+        || item?.album?.coverArt?.sources
+        || item?.data?.coverArt?.sources
+        || item?.albumOfTrack?.coverArt?.sources
+        || item?.track?.album?.coverArt?.sources
+        || item?.visual?.image?.sources
+        || item?.images
+        || []
+    const coverUrl = Array.isArray(coverSource) && coverSource.length > 0
+      ? String(coverSource[coverSource.length - 1]?.url || coverSource[0]?.url || '').trim()
+      : ''
+
+    candidates.push({
+      trackId,
+      coverUrl
+    })
+  }
+
+  const walk = (value, depth = 0) => {
+    if (!value || typeof value !== 'object' || visited.has(value) || depth > 5) return
+    visited.add(value)
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item && typeof item === 'object') {
+          pushCandidate(item)
+          walk(item, depth + 1)
+        }
+      }
+      return
+    }
+
+    pushCandidate(value)
+
+    const preferredKeys = [
+      'tracks',
+      'topResults',
+      'topResult',
+      'results',
+      'items',
+      'content',
+      'data',
+      'album',
+      'albumOfTrack',
+      'track',
+      'item',
+      'entities',
+      'pages',
+      'sections'
+    ]
+
+    for (const key of preferredKeys) {
+      if (value[key] && typeof value[key] === 'object') {
+        walk(value[key], depth + 1)
+      }
+    }
+  }
+
+  walk(search, 0)
+  const picked = candidates[0] || { trackId: '', coverUrl: '' }
+
+  return {
+    trackId: picked.trackId || '',
+    coverUrl: picked.coverUrl || ''
+  }
+}
+
+async function fetchSpotifySearchDesktop(searchTerm = '') {
+  const token = await getSpotifyAccessToken()
+  return fetchSpotifySearchDesktopWithToken(token, searchTerm)
+}
+
+async function fetchSpotifySearchDesktopWithToken(token, searchTerm = '') {
+  const accessToken = String(token || '').trim()
+  const normalizedSearchTerm = String(searchTerm || '').trim()
+  if (!accessToken || !normalizedSearchTerm) return null
+  const params = new URLSearchParams({
+    operationName: 'searchDesktop',
+    variables: JSON.stringify({
+      searchTerm: normalizedSearchTerm,
+      offset: 0,
+      limit: 10,
+      numberOfTopResults: 5
+    }),
+    extensions: JSON.stringify({
+      persistedQuery: {
+        version: 1,
+        sha256Hash: '75bbf6bfcfdf85b8fc828417bfad92b7cd66bf7f556d85670f4da8292373ebec'
+      }
+    })
+  })
+  const response = await fetch(`https://api-partner.spotify.com/pathfinder/v1/query?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'application/json',
+      Referer: 'https://open.spotify.com/'
+    }
+  })
+  if (!response.ok) {
+    const body = await response.text().catch(() => '')
+    throw new Error(`Spotify search request failed (${response.status}): ${body.slice(0, 200)}`)
+  }
+
+  return response.json()
+}
+
+async function fetchSpotifyTrackUrlFromBrowser(searchUrl = '', searchTerm = '') {
+  const targetSearchUrl = String(searchUrl || '').trim()
+  const normalizedSearchTerm = String(searchTerm || '').trim()
+  if (!targetSearchUrl || !normalizedSearchTerm) return null
+
+  const searchWindow = new BrowserWindow({
+    show: false,
+    width: 1280,
+    height: 900,
+    autoHideMenuBar: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      webSecurity: true,
+      backgroundThrottling: false
+    }
+  })
+
+  try {
+    const debuggerProtocol = searchWindow.webContents.debugger
+    let debuggerAttached = false
+    let tokenRequestId = ''
+    let tokenResolved = false
+    let tokenResolve = null
+    let tokenReject = null
+    const tokenPromise = new Promise((resolve, reject) => {
+      tokenResolve = resolve
+      tokenReject = reject
+    })
+
+    const cleanupDebugger = () => {
+      if (!debuggerAttached) return
+      try {
+        debuggerProtocol.removeAllListeners('message')
+      } catch {}
+      try {
+        debuggerProtocol.detach()
+      } catch {}
+      debuggerAttached = false
+    }
+
+    const handleDebuggerMessage = async(_event, method, params) => {
+      if (method === 'Network.requestWillBeSent') {
+        const requestUrl = String(params?.request?.url || '')
+        if (/open\.spotify\.com\/api\/token/i.test(requestUrl)) {
+          tokenRequestId = String(params?.requestId || '')
+          console.debug('[vmusic][spotify-cover] browser token request', {
+            url: requestUrl,
+            requestId: tokenRequestId
+          })
+        }
+        return
+      }
+
+      if (method === 'Network.responseReceived') {
+        const responseUrl = String(params?.response?.url || '')
+        if (!/open\.spotify\.com\/api\/token/i.test(responseUrl)) return
+        console.debug('[vmusic][spotify-cover] browser token response received', {
+          url: responseUrl,
+          requestId: String(params?.requestId || '')
+        })
+        return
+      }
+
+      if (method !== 'Network.loadingFinished') return
+      const requestId = String(params?.requestId || '')
+      if (!tokenRequestId || requestId !== tokenRequestId || tokenResolved) return
+
+      try {
+        const bodyResponse = await debuggerProtocol.sendCommand('Network.getResponseBody', {
+          requestId
+        })
+        const rawBody = String(bodyResponse?.body || '')
+        console.debug('[vmusic][spotify-cover] browser token response body', {
+          length: rawBody.length,
+          sample: rawBody.slice(0, 500)
+        })
+        let parsedBody = null
+        try {
+          parsedBody = JSON.parse(rawBody)
+        } catch {}
+        const token = String(parsedBody?.accessToken || parsedBody?.access_token || '').trim()
+        if (token) {
+          tokenResolved = true
+          tokenResolve(token)
+          console.debug('[vmusic][spotify-cover] browser token captured', {
+            hasToken: true,
+            tokenLength: token.length
+          })
+        }
+      } catch (error) {
+        console.warn('[vmusic][spotify-cover] browser token read failed', {
+          requestId,
+          error
+        })
+        tokenReject(error)
+      }
+    }
+
+    try {
+      debuggerProtocol.attach('1.3')
+      debuggerAttached = true
+      debuggerProtocol.sendCommand('Network.enable')
+      debuggerProtocol.on('message', handleDebuggerMessage)
+    } catch (error) {
+      console.warn('[vmusic][spotify-cover] browser debugger attach failed', error)
+    }
+
+    const loadSearchPage = searchWindow.loadURL(targetSearchUrl)
+    const loaded = await Promise.race([
+      loadSearchPage.then(() => true).catch((error) => {
+        console.warn('[vmusic][spotify-cover] browser search load failed', error)
+        return false
+      }),
+      delay(12000).then(() => false)
+    ])
+    console.debug('[vmusic][spotify-cover] browser search load completed', { loaded, targetSearchUrl })
+    if (!loaded) return null
+
+    const token = await Promise.race([
+      tokenPromise,
+      delay(10000).then(() => '')
+    ]).catch(() => '')
+    if (!token) {
+      console.warn('[vmusic][spotify-cover] browser token missing', { targetSearchUrl })
+      return null
+    }
+
+    const browserSearchResult = await fetchSpotifySearchDesktopWithToken(token, normalizedSearchTerm)
+    console.debug('[vmusic][spotify-cover] browser token search result', browserSearchResult)
+    const picked = pickFirstSpotifyTrackFromSearchData(browserSearchResult)
+    console.debug('[vmusic][spotify-cover] browser token picked candidate', picked)
+
+    return picked?.trackId ? buildSpotifyTrackUrl(picked.trackId) : ''
+  } finally {
+    try {
+      cleanupDebugger()
+    } catch {}
+    if (!searchWindow.isDestroyed()) {
+      searchWindow.destroy()
+    }
+  }
+}
+
+async function fetchSpotifySearchFromBrowser(searchUrl = '', searchTerm = '') {
+  const targetSearchUrl = String(searchUrl || '').trim()
+  const normalizedSearchTerm = String(searchTerm || '').trim()
+  if (!targetSearchUrl || !normalizedSearchTerm) return null
+
+  const searchWindow = new BrowserWindow({
+    show: false,
+    width: 1280,
+    height: 900,
+    autoHideMenuBar: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      webSecurity: true,
+      backgroundThrottling: false
+    }
+  })
+
+  try {
+    const debuggerProtocol = searchWindow.webContents.debugger
+    let debuggerAttached = false
+    const trackedRequests = new Map()
+    let capturedSpotifyToken = ''
+    let resolvedResponse = false
+    let responseResolve = null
+    let responseReject = null
+    const responsePromise = new Promise((resolve, reject) => {
+      responseResolve = resolve
+      responseReject = reject
+    })
+
+    const cleanupDebugger = () => {
+      if (!debuggerAttached) return
+      try {
+        debuggerProtocol.removeAllListeners('message')
+      } catch {}
+      try {
+        debuggerProtocol.detach()
+      } catch {}
+      debuggerAttached = false
+    }
+
+    const resolveTrackedResponse = async (requestId) => {
+      if (resolvedResponse || !requestId || !trackedRequests.has(requestId)) return
+      const trackedRequest = trackedRequests.get(requestId) || {}
+
+      try {
+        const bodyResponse = await debuggerProtocol.sendCommand('Network.getResponseBody', {
+          requestId
+        })
+        const rawBody = String(bodyResponse?.body || '')
+        console.debug('[vmusic][spotify-cover] browser api response body', {
+          url: trackedRequest.url || '',
+          length: rawBody.length,
+          sample: rawBody.slice(0, 500)
+        })
+        let parsedBody = null
+        try {
+          parsedBody = JSON.parse(rawBody)
+        } catch {}
+
+        const picked = pickFirstSpotifyTrackFromSearchData(parsedBody || rawBody || null)
+        console.debug('[vmusic][spotify-cover] browser api picked candidate', {
+          requestId,
+          operationName: trackedRequest.operationName || '',
+          query: trackedRequest.query || '',
+          picked
+        })
+        if (picked?.trackId || picked?.coverUrl) {
+          resolvedResponse = true
+          responseResolve(parsedBody || rawBody || null)
+          return
+        }
+
+        trackedRequests.delete(requestId)
+      } catch (error) {
+        console.warn('[vmusic][spotify-cover] browser api body read failed', {
+          requestId,
+          url: trackedRequest.url || '',
+          error
+        })
+        trackedRequests.delete(requestId)
+      }
+    }
+
+    const resolveSpotifyTokenResponse = async (requestId) => {
+      try {
+        const bodyResponse = await debuggerProtocol.sendCommand('Network.getResponseBody', {
+          requestId
+        })
+        const rawBody = String(bodyResponse?.body || '')
+        console.debug('[vmusic][spotify-cover] browser token response body', {
+          length: rawBody.length,
+          sample: rawBody.slice(0, 500)
+        })
+        let parsedBody = null
+        try {
+          parsedBody = JSON.parse(rawBody)
+        } catch {}
+        const token = String(parsedBody?.accessToken || parsedBody?.access_token || '').trim()
+        if (token) {
+          capturedSpotifyToken = token
+          console.debug('[vmusic][spotify-cover] browser token captured', {
+            hasToken: Boolean(token),
+            tokenLength: token.length
+          })
+        }
+      } catch (error) {
+        console.warn('[vmusic][spotify-cover] browser token read failed', {
+          requestId,
+          error
+        })
+      }
+    }
+
+    const handleDebuggerMessage = async(_event, method, params) => {
+      if (method === 'Fetch.requestPaused') {
+        const requestId = String(params?.requestId || '')
+        const requestUrl = String(params?.request?.url || '')
+        const requestMethod = String(params?.request?.method || '')
+        const requestPostData = String(params?.request?.postData || '')
+        const isSpotifyQuery = /api-partner\.spotify\.com\/pathfinder\/v[12]\/query/i.test(requestUrl)
+
+        if (isSpotifyQuery && requestMethod === 'POST') {
+          let parsedPostData = null
+          try {
+            parsedPostData = JSON.parse(requestPostData || '{}')
+          } catch {}
+          const operationName = String(parsedPostData?.operationName || '')
+          const currentQuery = String(parsedPostData?.variables?.query || '').trim()
+          const shouldRewrite = /findTopResults|searchDesktop/i.test(operationName) && !currentQuery
+
+          if (shouldRewrite) {
+            const nextPostData = {
+              ...parsedPostData,
+              variables: {
+                ...(parsedPostData?.variables || {}),
+                query: normalizedSearchTerm
+              }
+            }
+            const serializedPostData = JSON.stringify(nextPostData)
+            const encodedPostData = Buffer.from(serializedPostData, 'utf8').toString('base64')
+            console.debug('[vmusic][spotify-cover] browser api request rewritten', {
+              requestId,
+              operationName,
+              fromQuery: currentQuery,
+              toQuery: normalizedSearchTerm
+            })
+            trackedRequests.set(requestId, {
+              url: requestUrl,
+              method: requestMethod,
+              postData: serializedPostData.slice(0, 500),
+              operationName,
+              query: normalizedSearchTerm
+            })
+            try {
+              await debuggerProtocol.sendCommand('Fetch.continueRequest', {
+                requestId,
+                postData: encodedPostData
+              })
+            } catch (error) {
+              console.warn('[vmusic][spotify-cover] browser api rewrite failed', {
+                requestId,
+                error
+              })
+              await debuggerProtocol.sendCommand('Fetch.continueRequest', { requestId }).catch(() => {})
+            }
+            return
+          }
+        }
+
+        await debuggerProtocol.sendCommand('Fetch.continueRequest', { requestId }).catch(() => {})
+        return
+      }
+
+      if (method === 'Network.requestWillBeSent') {
+        const requestUrl = String(params?.request?.url || '')
+        const requestPostData = String(params?.request?.postData || '')
+        if (/open\.spotify\.com\/api\/token/i.test(requestUrl)) {
+          trackedRequests.set(String(params?.requestId || ''), {
+            url: requestUrl,
+            method: String(params?.request?.method || ''),
+            postData: requestPostData.slice(0, 500),
+            operationName: 'apiToken',
+            query: ''
+          })
+          console.debug('[vmusic][spotify-cover] browser token request', {
+            url: requestUrl,
+            requestId: String(params?.requestId || '')
+          })
+          return
+        }
+        if (/api-partner\.spotify\.com\/pathfinder\/v[12]\/query/i.test(requestUrl)) {
+          let parsedPostData = null
+          try {
+            parsedPostData = JSON.parse(requestPostData || '{}')
+          } catch {}
+          const operationName = String(parsedPostData?.operationName || '')
+          const query = String(parsedPostData?.variables?.query || parsedPostData?.variables?.searchTerm || '')
+          const normalizedQuery = String(query || '').trim().toLowerCase()
+          const normalizedNeedle = String(normalizedSearchTerm || '').trim().toLowerCase()
+          const matchesSearch = Boolean(normalizedQuery)
+            && (
+              normalizedQuery.includes(normalizedNeedle)
+              || normalizedNeedle.includes(normalizedQuery)
+              || /findTopResults|searchDesktop/i.test(operationName || requestPostData || requestUrl)
+            )
+          const requestId = String(params?.requestId || '')
+          trackedRequests.set(requestId, {
+            url: requestUrl,
+            method: String(params?.request?.method || ''),
+            postData: requestPostData.slice(0, 500),
+            operationName,
+            query
+          })
+          console.debug('[vmusic][spotify-cover] browser api request', {
+            url: requestUrl,
+            method: String(params?.request?.method || ''),
+            requestId,
+            operationName,
+            query,
+            matchesSearch,
+            postDataSample: requestPostData.slice(0, 200)
+          })
+          if (!matchesSearch) {
+            trackedRequests.delete(requestId)
+          }
+        }
+        return
+      }
+      if (method === 'Network.responseReceived') {
+        const responseUrl = String(params?.response?.url || '')
+        if (/open\.spotify\.com\/api\/token/i.test(responseUrl)) {
+          console.debug('[vmusic][spotify-cover] browser token response received', {
+            url: responseUrl,
+            requestId: String(params?.requestId || '')
+          })
+          return
+        }
+        if (!/api-partner\.spotify\.com\/pathfinder\/v[12]\/query/i.test(responseUrl)) return
+        console.debug('[vmusic][spotify-cover] browser api response received', {
+          url: responseUrl,
+          requestId: String(params?.requestId || '')
+        })
+        return
+      }
+      if (method === 'Network.loadingFinished') {
+        const requestId = String(params?.requestId || '')
+        const trackedRequest = trackedRequests.get(requestId)
+        if (/^https:\/\/open\.spotify\.com\/api\/token/i.test(String(trackedRequest?.url || ''))) {
+          await resolveSpotifyTokenResponse(requestId)
+          return
+        }
+        if (!trackedRequests.has(requestId)) return
+        await resolveTrackedResponse(requestId)
+      }
+    }
+
+    try {
+      debuggerProtocol.attach('1.3')
+      debuggerAttached = true
+      debuggerProtocol.sendCommand('Network.enable')
+      debuggerProtocol.sendCommand('Fetch.enable', {
+        patterns: [
+          {
+            urlPattern: '*api-partner.spotify.com/pathfinder/v1/query*',
+            requestStage: 'Request'
+          },
+          {
+            urlPattern: '*api-partner.spotify.com/pathfinder/v2/query*',
+            requestStage: 'Request'
+          }
+        ]
+      })
+      debuggerProtocol.on('message', handleDebuggerMessage)
+    } catch (error) {
+      console.warn('[vmusic][spotify-cover] browser debugger attach failed', error)
+    }
+
+    const loadSearchPage = searchWindow.loadURL(targetSearchUrl)
+    const loaded = await Promise.race([
+      loadSearchPage.then(() => true).catch((error) => {
+        console.warn('[vmusic][spotify-cover] browser search load failed', error)
+
+        return false
+      }),
+      delay(12000).then(() => false)
+    ])
+    console.debug('[vmusic][spotify-cover] browser search load completed', { loaded, targetSearchUrl })
+    if (!loaded) return null
+
+    const activatedSearchView = await activateSpotifySearchView(searchWindow.webContents)
+    console.debug('[vmusic][spotify-cover] browser search view activated', activatedSearchView)
+
+    await delay(1000)
+    const dismissedCookieBanner = await dismissSpotifyCookieBanner(searchWindow.webContents)
+    console.debug('[vmusic][spotify-cover] browser cookie banner dismissed', dismissedCookieBanner)
+
+    await delay(1000)
+    const seededSearch = await seedSpotifySearchInput(searchWindow.webContents, normalizedSearchTerm)
+    console.debug('[vmusic][spotify-cover] browser search input seeded', seededSearch)
+
+    if (capturedSpotifyToken) {
+      try {
+        const browserSearchResult = await fetchSpotifySearchDesktopWithToken(capturedSpotifyToken, normalizedSearchTerm)
+        console.debug('[vmusic][spotify-cover] browser token search result', browserSearchResult)
+        const picked = pickFirstSpotifyTrackFromSearchData(browserSearchResult)
+        console.debug('[vmusic][spotify-cover] browser token picked candidate', picked)
+        if (picked?.trackId) {
+          trackHref = buildSpotifyTrackUrl(picked.trackId)
+        }
+      } catch (error) {
+        console.warn('[vmusic][spotify-cover] browser token search failed', error)
+      }
+    }
+
+    await delay(2500)
+
+    const browserSnapshot = await readSpotifyValue(
+      searchWindow.webContents,
+      `(() => ({
+        htmlLength: String(document.documentElement?.innerHTML || '').length,
+        bodyTextSample: String(document.body?.innerText || '').slice(0, 3000),
+        anchorCount: document.querySelectorAll('a[href]').length,
+        trackAnchors: Array.from(document.querySelectorAll('a[href]'))
+          .map((anchor) => String(anchor.href || anchor.getAttribute('href') || '').trim())
+          .filter((href) => /\\/track\\//i.test(href))
+          .slice(0, 20),
+        resourceEntries: (performance.getEntriesByType('resource') || [])
+          .map((entry) => String(entry.name || '').trim())
+          .filter(Boolean)
+          .slice(0, 50)
+      }))()`
+    )
+    console.debug('[vmusic][spotify-cover] browser snapshot', browserSnapshot)
+
+    const trackHref = await Promise.race([
+      responsePromise.then((payload) => {
+        const picked = pickFirstSpotifyTrackFromSearchData(payload)
+        console.debug('[vmusic][spotify-cover] browser search picked', picked)
+        return picked.coverUrl || (picked.trackId ? buildSpotifyTrackUrl(picked.trackId) : '')
+      }),
+      waitForSpotifyValue(
+        searchWindow.webContents,
+        `(() => {
+          const text = document.documentElement?.innerHTML || ''
+          const patterns = [
+            /href="([^"]*\\/track\\/[^"]+)"/i,
+            /href='([^']*\\/track\\/[^']+)'/i,
+            /"([^"]*\\/track\\/[^"]+)"/i,
+            /'([^']*\\/track\\/[^']+)'/i,
+            /spotify:track:([a-zA-Z0-9]+)/i
+          ]
+          for (const pattern of patterns) {
+            const match = text.match(pattern)
+            if (match?.[1]) {
+              if (match[1].includes('spotify:track:')) {
+                return 'https://open.spotify.com/track/' + match[1].split('spotify:track:').pop()
+              }
+              return String(match[1]).trim()
+            }
+          }
+          const anchors = Array.from(document.querySelectorAll('a[href*="/track/"], a[href*="open.spotify.com/track/"]'))
+          const firstAnchor = anchors.find((anchor) => {
+            const href = anchor?.href || anchor?.getAttribute?.('href') || ''
+            return /\\/track\\//i.test(href)
+          })
+          return String(firstAnchor?.href || firstAnchor?.getAttribute?.('href') || '').trim()
+        })()`,
+        20000,
+        250
+      )
+    ])
+
+    console.debug('[vmusic][spotify-cover] browser search request completed', {
+      targetSearchUrl,
+      trackHref
+    })
+
+    return trackHref || null
+  } finally {
+    try {
+      cleanupDebugger()
+    } catch {}
+    if (!searchWindow.isDestroyed()) {
+      searchWindow.destroy()
+    }
+  }
+}
+
+function extractSpotifyTrackHrefFromHtml(html = '') {
+  const source = String(html || '')
+  if (!source) return ''
+
+  const hrefPatterns = [
+    /href="([^"]*\/track\/[^"]+)"/i,
+    /href='([^']*\/track\/[^']+)'/i,
+    /"([^"]*\/track\/[^"]+)"/i,
+    /'([^']*\/track\/[^']+)'/i,
+    /spotify:track:([a-zA-Z0-9]+)/i
+  ]
+
+  for (const pattern of hrefPatterns) {
+    const match = source.match(pattern)
+    if (match?.[1]) {
+      if (match[1].includes('spotify:track:')) {
+        return `https://open.spotify.com/track/${match[1].split('spotify:track:').pop()}`
+      }
+      return match[1]
+    }
+  }
+
+  return ''
+}
+
+function extractSpotifyOgImageFromHtml(html = '') {
+  const source = String(html || '')
+  if (!source) return ''
+
+  const match = source.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
+    || source.match(/<meta[^>]+name="twitter:image"[^>]+content="([^"]+)"/i)
+    || source.match(/<meta[^>]+property='og:image'[^>]+content='([^']+)'/i)
+    || source.match(/<meta[^>]+name='twitter:image'[^>]+content='([^']+)'/i)
+
+  return match?.[1] || ''
+}
+
+async function fetchTextWithSpotifyHeaders(url) {
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
+    }
+  })
+  if (!response.ok) return ''
+
+  return response.text()
+}
+
+async function resolveSpotifyCoverFromSearchUrl(searchUrl = '') {
+  const targetSearchUrl = String(searchUrl || '').trim()
+  if (!targetSearchUrl) return null
+  console.debug('[vmusic][spotify-cover] resolve start', { targetSearchUrl })
+  let trackHref = ''
+  const resolutionPath = []
+
+  const searchTerm = (() => {
+    try {
+      const parsed = new URL(targetSearchUrl)
+      const segments = parsed.pathname.split('/').filter(Boolean)
+      const rawTerm = decodeURIComponent(segments.slice(1).join(' ') || parsed.searchParams.get('q') || '')
+
+      return String(rawTerm || '').trim()
+    } catch {
+      return ''
+    }
+  })()
+
+  if (searchTerm) {
+    try {
+      console.debug('[vmusic][spotify-cover] browser search start', { searchTerm })
+      resolutionPath.push('browser-search:start')
+      const browserTrackHref = await fetchSpotifyTrackUrlFromBrowser(targetSearchUrl, searchTerm)
+      if (browserTrackHref) {
+        trackHref = normalizeSpotifyUrl(browserTrackHref)
+        resolutionPath.push('browser-search:track')
+        console.debug('[vmusic][spotify-cover] browser search picked', { trackHref })
+      }
+    } catch (error) {
+      resolutionPath.push('browser-search:error')
+      console.warn('[vmusic][spotify-cover] browser search failed', error)
+    }
+  }
+
+  const tryResolveFromHtml = async(url, label) => {
+    try {
+      const html = await fetchTextWithSpotifyHeaders(url)
+      console.debug(`[vmusic][spotify-cover] ${label} fetch`, { length: String(html || '').length })
+      return html
+    } catch (error) {
+      console.warn(`[vmusic][spotify-cover] ${label} fetch failed`, error)
+
+      return ''
+    }
+  }
+
+  if (!trackHref) {
+    const searchHtml = await tryResolveFromHtml(targetSearchUrl, 'search')
+    trackHref = extractSpotifyTrackHrefFromHtml(searchHtml)
+    console.debug('[vmusic][spotify-cover] track from search html', { trackHref })
+    if (trackHref) {
+      resolutionPath.push('search-html:track')
+    }
+  } else {
+    console.debug('[vmusic][spotify-cover] track from browser/api result', { trackHref })
+  }
+  if (!trackHref) {
+    return {
+      ok: false,
+      error: 'spotify-track-not-found',
+      searchTerm,
+      targetSearchUrl,
+      resolutionPath
+    }
+  }
+
+  console.debug('[vmusic][spotify-cover] track resolved', { trackHref })
+  const trackUrl = normalizeSpotifyUrl(trackHref)
+  if (!trackUrl) return null
+
+  const trackHtml = await tryResolveFromHtml(trackUrl, 'track')
+  let imageUrl = extractSpotifyOgImageFromHtml(trackHtml)
+  console.debug('[vmusic][spotify-cover] image from track html', { imageUrl })
+
+  if (!imageUrl) {
+    const trackWindow = new BrowserWindow({
+      show: false,
+      width: 1280,
+      height: 900,
+      autoHideMenuBar: true,
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: false,
+        webSecurity: true,
+        backgroundThrottling: false
+      }
+    })
+
+    try {
+      const loadTrackPage = trackWindow.loadURL(trackUrl)
+      const trackLoaded = await Promise.race([
+        loadTrackPage.then(() => true).catch((error) => {
+          console.warn('[vmusic][spotify-cover] track load failed', error)
+
+          return false
+        }),
+        delay(12000).then(() => false)
+      ])
+      console.debug('[vmusic][spotify-cover] track load completed', { trackLoaded, trackUrl })
+      if (trackLoaded) {
+        const trackDomHtml = await readSpotifyValue(trackWindow.webContents, 'document.documentElement.outerHTML')
+        console.debug('[vmusic][spotify-cover] track dom fallback', { hasHtml: Boolean(trackDomHtml), length: String(trackDomHtml || '').length })
+        imageUrl = extractSpotifyOgImageFromHtml(trackDomHtml)
+      }
+    } finally {
+      if (!trackWindow.isDestroyed()) {
+        trackWindow.destroy()
+      }
+    }
+  }
+
+  console.debug('[vmusic][spotify-cover] image resolved', { imageUrl })
+
+  if (!imageUrl) {
+    return {
+      ok: false,
+      error: 'spotify-cover-not-resolved',
+      searchTerm,
+      targetSearchUrl,
+      trackUrl,
+      resolutionPath
+    }
+  }
+
+  return imageUrl
 }
 
 async function importCoverFile(payload = {}) {
@@ -797,6 +1837,25 @@ app.whenReady().then(() => {
   ipcMain.handle('covers:cache-image', async(_event, payload) => {
     return cacheCoverImage(payload)
   })
+  ipcMain.handle('covers:resolve-spotify-cover', async(_event, payload) => {
+    const target = payload?.searchUrl || payload?.url || ''
+    console.debug('[vmusic][spotify-cover] ipc handler start', { target })
+    try {
+      const result = await resolveSpotifyCoverFromSearchUrl(target)
+      console.debug('[vmusic][spotify-cover] ipc handler result', { target, result })
+
+      return result
+    } catch (error) {
+      console.warn('[vmusic][spotify-cover] ipc handler failed', error)
+
+      return {
+        ok: false,
+        error: String(error?.message || error || 'spotify-cover-ipc-failed'),
+        stack: String(error?.stack || ''),
+        target
+      }
+    }
+  })
   ipcMain.handle('covers:import-file', async(_event, payload) => {
     return importCoverFile(payload)
   })
@@ -810,14 +1869,13 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+  startAppSleepBlocker()
   scheduleCustomMacUpdateChecks()
 
   powerMonitor.on('lock-screen', () => {
-    powerSaveBlocker.start('prevent-display-sleep')
     broadcastSystemPowerEvent('lock-screen')
   })
   powerMonitor.on('suspend', () => {
-    powerSaveBlocker.start('prevent-app-suspension')
     broadcastSystemPowerEvent('suspend')
   })
   powerMonitor.on('resume', () => {
@@ -842,6 +1900,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   app.isQuiting = true
+  stopAppSleepBlocker()
   if (customUpdateCheckTimer) {
     clearInterval(customUpdateCheckTimer)
     customUpdateCheckTimer = null

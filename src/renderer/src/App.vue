@@ -43,10 +43,12 @@
           @artists-updated="artistsUpdated"
         />
 
-        <Settings
+        <div
           v-if="currentSelectedOption && currentSelectedOption === options.settings"
-          @saved="settingsSaved"
-        />
+          class="flex-1 min-h-0 overflow-y-auto pr-2"
+        >
+          <Settings @saved="settingsSaved" />
+        </div>
 
         <Artists v-if="currentSelectedOption && currentSelectedOption === options.artists" />
 
@@ -830,6 +832,7 @@
           @finished="onSongFinished"
           @fading="songFading(player1)"
           @speed="saveSpeed(player1)"
+          @cover-updated="coverUpdated"
         />
         <div class="vm-center-stage flex-1">
           <div
@@ -892,6 +895,7 @@
           @finished="onSongFinished"
           @fading="songFading(player2)"
           @speed="saveSpeed(player2)"
+          @cover-updated="coverUpdated"
         />
       </div>
 
@@ -910,8 +914,7 @@
                       player2.status === playerStatuses.Nivelando))
               "
               :disabled="
-                isDeckAInitialPreprocessBlockingPlayback ||
-                  (player1 && player1.status === playerStatuses.Cambiando) ||
+                (player1 && player1.status === playerStatuses.Cambiando) ||
                   (player2 && player2.status === playerStatuses.Cambiando)
               "
               type="button"
@@ -1522,13 +1525,14 @@ const normalizedRowsPerPage = normalizeRowsPerPage(savedSettingsRef.rowsPerPage,
 const normalizedRowsPerPageFs = normalizeRowsPerPage(savedSettingsRef.rowsPerPageFs,
   normalizedRowsPerPage)
 const normalizedShowAdvancedFunctions = Boolean(savedSettingsRef.showAdvancedFunctions)
+const normalizedAutoUpdateCovers = Boolean(savedSettingsRef.autoUpdateCovers)
 previewSinkId.value = savedSettingsRef.previewSinkId || null
 deckSinkId.value = savedSettingsRef.deckSinkId || null
 const excludedTags = ref(savedSettingsRef.excludeTags || [])
 const colorSchema = ref(applyColorSchema(savedSettingsRef.colorSchema))
 const showAdvancedFunctions = ref(normalizedShowAdvancedFunctions)
 if (
-  hasStoredSettings && (savedSettingsRef.colorSchema !== colorSchema.value || savedSettingsRef.historyLimit !== normalizedHistoryLimit || savedSettingsRef.rowsPerPage !== normalizedRowsPerPage || savedSettingsRef.rowsPerPageFs !== normalizedRowsPerPageFs || savedSettingsRef.showAdvancedFunctions !== normalizedShowAdvancedFunctions)
+  hasStoredSettings && (savedSettingsRef.colorSchema !== colorSchema.value || savedSettingsRef.historyLimit !== normalizedHistoryLimit || savedSettingsRef.rowsPerPage !== normalizedRowsPerPage || savedSettingsRef.rowsPerPageFs !== normalizedRowsPerPageFs || savedSettingsRef.showAdvancedFunctions !== normalizedShowAdvancedFunctions || savedSettingsRef.autoUpdateCovers !== normalizedAutoUpdateCovers)
 ) {
   localStorage.setItem('vmusic_settings',
     JSON.stringify({
@@ -1537,7 +1541,8 @@ if (
       historyLimit: normalizedHistoryLimit,
       rowsPerPage: normalizedRowsPerPage,
       rowsPerPageFs: normalizedRowsPerPageFs,
-      showAdvancedFunctions: normalizedShowAdvancedFunctions
+      showAdvancedFunctions: normalizedShowAdvancedFunctions,
+      autoUpdateCovers: normalizedAutoUpdateCovers
     }))
 }
 const downloadTasksCount = ref(0)
@@ -2044,36 +2049,50 @@ const isNextDeckSpeedPreprocessBlocking = computed(() => {
 })
 
 function isPlayerReady(playerRef) {
-  return playerRef?.status === playerStatuses.Listo
+  return playerRef?.status === playerStatuses.Listo || playerRef?.status === playerStatuses.Pausado
 }
 
 function isPlayerPlaying(playerRef) {
   return playerRef?.status === playerStatuses.Reproduciendo
 }
 
+function getPlayerByPosition(position) {
+  if (position === 'top') return player1.value
+  if (position === 'bottom') return player2.value
+
+  return null
+}
+
 function getReadyPlayerForPlayback() {
   if (!player1.value || !player2.value) return null
+  const preferredPlayer = getPlayerByPosition(lastActiveDeckPosition.value)
+
+  if (isPlayerReady(preferredPlayer)) {
+    return preferredPlayer
+  }
+
   if (isFirstPlay.value) {
     return isPlayerReady(player1.value) ? player1.value : null
   }
 
-  if (isPlayerReady(player2.value)) return player2.value
   if (isPlayerReady(player1.value)) return player1.value
+  if (isPlayerReady(player2.value)) return player2.value
 
   return null
 }
 
 function getActivePlayerForManualNext() {
   if (!player1.value || !player2.value) return null
+  const preferredPlayer = getPlayerByPosition(lastActiveDeckPosition.value)
+
   if (isPlayerPlaying(player1.value) && isPlayerReady(player2.value)) return player1.value
   if (isPlayerPlaying(player2.value) && isPlayerReady(player1.value)) return player2.value
+  if (isPlayerPlaying(preferredPlayer)) return preferredPlayer
 
   return null
 }
 
 const canManualPlay = computed(() => {
-  if (isDeckAInitialPreprocessBlockingPlayback.value) return false
-
   return Boolean(getReadyPlayerForPlayback())
 })
 
@@ -2286,7 +2305,8 @@ if (!localStorage.getItem('vmusic_settings')) {
     deckSinkId: null,
     baseSpeed: 0,
     colorSchema: COLOR_SCHEMA_DEFAULT,
-    showAdvancedFunctions: false
+    showAdvancedFunctions: false,
+    autoUpdateCovers: false
   }
   localStorage.setItem('vmusic_settings', JSON.stringify(initialSettings))
 }
@@ -3924,7 +3944,6 @@ function getFirstUnplayedSong() {
 
 function play() {
   if (!player1.value || !player2.value) return
-  if (isDeckAInitialPreprocessBlockingPlayback.value) return
   autopause.value = false
   const targetPlayer = getReadyPlayerForPlayback()
   if (!targetPlayer) return
@@ -3938,7 +3957,6 @@ function play() {
 
 function pause() {
   if (!player1.value || !player2.value) return
-  if (isDeckAInitialPreprocessBlockingPlayback.value) return
   if (player1.value.status === playerStatuses.Reproduciendo) {
     player1.value.pause()
   }
@@ -4122,6 +4140,10 @@ async function settingsSaved() {
   showAdvancedFunctions.value = Boolean(s.showAdvancedFunctions)
   await preparePreviewOutput()
   await initializePreferredOutputDevices()
+  if (Boolean(s.autoUpdateCovers)) {
+    player1.value?.resolveMissingCover?.()
+    player2.value?.resolveMissingCover?.()
+  }
   if (player1.value?.refreshBaseSpeed) {
     player1.value.refreshBaseSpeed()
   }
@@ -4145,6 +4167,16 @@ async function settingsSaved() {
   await syncWindowDisplayMode()
   pageSizeRef.value = getRowsPerPageByMode(s)
   setOption(null)
+}
+
+async function coverUpdated(payload) {
+  const targetId = typeof payload === 'object' ? payload?.id : payload
+  if (!targetId) return
+
+  const updatedSong = await refreshSongInLibrary(targetId)
+  if (updatedSong) {
+    refreshEditedSongInLoadedPlayers(updatedSong)
+  }
 }
 
 async function updated(payload) {

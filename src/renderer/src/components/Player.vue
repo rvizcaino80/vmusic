@@ -173,12 +173,13 @@ import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 import axios from 'axios'
+import { buildSpotifySearchUrl } from '../lib/spotify-cover'
 
 defineOptions({
   name: 'MusicPlayer'
 })
 
-const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'song-click', 'preview-start', 'preview-stop', 'finished'])
+const emit = defineEmits(['fading', 'stopped', 'loaded', 'speed', 'artist-click', 'song-click', 'preview-start', 'preview-stop', 'finished', 'cover-updated'])
 
 const props = defineProps({
   position: {
@@ -260,6 +261,7 @@ const previewDuckMultiplier = ref(1)
 const isPreprocessingSpeed = ref(false)
 const isInitialSpeedPreprocessPending = ref(false)
 const coverCacheRequests = new Map()
+const spotifyCoverRequests = new Map()
 const isUsingProcessedSpeedFile = computed(() => {
   if (ratesMatch(speed.value, 1)) return false
 
@@ -283,7 +285,7 @@ const visibleStatusLabel = computed(() => {
 })
 
 function isReadyStatus() {
-  return status.value === props.statuses.Listo
+  return status.value === props.statuses.Listo || status.value === props.statuses.Pausado
 }
 
 function debugAudio(event, payload = null) {
@@ -1046,6 +1048,12 @@ async function setSong(s) {
    *  Create your own media element
    * Get this value from db
    */
+  console.log('[vmusic][auto-cover] setSong entry', {
+    id: s?.id || null,
+    ytid: s?.ytid || null,
+    name: s?.name || '',
+    hasCoverUrl: Boolean(s?.coverUrl || s?.songImage || s?.cover || s?.image || s?.artwork)
+  })
   songFull.value = s
   status.value = props.statuses.Cargando
   hasManualEndMarker.value = hasExplicitEndMarker(s)
@@ -1310,6 +1318,133 @@ async function cacheCoverInBackground(song, coverUrl) {
   coverCacheRequests.set(cacheKey, request)
 }
 
+function isAutoUpdateCoversEnabled() {
+  try {
+    const settings = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
+
+    return Boolean(settings.autoUpdateCovers)
+  } catch {
+    return false
+  }
+}
+
+function persistCoverUrl(songData, coverUrl) {
+  const cacheKey = String(songData?.ytid || '').trim()
+  if (!cacheKey || !coverUrl) return
+
+  try {
+    const stored = localStorage.getItem('vmusic_cover_map')
+    const parsed = stored ? JSON.parse(stored) : {}
+    parsed[cacheKey] = coverUrl
+    localStorage.setItem('vmusic_cover_map', JSON.stringify(parsed))
+  } catch (error) {}
+
+  if (songFull.value?.ytid === cacheKey) {
+    songImage.value = coverUrl
+  }
+}
+
+async function resolveCoverFromSpotifySearch(songData) {
+  if (!songData?.id || !songData?.ytid) return null
+  if (!isAutoUpdateCoversEnabled()) {
+    console.log('[vmusic][auto-cover] disabled', { songId: songData.id, ytid: songData.ytid })
+
+    return null
+  }
+
+  const currentCover = getStoredCoverForSong(songData)
+  if (currentCover) {
+    console.log('[vmusic][auto-cover] already have cover', {
+      songId: songData.id,
+      ytid: songData.ytid,
+      cover: currentCover
+    })
+
+    return currentCover
+  }
+
+  const artistNames = Array.isArray(songData.Artists)
+    ? songData.Artists.map((artist) => artist?.name).filter(Boolean)
+    : []
+  const searchUrl = buildSpotifySearchUrl(songData.name, artistNames)
+  if (!searchUrl) {
+    console.log('[vmusic][auto-cover] empty search url', {
+      songId: songData.id,
+      ytid: songData.ytid,
+      name: songData.name
+    })
+
+    return null
+  }
+
+  const requestKey = `${songData.ytid}:${searchUrl}`
+  if (spotifyCoverRequests.has(requestKey)) {
+    console.log('[vmusic][auto-cover] request deduped', { requestKey })
+
+    return spotifyCoverRequests.get(requestKey)
+  }
+
+  const request = (async() => {
+    if (!window.electron2?.resolveSpotifyCover) {
+      console.log('[vmusic][auto-cover] ipc unavailable', { requestKey })
+
+      return null
+    }
+
+      try {
+        console.log('[vmusic][auto-cover] resolving via spotify', {
+          songId: songData.id,
+          ytid: songData.ytid,
+          searchUrl
+        })
+      const spotifyResult = await window.electron2.resolveSpotifyCover({ searchUrl })
+      const resolvedCoverUrl = typeof spotifyResult === 'string'
+        ? spotifyResult
+        : String(spotifyResult?.coverUrl || spotifyResult?.imageUrl || spotifyResult?.resolvedCoverUrl || '')
+      console.log('[vmusic][auto-cover] spotify result', { requestKey, resolvedCoverUrl, spotifyResult })
+      if (!resolvedCoverUrl) return null
+
+      let finalCoverUrl = resolvedCoverUrl
+      if (isRemoteCoverUrl(resolvedCoverUrl) && window.electron2?.cacheCoverImage) {
+        try {
+          const cachedCoverUrl = await window.electron2.cacheCoverImage({
+            cacheKey: songData.ytid,
+            url: resolvedCoverUrl,
+            forceRefresh: true
+          })
+          if (cachedCoverUrl) {
+            finalCoverUrl = cachedCoverUrl
+          }
+        } catch (error) {
+          console.warn('[vmusic][auto-cover] no se pudo cachear la portada de Spotify', error)
+        }
+      }
+
+      persistCoverUrl(songData, finalCoverUrl)
+      console.log('[vmusic][auto-cover] cover persisted', { requestKey, finalCoverUrl })
+      if (songFull.value?.id === songData.id) {
+        emit('cover-updated', {
+          id: songData.id,
+          ytid: songData.ytid,
+          coverUrl: finalCoverUrl
+        })
+      }
+
+      return finalCoverUrl
+    } catch (error) {
+      console.warn('[vmusic][auto-cover] no se pudo resolver la portada de Spotify', error)
+
+      return null
+    }
+  })().finally(() => {
+    spotifyCoverRequests.delete(requestKey)
+  })
+
+  spotifyCoverRequests.set(requestKey, request)
+
+  return request
+}
+
 function applySongMetadata(songData) {
   if (!songData) return
 
@@ -1317,6 +1452,15 @@ function applySongMetadata(songData) {
     ...songFull.value,
     ...songData
   }
+  const coverProbe = {
+    ytid: songFull.value?.ytid || null,
+    songImage: songFull.value?.songImage || '',
+    coverUrl: songFull.value?.coverUrl || '',
+    cover: songFull.value?.cover || '',
+    image: songFull.value?.image || '',
+    artwork: songFull.value?.artwork || ''
+  }
+  console.log('[vmusic][auto-cover] apply metadata', coverProbe)
   song.value = songFull.value.name || ''
   artistsList.value = songFull.value.Artists || []
   artist.value = artistsList.value.map((i) => i.name).join(', ')
@@ -1324,10 +1468,18 @@ function applySongMetadata(songData) {
   composer.value = (songFull.value.Composers || []).map((i) => i.name).join(', ')
 
   const nextCover = getStoredCoverForSong(songFull.value)
+  console.log('[vmusic][auto-cover] resolved current cover', {
+    songId: songFull.value?.id,
+    ytid: songFull.value?.ytid || null,
+    nextCover: nextCover || ''
+  })
   songImage.value = nextCover || ''
   if (nextCover) {
     cacheCoverInBackground(songFull.value, nextCover)
+    return
   }
+
+  void resolveCoverFromSpotifySearch(songFull.value)
 }
 
 function getThemeColor(varName, fallback) {
@@ -1567,6 +1719,7 @@ defineExpose({
   setSpeed,
   setSong,
   updateSongMetadata: applySongMetadata,
+  resolveMissingCover: () => resolveCoverFromSpotifySearch(songFull.value),
   next,
   speed_added,
   baseSpeed,
