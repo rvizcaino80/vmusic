@@ -34,7 +34,10 @@ const CUSTOM_UPDATE_INTERVAL_MS = 10 * 60 * 1000
 const CUSTOM_UPDATE_OWNER = 'rvizcaino80'
 const CUSTOM_UPDATE_REPO = 'vmusic'
 const COVER_CACHE_DIRNAME = 'covers'
-let appSleepBlockerId = null
+const activePowerSaveBlockers = {
+  appSuspension: null,
+  displaySleep: null
+}
 
 function sanitizeCoverId(value) {
   return String(value || '')
@@ -100,26 +103,36 @@ function delay(ms) {
   })
 }
 
-function startAppSleepBlocker() {
-  if (appSleepBlockerId && powerSaveBlocker.isStarted(appSleepBlockerId)) {
-    return appSleepBlockerId
+function startPowerSaveBlocker(kind, type) {
+  const existingId = activePowerSaveBlockers[kind]
+  if (existingId && powerSaveBlocker.isStarted(existingId)) {
+    return existingId
   }
 
-  appSleepBlockerId = powerSaveBlocker.start('prevent-app-suspension')
+  const blockerId = powerSaveBlocker.start(type)
+  activePowerSaveBlockers[kind] = blockerId
 
-  return appSleepBlockerId
+  return blockerId
 }
 
-function stopAppSleepBlocker() {
-  if (!appSleepBlockerId) return
+function stopPowerSaveBlockers() {
+  for (const kind of Object.keys(activePowerSaveBlockers)) {
+    const blockerId = activePowerSaveBlockers[kind]
+    if (!blockerId) continue
 
-  try {
-    if (powerSaveBlocker.isStarted(appSleepBlockerId)) {
-      powerSaveBlocker.stop(appSleepBlockerId)
-    }
-  } catch {}
+    try {
+      if (powerSaveBlocker.isStarted(blockerId)) {
+        powerSaveBlocker.stop(blockerId)
+      }
+    } catch {}
 
-  appSleepBlockerId = null
+    activePowerSaveBlockers[kind] = null
+  }
+}
+
+function keepAppAwake() {
+  startPowerSaveBlocker('appSuspension', 'prevent-app-suspension')
+  startPowerSaveBlocker('displaySleep', 'prevent-display-sleep')
 }
 
 async function cacheCoverImage(payload = {}) {
@@ -1869,7 +1882,7 @@ app.whenReady().then(() => {
   })
 
   createWindow()
-  startAppSleepBlocker()
+  keepAppAwake()
   scheduleCustomMacUpdateChecks()
 
   powerMonitor.on('lock-screen', () => {
@@ -1900,7 +1913,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   app.isQuiting = true
-  stopAppSleepBlocker()
+  stopPowerSaveBlockers()
   if (customUpdateCheckTimer) {
     clearInterval(customUpdateCheckTimer)
     customUpdateCheckTimer = null
