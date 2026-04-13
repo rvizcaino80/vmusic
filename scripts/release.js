@@ -53,24 +53,82 @@ if (commits.length === 0) {
 
 const changes = { new: [], fix: [], perf: [], refactor: [], other: [] }
 
-const translations = {
-  'feat:': 'Nueva función:',
-  'fix:': 'Corrección:',
-  'perf:': 'Mejora de rendimiento:',
-  'refactor:': 'Refactorización:',
-  feat: 'función',
-  fix: 'corrección',
-  perf: 'mejora',
-  refactor: 'refactorización'
-}
-
 const translateCommit = (text) => {
-  let translated = text
-  for (const [eng, esp] of Object.entries(translations)) {
-    translated = translated.replace(new RegExp(`^${eng}:\\s*`, 'i'), esp + ' ')
-    translated = translated.replace(new RegExp(eng, 'gi'), esp)
+  let result = text
+
+  const prefixes = {
+    feat: 'Nueva función',
+    fix: 'Corrección',
+    perf: 'Mejora de rendimiento',
+    refactor: 'Refactorización',
+    docs: 'Documentación',
+    chore: 'Tarea',
+    test: 'Prueba',
+    style: 'Estilo',
+    build: 'Build'
   }
-  return translated
+
+  for (const [eng, esp] of Object.entries(prefixes)) {
+    const regex = new RegExp(`^${eng}:\\s*`, 'i')
+    if (regex.test(result)) {
+      result = result.replace(regex, esp + ': ')
+      break
+    }
+  }
+
+  const translations = {
+    fix: 'corregir',
+    feat: 'función',
+    add: 'agregar',
+    remove: 'eliminar',
+    update: 'actualizar',
+    create: 'crear',
+    improve: 'mejorar',
+    change: 'cambiar',
+    delete: 'eliminar',
+    implement: 'implementar',
+    refactor: 'refactorizar',
+    enable: 'habilitar',
+    disable: 'deshabilitar',
+    handle: 'manejar',
+    check: 'verificar',
+    use: 'usar',
+    load: 'cargar',
+    save: 'guardar',
+    get: 'obtener',
+    set: 'establecer',
+    convert: 'convertir',
+    clean: 'limpiar',
+    build: 'construir',
+    resolve: 'resolver',
+    generate: 'generar',
+    integrate: 'integrar',
+    import: 'importar',
+    export: 'exportar',
+    error: 'error',
+    bug: 'error',
+    fix: 'corrección',
+    issue: 'problema',
+    problem: 'problema',
+    fix: 'corrección',
+    file: 'archivo',
+    path: 'ruta',
+    script: 'script',
+    component: 'componente',
+    system: 'sistema',
+    changelog: 'registro de cambios',
+    release: 'lanzamiento',
+    automation: 'automatización'
+  }
+
+  for (const [eng, esp] of Object.entries(translations)) {
+    const regex = new RegExp(`\\b${eng}\\b`, 'gi')
+    result = result.replace(regex, esp)
+  }
+
+  result = result.charAt(0).toUpperCase() + result.slice(1)
+
+  return result
 }
 
 commits.forEach((commit) => {
