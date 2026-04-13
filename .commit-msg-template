@@ -1,0 +1,21 @@
+# Escribe el mensaje de commit en español
+# Formato: tipo: descripcion
+#
+# Tipos:
+#   feat:     Nueva funcionalidad
+#   fix:      Correccion de bug
+#   perf:     Mejora de rendimiento
+#   refactor: Cambio en el codigo sin cambiar funcionalidad
+#   docs:     Documentacion (se ignora en changelog)
+#   chore:    Tareas de mantenimiento (se ignora en changelog)
+#
+# Ejemplos:
+#   feat: agregar filtro por artista
+#   fix: corregir error al cargar archivos MP3
+#   perf: optimizar carga de la biblioteca
+#
+# Reglas:
+#   - Usa español natural y claro
+#   - Maximo 70 caracteres en la descripcion
+#   - No uses punto final
+#

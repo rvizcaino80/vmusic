@@ -1,0 +1,35 @@
+COMO ESCRIBIR COMMITS PARA SALSAMANIA
+=====================================
+
+PASO 1: Escribe el tipo de cambio
+-----------------------------------
+feat     = Nueva funcionalidad
+fix      = Correccion de bug
+perf     = Mejora de rendimiento
+refactor = Cambio interno del codigo
+docs     = Documentacion (se ignora)
+chore    = Tareas de mantenimiento (se ignora)
+
+PASO 2: Escribe la descripcion en ESPAÑOL
+-----------------------------------------
+- Sin mayuscula al inicio
+- Maximo 70 caracteres
+- Sin punto final
+
+EJEMPLOS CORRECTOS:
+-------------------
+git commit -m "feat: agregar boton de favoritos"
+git commit -m "fix: corregir error al reproducir mp3"
+git commit -m "perf: optimizar carga de biblioteca"
+git commit -m "refactor: simplificar logica del reproductor"
+
+EJEMPLOS INCORRECTOS:
+---------------------
+git commit -m "Agregar boton"           (falta el tipo)
+git commit -m "feat: Agregar boton"     (mayuscula al inicio)
+git commit -m "feat: add button"        (en ingles)
+git commit -m "feat: agregar boton."    (punto final)
+
+LISTO!
+======
+Con esto el release script generara el changelog automaticamente.
