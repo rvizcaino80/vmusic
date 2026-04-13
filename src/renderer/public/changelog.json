@@ -1,6 +1,19 @@
 {
   "versions": [
     {
+      "version": "1.1.29",
+      "date": "2026-04-13",
+      "changes": {
+        "new": [],
+        "fix": [
+          "import changelog.json directly instead of fetch"
+        ],
+        "perf": [],
+        "refactor": [],
+        "other": []
+      }
+    },
+    {
       "version": "1.1.28",
       "date": "2026-04-13",
       "changes": {
