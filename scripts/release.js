@@ -53,8 +53,28 @@ if (commits.length === 0) {
 
 const changes = { new: [], fix: [], perf: [], refactor: [], other: [] }
 
+const translations = {
+  'feat:': 'Nueva función:',
+  'fix:': 'Corrección:',
+  'perf:': 'Mejora de rendimiento:',
+  'refactor:': 'Refactorización:',
+  feat: 'función',
+  fix: 'corrección',
+  perf: 'mejora',
+  refactor: 'refactorización'
+}
+
+const translateCommit = (text) => {
+  let translated = text
+  for (const [eng, esp] of Object.entries(translations)) {
+    translated = translated.replace(new RegExp(`^${eng}:\\s*`, 'i'), esp + ' ')
+    translated = translated.replace(new RegExp(eng, 'gi'), esp)
+  }
+  return translated
+}
+
 commits.forEach((commit) => {
-  const text = commit.replace(/^[^:]+:\s*/, '').trim()
+  const text = translateCommit(commit.replace(/^[^:]+:\s*/, '').trim())
   if (commit.startsWith('feat')) changes.new.push(text)
   else if (commit.startsWith('fix')) changes.fix.push(text)
   else if (commit.startsWith('perf')) changes.perf.push(text)
