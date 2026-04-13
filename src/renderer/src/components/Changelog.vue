@@ -1,9 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { use } from 'ant-design-vue/lib/config-provider/context'
+import changelogData from '../../public/changelog.json'
 
-const versions = ref([])
-const loading = ref(true)
+const versions = ref(changelogData.versions || [])
+const loading = ref(false)
 const expandedVersions = ref({})
 
 const typeLabels = {
@@ -28,23 +29,10 @@ const hasChanges = (changes) => {
   return Object.values(changes).some((arr) => arr && arr.length > 0)
 }
 
-onMounted(async () => {
-  try {
-    const response = await fetch('/changelog.json')
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-    const data = await response.json()
-    versions.value = data.versions || []
-    versions.value.forEach((v) => {
-      expandedVersions.value[v.version] = false
-    })
-  } catch (e) {
-    console.error('Error loading changelog:', e)
-    versions.value = []
-  } finally {
-    loading.value = false
-  }
+onMounted(() => {
+  versions.value.forEach((v) => {
+    expandedVersions.value[v.version] = false
+  })
 })
 </script>
 
