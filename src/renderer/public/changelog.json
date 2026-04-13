@@ -1,11 +1,51 @@
 {
   "versions": [
     {
+      "version": "1.1.26",
+      "date": "2026-04-13",
+      "changes": {
+        "new": [
+          "add changelog system with release automation"
+        ],
+        "fix": [],
+        "perf": [],
+        "refactor": [],
+        "other": [
+          "Move add_mp3 icon below download icon",
+          "Add feature to import local MP3 files to library",
+          "Quitar filtro para portada",
+          "Fix for app sleep"
+        ]
+      }
+    },
+    {
+      "version": "1.1.25",
+      "date": "2026-04-13",
+      "changes": {
+        "new": [
+          "add changelog system with release automation"
+        ],
+        "fix": [],
+        "perf": [],
+        "refactor": [],
+        "other": [
+          "Move add_mp3 icon below download icon",
+          "Add feature to import local MP3 files to library",
+          "Quitar filtro para portada",
+          "Fix for app sleep"
+        ]
+      }
+    },
+    {
       "version": "1.1.24",
       "date": "2026-04-13",
       "changes": {
-        "new": ["Sistema de actualización integrado"],
-        "fix": ["Corrección de errores menores"],
+        "new": [
+          "Sistema de actualización integrado"
+        ],
+        "fix": [
+          "Corrección de errores menores"
+        ],
         "perf": [],
         "refactor": [],
         "other": []
