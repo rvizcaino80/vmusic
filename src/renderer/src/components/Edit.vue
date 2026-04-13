@@ -285,9 +285,7 @@ function saveSong() {
     if (cover) {
       coverUrl.value = cover
       if (
-        ytid.value &&
-        window.electron2?.cacheCoverImage &&
-        /^https?:/i.test(coverUrl.value)
+        ytid.value && window.electron2?.cacheCoverImage && (/^https?:/i).test(coverUrl.value)
       ) {
         const cachedCoverUrl = await window.electron2.cacheCoverImage({
           cacheKey: ytid.value,

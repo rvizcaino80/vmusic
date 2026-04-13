@@ -1363,9 +1363,7 @@ async function resolveCoverFromSpotifySearch(songData) {
     return currentCover
   }
 
-  const artistNames = Array.isArray(songData.Artists)
-    ? songData.Artists.map((artist) => artist?.name).filter(Boolean)
-    : []
+  const artistNames = Array.isArray(songData.Artists) ? songData.Artists.map((artist) => artist?.name).filter(Boolean) : []
   const searchUrl = buildSpotifySearchUrl(songData.name, artistNames)
   if (!searchUrl) {
     console.log('[vmusic][auto-cover] empty search url', {
@@ -1391,16 +1389,14 @@ async function resolveCoverFromSpotifySearch(songData) {
       return null
     }
 
-      try {
-        console.log('[vmusic][auto-cover] resolving via spotify', {
-          songId: songData.id,
-          ytid: songData.ytid,
-          searchUrl
-        })
+    try {
+      console.log('[vmusic][auto-cover] resolving via spotify', {
+        songId: songData.id,
+        ytid: songData.ytid,
+        searchUrl
+      })
       const spotifyResult = await window.electron2.resolveSpotifyCover({ searchUrl })
-      const resolvedCoverUrl = typeof spotifyResult === 'string'
-        ? spotifyResult
-        : String(spotifyResult?.coverUrl || spotifyResult?.imageUrl || spotifyResult?.resolvedCoverUrl || '')
+      const resolvedCoverUrl = typeof spotifyResult === 'string' ? spotifyResult : String(spotifyResult?.coverUrl || spotifyResult?.imageUrl || spotifyResult?.resolvedCoverUrl || '')
       console.log('[vmusic][auto-cover] spotify result', { requestKey, resolvedCoverUrl, spotifyResult })
       if (!resolvedCoverUrl) return null
 
@@ -1476,6 +1472,7 @@ function applySongMetadata(songData) {
   songImage.value = nextCover || ''
   if (nextCover) {
     cacheCoverInBackground(songFull.value, nextCover)
+
     return
   }
 

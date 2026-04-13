@@ -84,7 +84,7 @@ fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n')
 console.log('✅ package.json updated')
 
 console.log('\n📝 Committing version bump...')
-execSync(`git add package.json resources/changelog.json`)
+execSync(`git add package.json src/renderer/public/changelog.json`)
 execSync(`git commit -m "v${newVersion}"`)
 
 console.log('🏷️  Creating tag...')
