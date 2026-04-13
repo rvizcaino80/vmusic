@@ -22,6 +22,7 @@ if (process.contextIsolated) {
       cacheCoverImage: (payload) => ipcRenderer.invoke('covers:cache-image', payload),
       resolveSpotifyCover: (payload) => ipcRenderer.invoke('covers:resolve-spotify-cover', payload),
       importCoverFile: (payload) => ipcRenderer.invoke('covers:import-file', payload),
+      importMp3File: () => ipcRenderer.invoke('mp3:import-file'),
       getCustomUpdaterState: () => ipcRenderer.invoke('custom-updater:get-state'),
       checkCustomUpdater: () => ipcRenderer.invoke('custom-updater:check'),
       checkAndPrepareCustomUpdater: () => ipcRenderer.invoke('custom-updater:check-and-prepare'),

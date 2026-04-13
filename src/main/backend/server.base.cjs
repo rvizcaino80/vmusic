@@ -1,29 +1,30 @@
-const express = require("express");
-const { google } = require("googleapis");
+const express = require('express')
+const { google } = require('googleapis')
 const helmet = require('helmet')
 const cors = require('cors')
-const { exec, spawn } = require("child_process");
-var fs = require('fs');
-const fsp = fs.promises;
-const { stdout } = require("process");
-const node_url = require('url');
-const path = require('path');
-const os = require('os');
+const { exec, spawn } = require('child_process')
+var fs = require('fs')
+const fsp = fs.promises
+const { stdout } = require('process')
+const node_url = require('url')
+const path = require('path')
+const os = require('os')
 const Sequelize = require('sequelize')
 const { Model } = Sequelize
-const dotenv = require('dotenv');
-dotenv.config();
+const dotenv = require('dotenv')
+dotenv.config()
 const dayjs = require('dayjs')
 const mp3TaggerModule = require('./scripts/mp3Tagger')
-const tagSongFileById = mp3TaggerModule?.tagSongFileById || mp3TaggerModule?.default?.tagSongFileById || null
+const tagSongFileById =
+  mp3TaggerModule?.tagSongFileById || mp3TaggerModule?.default?.tagSongFileById || null
 
-const app = express();
-const port = 3000;
-const apiKey = "AIzaSyCY5jsbYqxlE17OLJu41UoXZ5jHfZf7A-I";
+const app = express()
+const port = 3000
+const apiKey = 'AIzaSyCY5jsbYqxlE17OLJu41UoXZ5jHfZf7A-I'
 const youtube = google.youtube({
-  version: "v3",
-  auth: apiKey,
-});
+  version: 'v3',
+  auth: apiKey
+})
 
 function resolveBinaryFromCandidates(name, explicitPath) {
   const candidates = []
@@ -60,13 +61,20 @@ if (YT_DLP_BIN) {
   process.env.VMUSIC_YT_DLP_BIN = YT_DLP_BIN
 }
 const GAMDL_BIN = process.env.VMUSIC_GAMDL_BIN || process.env.GAMDL
-const MUSIC_LIBRARY_DIR = path.resolve(process.env.VMUSIC_MUSIC_DIR || path.join(os.homedir(), 'Music', 'SalsamaniaLibrary'))
+const MUSIC_LIBRARY_DIR = path.resolve(
+  process.env.VMUSIC_MUSIC_DIR || path.join(os.homedir(), 'Music', 'SalsamaniaLibrary')
+)
 fs.mkdirSync(MUSIC_LIBRARY_DIR, { recursive: true })
-const sqliteStoragePath = path.resolve(process.env.VMUSIC_DB_PATH || path.join(process.cwd(), 'src/main/backend/db/vmusic.sqlite'))
+const sqliteStoragePath = path.resolve(
+  process.env.VMUSIC_DB_PATH || path.join(process.cwd(), 'src/main/backend/db/vmusic.sqlite')
+)
 const AUDIO_DEBUG = process.env.NODE_ENV !== 'production'
 const SPEED_CACHE_TTL_DAYS = Math.max(1, Number(process.env.VMUSIC_SPEED_CACHE_TTL_DAYS || 30))
 const SPEED_CACHE_MAX_GB = Math.max(1, Number(process.env.VMUSIC_SPEED_CACHE_MAX_GB || 20))
-const SPEED_CACHE_MAX_PERCENT = Math.min(95, Math.max(1, Number(process.env.VMUSIC_SPEED_CACHE_MAX_PERCENT || 25)))
+const SPEED_CACHE_MAX_PERCENT = Math.min(
+  95,
+  Math.max(1, Number(process.env.VMUSIC_SPEED_CACHE_MAX_PERCENT || 25))
+)
 const SPEED_CACHE_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 if (AUDIO_DEBUG) {
   console.info('[vmusic][audio-debug][backend] ffmpeg-bin', {
@@ -99,55 +107,70 @@ class Artist extends Model {}
 Artist.init({ name: Sequelize.DataTypes.STRING }, { sequelize, modelName: 'Artist' })
 
 class ArtistSong extends Model {}
-ArtistSong.init({
-  artistId: Sequelize.DataTypes.INTEGER,
-  songId: Sequelize.DataTypes.INTEGER
-}, { sequelize, modelName: 'ArtistSong', tableName: 'ArtistSong' })
+ArtistSong.init(
+  {
+    artistId: Sequelize.DataTypes.INTEGER,
+    songId: Sequelize.DataTypes.INTEGER
+  },
+  { sequelize, modelName: 'ArtistSong', tableName: 'ArtistSong' }
+)
 
 class Composer extends Model {}
-Composer.init({ name: Sequelize.DataTypes.STRING }, { sequelize, modelName: 'Composer', tableName: 'Artists' })
+Composer.init(
+  { name: Sequelize.DataTypes.STRING },
+  { sequelize, modelName: 'Composer', tableName: 'Artists' }
+)
 
 class ComposerSong extends Model {}
-ComposerSong.init({
-  composerId: Sequelize.DataTypes.INTEGER,
-  songId: Sequelize.DataTypes.INTEGER
-}, { sequelize, modelName: 'ComposerSong', tableName: 'ComposerSong' })
+ComposerSong.init(
+  {
+    composerId: Sequelize.DataTypes.INTEGER,
+    songId: Sequelize.DataTypes.INTEGER
+  },
+  { sequelize, modelName: 'ComposerSong', tableName: 'ComposerSong' }
+)
 
 class Song extends Model {}
-Song.init({
-  folder: Sequelize.DataTypes.STRING,
-  ytid: Sequelize.DataTypes.STRING,
-  name: Sequelize.DataTypes.STRING,
-  speed: Sequelize.DataTypes.INTEGER,
-  duration: Sequelize.DataTypes.INTEGER,
-  start: Sequelize.DataTypes.INTEGER,
-  end: Sequelize.DataTypes.INTEGER,
-  duration_original: Sequelize.DataTypes.STRING,
-  timestamp: {
-    type: Sequelize.DataTypes.VIRTUAL,
-    get() {
-      return dayjs(this.createdAt).valueOf()
+Song.init(
+  {
+    folder: Sequelize.DataTypes.STRING,
+    ytid: Sequelize.DataTypes.STRING,
+    name: Sequelize.DataTypes.STRING,
+    speed: Sequelize.DataTypes.INTEGER,
+    duration: Sequelize.DataTypes.INTEGER,
+    start: Sequelize.DataTypes.INTEGER,
+    end: Sequelize.DataTypes.INTEGER,
+    duration_original: Sequelize.DataTypes.STRING,
+    timestamp: {
+      type: Sequelize.DataTypes.VIRTUAL,
+      get() {
+        return dayjs(this.createdAt).valueOf()
+      },
+      set() {
+        throw new Error('Do not try to set the `timestamp` value!')
+      }
     },
-    set() {
-      throw new Error('Do not try to set the `timestamp` value!')
+    isAppleMusic: {
+      type: Sequelize.DataTypes.VIRTUAL,
+      get() {
+        return !isNaN(parseFloat(this.ytid)) && isFinite(this.ytid)
+      },
+      set() {
+        throw new Error('Do not try to set the `isAppleMusic` value!')
+      }
     }
   },
-  isAppleMusic: {
-    type: Sequelize.DataTypes.VIRTUAL,
-    get() {
-      return !isNaN(parseFloat(this.ytid)) && isFinite(this.ytid)
-    },
-    set() {
-      throw new Error('Do not try to set the `isAppleMusic` value!')
-    }
-  }
-}, { sequelize, modelName: 'Song' })
+  { sequelize, modelName: 'Song' }
+)
 
 class SongTag extends Model {}
-SongTag.init({
-  songId: Sequelize.DataTypes.INTEGER,
-  tagId: Sequelize.DataTypes.INTEGER
-}, { sequelize, modelName: 'SongTag' })
+SongTag.init(
+  {
+    songId: Sequelize.DataTypes.INTEGER,
+    tagId: Sequelize.DataTypes.INTEGER
+  },
+  { sequelize, modelName: 'SongTag' }
+)
 
 class Tag extends Model {}
 Tag.init({ name: Sequelize.DataTypes.STRING }, { sequelize, modelName: 'Tag' })
@@ -180,16 +203,18 @@ async function getAudioDurationInSeconds(filePath) {
 
 app.use(express.json({ limit: '25mb' }))
 app.use(cors())
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      connectSrc: ["'self'", 'http://localhost:3000', 'http://localhost:5173/']
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        connectSrc: ["'self'", 'http://localhost:3000', 'http://localhost:5173/']
+      }
     }
-  }
-}));
+  })
+)
 
-app.use("/static", express.static(MUSIC_LIBRARY_DIR));
+app.use('/static', express.static(MUSIC_LIBRARY_DIR))
 
 function convertTime(given_seconds) {
   const dateObj = new Date(given_seconds * 1000)
@@ -209,8 +234,8 @@ const AUDIO_FEATURE_CACHE_FILE = path.join(__dirname, '.audio_feature_cache.json
 const FADE_PROFILE_CACHE_FILE = path.join(__dirname, '.fade_profile_cache.json')
 const FADE_PROFILE_ANALYZER_VERSION = 'v11'
 const AUDIO_FEATURE_FREQUENCIES = [
-  82, 110, 146, 196, 261, 329, 440, 523, 659, 783, 987, 1174,
-  100, 150, 230, 350, 530, 800, 1200, 1800, 2600, 3400
+  82, 110, 146, 196, 261, 329, 440, 523, 659, 783, 987, 1174, 100, 150, 230, 350, 530, 800, 1200,
+  1800, 2600, 3400
 ]
 
 let audioFeatureCache = {}
@@ -271,12 +296,12 @@ function goertzelPower(frame, targetFrequency, sampleRate) {
   let s2 = 0
 
   for (let i = 0; i < frame.length; i++) {
-    s0 = frame[i] + (coeff * s1) - s2
+    s0 = frame[i] + coeff * s1 - s2
     s2 = s1
     s1 = s0
   }
 
-  return (s1 * s1) + (s2 * s2) - (coeff * s1 * s2)
+  return s1 * s1 + s2 * s2 - coeff * s1 * s2
 }
 
 function decodePcmBuffer(pcmBuffer) {
@@ -292,7 +317,10 @@ function decodePcmBuffer(pcmBuffer) {
 
 function extractFeatureVectorFromPcm(pcmBuffer, sampleRate) {
   const samples = decodePcmBuffer(pcmBuffer)
-  const totalFrames = Math.max(0, Math.floor((samples.length - AUDIO_RECOGNITION_FRAME_SIZE) / AUDIO_RECOGNITION_HOP_SIZE) + 1)
+  const totalFrames = Math.max(
+    0,
+    Math.floor((samples.length - AUDIO_RECOGNITION_FRAME_SIZE) / AUDIO_RECOGNITION_HOP_SIZE) + 1
+  )
   if (totalFrames <= 0) return null
 
   const means = new Array(AUDIO_FEATURE_FREQUENCIES.length).fill(0)
@@ -308,7 +336,9 @@ function extractFeatureVectorFromPcm(pcmBuffer, sampleRate) {
       frame[i] = samples[offset + i] * window[i]
     }
 
-    const energies = AUDIO_FEATURE_FREQUENCIES.map((frequency) => Math.max(0, goertzelPower(frame, frequency, sampleRate)))
+    const energies = AUDIO_FEATURE_FREQUENCIES.map((frequency) =>
+      Math.max(0, goertzelPower(frame, frequency, sampleRate))
+    )
     const energySum = energies.reduce((acc, value) => acc + value, 0) || 1
     const normalizedFrame = energies.map((value) => value / energySum)
 
@@ -332,7 +362,7 @@ function extractFeatureVectorFromPcm(pcmBuffer, sampleRate) {
   const std = new Array(AUDIO_FEATURE_FREQUENCIES.length).fill(0)
   for (let i = 0; i < means.length; i++) {
     means[i] = means[i] * invTotal
-    const variance = Math.max(0, (sqMeans[i] * invTotal) - (means[i] * means[i]))
+    const variance = Math.max(0, sqMeans[i] * invTotal - means[i] * means[i])
     std[i] = Math.sqrt(variance)
   }
 
@@ -351,12 +381,18 @@ function decodeAudioToPcmBuffer(inputPath, maxSeconds) {
 
     const args = [
       '-hide_banner',
-      '-loglevel', 'error',
-      '-i', inputPath,
-      '-t', String(maxSeconds),
-      '-ac', '1',
-      '-ar', String(AUDIO_RECOGNITION_SAMPLE_RATE),
-      '-f', 's16le',
+      '-loglevel',
+      'error',
+      '-i',
+      inputPath,
+      '-t',
+      String(maxSeconds),
+      '-ac',
+      '1',
+      '-ar',
+      String(AUDIO_RECOGNITION_SAMPLE_RATE),
+      '-f',
+      's16le',
       'pipe:1'
     ]
     const ff = spawn(FFMPEG_BIN, args)
@@ -388,13 +424,20 @@ function decodeAudioSegmentToPcmBuffer(inputPath, startSeconds, maxSeconds) {
 
     const args = [
       '-hide_banner',
-      '-loglevel', 'error',
-      '-ss', String(Math.max(0, Number(startSeconds) || 0)),
-      '-i', inputPath,
-      '-t', String(Math.max(0.5, Number(maxSeconds) || 1)),
-      '-ac', '1',
-      '-ar', '11025',
-      '-f', 's16le',
+      '-loglevel',
+      'error',
+      '-ss',
+      String(Math.max(0, Number(startSeconds) || 0)),
+      '-i',
+      inputPath,
+      '-t',
+      String(Math.max(0.5, Number(maxSeconds) || 1)),
+      '-ac',
+      '1',
+      '-ar',
+      '11025',
+      '-f',
+      's16le',
       'pipe:1'
     ]
     const ff = spawn(FFMPEG_BIN, args)
@@ -542,7 +585,7 @@ function analyseFadeFromSeries(series, tailStartSec, windowSeconds = 0.2) {
   const preSlice = smoothed.slice(preStart, Math.max(preStart + 1, crossingIndex))
   const preLevel = preSlice.reduce((acc, value) => acc + value, 0) / Math.max(1, preSlice.length)
   const minDropAfterCross = baseline * 0.15
-  if (!Number.isFinite(preLevel) || (preLevel - endValue) < minDropAfterCross) {
+  if (!Number.isFinite(preLevel) || preLevel - endValue < minDropAfterCross) {
     return { hasFade: false, fadeStartSec: null, confidence: 0 }
   }
 
@@ -554,8 +597,11 @@ function analyseFadeFromSeries(series, tailStartSec, windowSeconds = 0.2) {
     return { hasFade: false, fadeStartSec: null, confidence: 0 }
   }
 
-  const confidence = Math.min(1, Math.max(0, (baseline - smoothed[crossingIndex]) / Math.max(0.0001, baseline)))
-  const fadeStartSec = Number((tailStartSec + (crossingIndex * windowSeconds)).toFixed(3))
+  const confidence = Math.min(
+    1,
+    Math.max(0, (baseline - smoothed[crossingIndex]) / Math.max(0.0001, baseline))
+  )
+  const fadeStartSec = Number((tailStartSec + crossingIndex * windowSeconds).toFixed(3))
 
   return {
     hasFade: true,
@@ -677,7 +723,7 @@ async function writeSpeedMeta(song, rate) {
 async function touchSpeedMeta(song, baseMeta = null) {
   const metaPath = getSongSpeedMetaPath(song)
   const speedAudioPath = getSongSpeedAudioPath(song)
-  const existingMeta = baseMeta || await readSpeedMeta(song) || {}
+  const existingMeta = baseMeta || (await readSpeedMeta(song)) || {}
   let sizeBytes = null
   try {
     const stat = await fsp.stat(speedAudioPath)
@@ -695,15 +741,13 @@ async function touchSpeedMeta(song, baseMeta = null) {
 }
 
 async function collectSpeedCacheEntries() {
-  const folders = await fsp.readdir(MUSIC_LIBRARY_DIR, { withFileTypes: true })
-    .catch(() => [])
+  const folders = await fsp.readdir(MUSIC_LIBRARY_DIR, { withFileTypes: true }).catch(() => [])
   const entries = []
 
   for (const folder of folders) {
     if (!folder.isDirectory()) continue
     const folderPath = path.join(MUSIC_LIBRARY_DIR, folder.name)
-    const files = await fsp.readdir(folderPath, { withFileTypes: true })
-      .catch(() => [])
+    const files = await fsp.readdir(folderPath, { withFileTypes: true }).catch(() => [])
     for (const file of files) {
       if (!file.isFile()) continue
       if (!file.name.endsWith('_speed.mp3')) continue
@@ -721,7 +765,8 @@ async function collectSpeedCacheEntries() {
       }
       if (!stat) continue
 
-      const lastUsedAt = Date.parse(meta?.lastUsedAt || meta?.updatedAt || '') || Number(stat.mtimeMs)
+      const lastUsedAt =
+        Date.parse(meta?.lastUsedAt || meta?.updatedAt || '') || Number(stat.mtimeMs)
       entries.push({
         speedPath,
         metaPath,
@@ -736,16 +781,14 @@ async function collectSpeedCacheEntries() {
 }
 
 async function computeLibrarySizes() {
-  const folders = await fsp.readdir(MUSIC_LIBRARY_DIR, { withFileTypes: true })
-    .catch(() => [])
+  const folders = await fsp.readdir(MUSIC_LIBRARY_DIR, { withFileTypes: true }).catch(() => [])
   let originalBytes = 0
   let speedBytes = 0
 
   for (const folder of folders) {
     if (!folder.isDirectory()) continue
     const folderPath = path.join(MUSIC_LIBRARY_DIR, folder.name)
-    const files = await fsp.readdir(folderPath, { withFileTypes: true })
-      .catch(() => [])
+    const files = await fsp.readdir(folderPath, { withFileTypes: true }).catch(() => [])
     for (const file of files) {
       if (!file.isFile()) continue
       if (!file.name.endsWith('.mp3')) continue
@@ -789,7 +832,7 @@ async function cleanupSpeedCache() {
     const entries = await collectSpeedCacheEntries()
     let deletedByTtl = 0
     for (const entry of entries) {
-      if ((now - entry.lastUsedAt) > ttlMs) {
+      if (now - entry.lastUsedAt > ttlMs) {
         await deleteSpeedEntry(entry)
         deletedByTtl += 1
       }
@@ -798,8 +841,13 @@ async function cleanupSpeedCache() {
     let remaining = await collectSpeedCacheEntries()
     const sizes = await computeLibrarySizes()
     const absoluteLimitBytes = SPEED_CACHE_MAX_GB * 1024 * 1024 * 1024
-    const percentLimitBytes = Math.floor((sizes.originalBytes || 0) * (SPEED_CACHE_MAX_PERCENT / 100))
-    const effectiveLimitBytes = Math.min(absoluteLimitBytes, percentLimitBytes > 0 ? percentLimitBytes : absoluteLimitBytes)
+    const percentLimitBytes = Math.floor(
+      (sizes.originalBytes || 0) * (SPEED_CACHE_MAX_PERCENT / 100)
+    )
+    const effectiveLimitBytes = Math.min(
+      absoluteLimitBytes,
+      percentLimitBytes > 0 ? percentLimitBytes : absoluteLimitBytes
+    )
     let currentSpeedBytes = remaining.reduce((acc, item) => acc + item.sizeBytes, 0)
     let deletedByLru = 0
 
@@ -861,56 +909,57 @@ function simplifySong(song) {
     name: song.name,
     ytid: song.ytid,
     folder: song.folder,
-    Artists: Array.isArray(song.Artists) ? song.Artists.map((artist) => ({
-      id: artist.id,
-      name: artist.name
-    })) : []
+    Artists: Array.isArray(song.Artists)
+      ? song.Artists.map((artist) => ({
+          id: artist.id,
+          name: artist.name
+        }))
+      : []
   }
 }
 
-app.get("/search", async (req, res, next) => {
+app.get('/search', async (req, res, next) => {
   try {
-    const searchQuery = req.query.search_query;
+    const searchQuery = req.query.search_query
     const response = await youtube.search.list({
-      part: "snippet",
-      type: "video",
+      part: 'snippet',
+      type: 'video',
       q: searchQuery,
-      videoDimension: "2d",
+      videoDimension: '2d',
       regionCode: 'CO',
-      maxResults: 6,
-    });
+      maxResults: 6
+    })
 
-    res.send(response.data.items);
+    res.send(response.data.items)
   } catch (err) {
-    next(err);
+    next(err)
   }
-});
+})
 
-app.get("/details", async (req, res, next) => {
+app.get('/details', async (req, res, next) => {
   try {
-    const id = req.query.id;
+    const id = req.query.id
     const response = await youtube.videos.list({
-      part: "contentDetails,player",
-      id: id,
-    });
+      part: 'contentDetails,player',
+      id: id
+    })
 
-    res.send(response.data.items);
+    res.send(response.data.items)
   } catch (err) {
-    next(err);
+    next(err)
   }
-});
+})
 
 function YouTubeGetID(url) {
-  var ID = '';
-  url = url.replace(/(>|<)/gi, '').split(/(vi\/|v=|\/v\/|youtu\.be\/|\/embed\/)/);
+  var ID = ''
+  url = url.replace(/(>|<)/gi, '').split(/(vi\/|v=|\/v\/|youtu\.be\/|\/embed\/)/)
   if (url[2] !== undefined) {
-    ID = url[2].split(/[^0-9a-z_\-]/i);
-    ID = ID[0];
+    ID = url[2].split(/[^0-9a-z_\-]/i)
+    ID = ID[0]
+  } else {
+    ID = url
   }
-  else {
-    ID = url;
-  }
-  return ID;
+  return ID
 }
 
 const DOWNLOADABLE_EXTENSIONS = ['.mp3', '.m4a', '.flac', '.wav', '.ogg', '.webm', '.opus', '.mp4']
@@ -949,22 +998,21 @@ function getDownloadedFilePath(id) {
       if (stat.isFile() && stat.size > 0) {
         return filePath
       }
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   return null
 }
 
 /*TAGS*/
-app.get("/tags", async (req, res, next) => {
+app.get('/tags', async (req, res, next) => {
   const tags = await Tag.findAll({
     order: ['name']
   })
   res.send(tags)
 })
 
-app.post("/tags/save", async (req, res, next) => {
+app.post('/tags/save', async (req, res, next) => {
   if (req.body.name) {
     const results = await Tag.findAll({
       where: {
@@ -975,35 +1023,35 @@ app.post("/tags/save", async (req, res, next) => {
     if (results.length > 0) {
       return res.status(400).send({
         message: 'La etiqueta ya existe'
-      });
+      })
     } else {
-      const t = await Tag.create({ name: req.body.name.trim() });
+      const t = await Tag.create({ name: req.body.name.trim() })
       res.send(t)
     }
   } else {
     return res.status(400).send({
       message: 'La etiqueta no puede ser vacía'
-    });
+    })
   }
 })
 
-app.post("/tags/:id", async (req, res, next) => {
+app.post('/tags/:id', async (req, res, next) => {
   await Tag.update(
     {
-      name: req.body.name,
+      name: req.body.name
     },
     {
       where: {
-        id: req.params.id,
-      },
-    },
-  );
+        id: req.params.id
+      }
+    }
+  )
 
   res.send('ok')
 })
 
 /*SONGS*/
-app.get("/songs", async (req, res, next) => {
+app.get('/songs', async (req, res, next) => {
   const songs = await Song.findAll({
     order: ['name'],
     include: Artist
@@ -1011,10 +1059,10 @@ app.get("/songs", async (req, res, next) => {
   res.send(songs)
 })
 
-app.post("/songs/by-id", async (req, res, next) => {
+app.post('/songs/by-id', async (req, res, next) => {
   const songs = await Song.findAll({
     where: {
-      id: req.body.ids,
+      id: req.body.ids
     },
     include: [
       {
@@ -1032,13 +1080,15 @@ app.post("/songs/by-id", async (req, res, next) => {
     ]
   })
 
-  res.send(songs.sort(function (a, b) {
-    return req.body.ids.indexOf(a.id) - req.body.ids.indexOf(b.id);
-  }))
+  res.send(
+    songs.sort(function (a, b) {
+      return req.body.ids.indexOf(a.id) - req.body.ids.indexOf(b.id)
+    })
+  )
 })
 
-app.get("/songs/:id", async (req, res, next) => {
-  const id = req.params.id;
+app.get('/songs/:id', async (req, res, next) => {
+  const id = req.params.id
   const songs = await Song.findAll({
     where: {
       id: id
@@ -1060,11 +1110,11 @@ app.get("/songs/:id", async (req, res, next) => {
   res.send(songs[0])
 })
 
-app.post("/songs/update-tags", async (req, res, next) => {
+app.post('/songs/update-tags', async (req, res, next) => {
   const checkExistId = await Tag.count({ where: { id: 9998 } })
 
   if (!checkExistId) {
-    await Tag.create({ id: 9998, name: 'agregado-reciente' });
+    await Tag.create({ id: 9998, name: 'agregado-reciente' })
   }
 
   const allSongs = await Song.findAll({
@@ -1087,7 +1137,7 @@ app.post("/songs/update-tags", async (req, res, next) => {
   const songs = await Song.findAll({
     where: {
       createdAt: {
-        [Sequelize.Op.gte]: treshold,
+        [Sequelize.Op.gte]: treshold
       }
     }
   })
@@ -1099,7 +1149,7 @@ app.post("/songs/update-tags", async (req, res, next) => {
   res.send(songs)
 })
 
-app.post("/songs/update/:id", async (req, res, next) => {
+app.post('/songs/update/:id', async (req, res, next) => {
   try {
     const songId = Number(req.params.id)
     const tags = Array.isArray(req.body.tags) ? req.body.tags : []
@@ -1112,28 +1162,28 @@ app.post("/songs/update/:id", async (req, res, next) => {
       },
       {
         where: {
-          id: songId,
-        },
-      },
-    );
+          id: songId
+        }
+      }
+    )
 
     await SongTag.destroy({
       where: {
         songId
       }
-    });
+    })
 
     await ArtistSong.destroy({
       where: {
         songId
       }
-    });
+    })
 
     await ComposerSong.destroy({
       where: {
         songId
       }
-    });
+    })
 
     await Promise.all(tags.map((item) => SongTag.create({ songId, tagId: item })))
     await Promise.all(artists.map((item) => ArtistSong.create({ songId, artistId: item })))
@@ -1163,7 +1213,7 @@ app.post("/songs/update/:id", async (req, res, next) => {
   }
 })
 
-app.post("/songs/update-markers/:id", async (req, res, next) => {
+app.post('/songs/update-markers/:id', async (req, res, next) => {
   await Song.update(
     {
       start: req.body.start,
@@ -1171,15 +1221,15 @@ app.post("/songs/update-markers/:id", async (req, res, next) => {
     },
     {
       where: {
-        id: req.params.id,
-      },
-    },
-  );
+        id: req.params.id
+      }
+    }
+  )
 
   res.send('ok')
 })
 
-app.post("/songs/get-one-by-tag", async (req, res, next) => {
+app.post('/songs/get-one-by-tag', async (req, res, next) => {
   const songs = await Song.findAll({
     where: {
       id: { [Sequelize.Op.notIn]: req.body.history },
@@ -1199,7 +1249,7 @@ app.post("/songs/get-one-by-tag", async (req, res, next) => {
   res.send(songs[0])
 })
 
-app.post("/songs/filter-by-artist", async (req, res, next) => {
+app.post('/songs/filter-by-artist', async (req, res, next) => {
   const songs = await Song.findAll({
     where: {
       '$Artists.id$': req.body.artists
@@ -1210,35 +1260,35 @@ app.post("/songs/filter-by-artist", async (req, res, next) => {
     }
   })
 
-  const songIds = songs.map(song => (song.id))
+  const songIds = songs.map((song) => song.id)
 
   const songsFull = await Song.findAll({
     where: {
-      'id': songIds,
+      id: songIds
     },
     order: ['name'],
     include: { all: true, nested: true },
     order: [
       ['name', 'ASC'],
       [{ model: Artist }, 'name', 'asc']
-    ],
+    ]
   })
 
   let tags = []
-  songsFull.forEach(s => {
-    let temp = s.Tags.map(t => ({ id: t.id, name: t.name }))
+  songsFull.forEach((s) => {
+    let temp = s.Tags.map((t) => ({ id: t.id, name: t.name }))
 
-    temp.forEach(t => {
+    temp.forEach((t) => {
       tags.push(t)
     })
   })
 
-  const unique = [...new Map(tags.map(item => [item['id'], item])).values()];
+  const unique = [...new Map(tags.map((item) => [item['id'], item])).values()]
 
   res.send({ songs: songsFull, tags: unique })
 })
 
-app.post("/songs/filter", async (req, res, next) => {
+app.post('/songs/filter', async (req, res, next) => {
   const filteredSongs = await Song.findAll({
     where: {
       '$Artists.id$': req.body.artists,
@@ -1256,7 +1306,7 @@ app.post("/songs/filter", async (req, res, next) => {
     ]
   })
 
-  const songIds = [...new Set(filteredSongs.map(song => song.id))]
+  const songIds = [...new Set(filteredSongs.map((song) => song.id))]
 
   if (!songIds.length) {
     return res.send([])
@@ -1289,7 +1339,7 @@ app.post("/songs/filter", async (req, res, next) => {
   res.send(songs)
 })
 
-app.post("/songs/count", async (req, res, next) => {
+app.post('/songs/count', async (req, res, next) => {
   const songs = await Song.findAll({
     where: {
       '$Tags.id$': req.body.tags
@@ -1305,22 +1355,22 @@ app.post("/songs/count", async (req, res, next) => {
   res.send(songs.length)
 })
 
-app.post("/songs/save-speed", async (req, res, next) => {
+app.post('/songs/save-speed', async (req, res, next) => {
   await Song.update(
     {
       speed: req.body.speed
     },
     {
       where: {
-        id: req.body.id,
-      },
-    },
-  );
+        id: req.body.id
+      }
+    }
+  )
 
   res.send('ok')
 })
 
-app.get("/songs/speed-version/:id", async (req, res, next) => {
+app.get('/songs/speed-version/:id', async (req, res, next) => {
   const song = await Song.findByPk(req.params.id)
   if (!song) {
     return res.status(404).send({
@@ -1346,7 +1396,7 @@ app.get("/songs/speed-version/:id", async (req, res, next) => {
   })
 })
 
-app.get("/songs/fade-profile/:id", async (req, res, next) => {
+app.get('/songs/fade-profile/:id', async (req, res, next) => {
   const song = await Song.findByPk(req.params.id)
   if (!song) {
     return res.status(404).send({
@@ -1366,7 +1416,7 @@ app.get("/songs/fade-profile/:id", async (req, res, next) => {
   }
 })
 
-app.post("/songs/touch-speed-version/:id", async (req, res, next) => {
+app.post('/songs/touch-speed-version/:id', async (req, res, next) => {
   const song = await Song.findByPk(req.params.id)
   if (!song) {
     return res.status(404).send({
@@ -1389,7 +1439,7 @@ app.post("/songs/touch-speed-version/:id", async (req, res, next) => {
   })
 })
 
-app.post("/songs/preprocess-speed", async (req, res, next) => {
+app.post('/songs/preprocess-speed', async (req, res, next) => {
   const song = await Song.findByPk(req.body.id)
   if (!song) {
     return res.status(404).send({
@@ -1450,11 +1500,15 @@ app.post("/songs/preprocess-speed", async (req, res, next) => {
   const tempOutput = `${speedAudioPath}.tmp-${Date.now()}-${Math.random().toString(16).slice(2)}.mp3`
   const args = [
     '-y',
-    '-i', sourcePath,
+    '-i',
+    sourcePath,
     '-vn',
-    '-filter:a', buildAtempoFilter(rate),
-    '-f', 'mp3',
-    '-b:a', '192k',
+    '-filter:a',
+    buildAtempoFilter(rate),
+    '-f',
+    'mp3',
+    '-b:a',
+    '192k',
     tempOutput
   ]
   const ff = spawn(FFMPEG_BIN, args)
@@ -1468,7 +1522,7 @@ app.post("/songs/preprocess-speed", async (req, res, next) => {
     console.warn('Error ejecutando ffmpeg preprocess-speed', error.message)
   })
 
-  ff.on('close', async(code) => {
+  ff.on('close', async (code) => {
     if (code !== 0) {
       if (AUDIO_DEBUG) {
         console.info('[vmusic][audio-debug][backend] preprocess-failed', {
@@ -1516,7 +1570,7 @@ app.post("/songs/preprocess-speed", async (req, res, next) => {
   })
 })
 
-app.post("/audio/recognize", async (req, res, next) => {
+app.post('/audio/recognize', async (req, res, next) => {
   try {
     const { audioBase64, mimeType } = req.body || {}
     if (!audioBase64 || typeof audioBase64 !== 'string') {
@@ -1535,7 +1589,10 @@ app.post("/audio/recognize", async (req, res, next) => {
 
     let sampleFeature = null
     try {
-      sampleFeature = await computeFeatureVectorFromFile(tempInputPath, AUDIO_RECOGNITION_MAX_SAMPLE_SECONDS)
+      sampleFeature = await computeFeatureVectorFromFile(
+        tempInputPath,
+        AUDIO_RECOGNITION_MAX_SAMPLE_SECONDS
+      )
     } finally {
       fsp.unlink(tempInputPath).catch(() => {})
     }
@@ -1573,11 +1630,10 @@ app.post("/audio/recognize", async (req, res, next) => {
     await saveAudioFeatureCache()
 
     scoredMatches.sort((a, b) => b.confidence - a.confidence)
-    const topMatches = scoredMatches.slice(0, 5)
-      .map((match) => ({
-        song: match.song,
-        confidence: Number(match.confidence.toFixed(4))
-      }))
+    const topMatches = scoredMatches.slice(0, 5).map((match) => ({
+      song: match.song,
+      confidence: Number(match.confidence.toFixed(4))
+    }))
 
     const best = topMatches[0]
     if (!best || best.confidence < AUDIO_RECOGNITION_MIN_CONFIDENCE) {
@@ -1603,38 +1659,38 @@ app.post("/audio/recognize", async (req, res, next) => {
   }
 })
 
-app.post("/songs/delete", async (req, res, next) => {
-  const song = await Song.findByPk(req.body.id);
+app.post('/songs/delete', async (req, res, next) => {
+  const song = await Song.findByPk(req.body.id)
 
-  const file = path.join(MUSIC_LIBRARY_DIR, song.folder, `${song.ytid}.mp3`);
+  const file = path.join(MUSIC_LIBRARY_DIR, song.folder, `${song.ytid}.mp3`)
 
   fs.unlink(file, (err) => {
     if (err) {
       // An error occurred while deleting the file
       if (err.code === 'ENOENT') {
         // The file does not exist
-        console.error('The file does not exist');
+        console.error('The file does not exist')
       } else {
         // Some other error
-        console.error(err.message);
+        console.error(err.message)
       }
     } else {
       // The file was deleted successfully
-      console.log('The file was deleted');
+      console.log('The file was deleted')
     }
-  });
+  })
 
   await song.destroy()
   res.send([song.id])
 })
 
-app.post("/download", async (req, res, next) => {
+app.post('/download', async (req, res, next) => {
   const rawRequestUrl = typeof req.body.url === 'string' ? req.body.url.trim() : ''
   const requestUrl = sanitizeYoutubeDownloadUrl(rawRequestUrl)
   if (!requestUrl) {
     return res.status(400).send({
       message: 'La URL es requerida'
-    });
+    })
   }
 
   // ID is the URL now
@@ -1648,7 +1704,7 @@ app.post("/download", async (req, res, next) => {
   if (!yid) {
     return res.status(400).send({
       message: 'No se pudo identificar la canción en la URL'
-    });
+    })
   }
 
   const results = await Song.findAll({
@@ -1660,7 +1716,7 @@ app.post("/download", async (req, res, next) => {
   if (results.length > 0) {
     return res.status(400).send({
       message: 'Esa canción ya está en la biblioteca'
-    });
+    })
   }
 
   let command
@@ -1672,12 +1728,14 @@ app.post("/download", async (req, res, next) => {
     if (!command) {
       return res.status(500).send({
         message: 'No se encontró el binario embebido de yt-dlp'
-      });
+      })
     }
     args = [
       '--no-playlist',
-      '-f', 'bestaudio[protocol^=https]/bestaudio/best',
-      '-o', path.join(MUSIC_LIBRARY_DIR, '%(id)s.%(ext)s'),
+      '-f',
+      'bestaudio[protocol^=https]/bestaudio/best',
+      '-o',
+      path.join(MUSIC_LIBRARY_DIR, '%(id)s.%(ext)s'),
       '--rm-cache-dir',
       '-i',
       url
@@ -1687,41 +1745,43 @@ app.post("/download", async (req, res, next) => {
     }
 
     console.log(command, args.join(' '))
-    const ls = spawn(command, args);
+    const ls = spawn(command, args)
     let stderrOutput = ''
 
-    ls.stdout.on("data", data => {
-      console.log(`stdout: ${data}`);
-    });
+    ls.stdout.on('data', (data) => {
+      console.log(`stdout: ${data}`)
+    })
 
-    ls.stderr.on("data", data => {
-      console.log(`stderr: ${data}`);
+    ls.stderr.on('data', (data) => {
+      console.log(`stderr: ${data}`)
       stderrOutput += data.toString()
-    });
+    })
 
     ls.on('error', (error) => {
-      console.log(`error: ${error.message}`);
-    });
+      console.log(`error: ${error.message}`)
+    })
 
-    ls.on("close", code => {
-      console.log(`child process exited with code ${code}`);
+    ls.on('close', (code) => {
+      console.log(`child process exited with code ${code}`)
 
       if (code === 0 && getDownloadedFilePath(yid)) {
         res.send(yid)
       } else {
         const details = stderrOutput.trim()
         return res.status(400).send({
-          message: details ? `No se pudo descargar el archivo: ${details.slice(-400)}` : 'No se pudo descargar el archivo',
+          message: details
+            ? `No se pudo descargar el archivo: ${details.slice(-400)}`
+            : 'No se pudo descargar el archivo',
           code
-        });
+        })
       }
-    });
+    })
   } else {
     command = GAMDL_BIN
     if (!command) {
       return res.status(500).send({
         message: 'No se encontró el binario embebido de gamdl'
-      });
+      })
     }
 
     args = [
@@ -1775,21 +1835,20 @@ app.post("/download", async (req, res, next) => {
   }
 })
 
-app.post("/songs/save", async (req, res, next) => {
+app.post('/songs/save', async (req, res, next) => {
   const folder = 'm' + Math.floor(Math.random() * 100)
-  const dir = path.join(MUSIC_LIBRARY_DIR, folder);
+  const dir = path.join(MUSIC_LIBRARY_DIR, folder)
 
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(dir, { recursive: true })
   }
 
   const oldPath = getDownloadedFilePath(req.body.ytid)
   if (!oldPath) {
     return res.status(400).send({
       message: 'No se encontró el archivo descargado para guardar la canción'
-    });
+    })
   }
-
 
   let newPath = path.join(dir, req.body.ytid.toString().trim() + '.mp3')
 
@@ -1798,26 +1857,34 @@ app.post("/songs/save", async (req, res, next) => {
   if (!command) {
     return res.status(500).send({
       message: 'No se encontró el binario embebido de ffmpeg'
-    });
+    })
   }
-  const args = ['-i', oldPath, '-b:a', '192k', '-af', 'areverse,atrim=start=0.2,silenceremove=start_periods=1:start_silence=0.1:start_threshold=0.02,areverse,atrim=start=0.2,silenceremove=start_periods=1:start_silence=0.1:start_threshold=0.02', newPath]
-  const ls = spawn(command, args);
+  const args = [
+    '-i',
+    oldPath,
+    '-b:a',
+    '192k',
+    '-af',
+    'areverse,atrim=start=0.2,silenceremove=start_periods=1:start_silence=0.1:start_threshold=0.02,areverse,atrim=start=0.2,silenceremove=start_periods=1:start_silence=0.1:start_threshold=0.02',
+    newPath
+  ]
+  const ls = spawn(command, args)
   let ffmpegStderr = ''
 
-  ls.stdout.on("data", data => {
-    console.log(`stdout: ${data}`);
-  });
+  ls.stdout.on('data', (data) => {
+    console.log(`stdout: ${data}`)
+  })
 
-  ls.stderr.on("data", data => {
-    console.log(`stderr: ${data}`);
+  ls.stderr.on('data', (data) => {
+    console.log(`stderr: ${data}`)
     ffmpegStderr += data.toString()
-  });
+  })
 
   ls.on('error', (error) => {
-    console.log(`error: ${error.message}`);
-  });
+    console.log(`error: ${error.message}`)
+  })
 
-  ls.on("close", code => {
+  ls.on('close', (code) => {
     if (code !== 0) {
       return res.status(500).send({
         message: 'No se pudo convertir el audio con ffmpeg',
@@ -1828,12 +1895,12 @@ app.post("/songs/save", async (req, res, next) => {
 
     fs.unlink(oldPath, (err) => {
       if (err) {
-        console.error(`Error removing file: ${err}`);
-        return;
+        console.error(`Error removing file: ${err}`)
+        return
       }
 
-      console.log(`File ${oldPath} has been successfully removed.`);
-    });
+      console.log(`File ${oldPath} has been successfully removed.`)
+    })
 
     const aacgainBin = process.env.VMUSIC_AACGAIN_BIN
     if (aacgainBin) {
@@ -1874,7 +1941,7 @@ app.post("/songs/save", async (req, res, next) => {
         const tagIds = []
         const tagsForCreating = []
         req.body.songTags.forEach((tag) => {
-          const tagFound = tags.find(t => tag === t.name)
+          const tagFound = tags.find((t) => tag === t.name)
           if (tagFound) {
             tagIds.push(tagFound.id)
           } else {
@@ -1898,10 +1965,15 @@ app.post("/songs/save", async (req, res, next) => {
               filePath: newPath
             })
           } catch (tagError) {
-            console.warn('[vmusic] No se pudo etiquetar ID3; se guarda canción sin metadata embebida', tagError?.message || tagError)
+            console.warn(
+              '[vmusic] No se pudo etiquetar ID3; se guarda canción sin metadata embebida',
+              tagError?.message || tagError
+            )
           }
         } else {
-          console.warn('[vmusic] tagSongFileById no está disponible en este build; se omite etiquetado ID3')
+          console.warn(
+            '[vmusic] tagSongFileById no está disponible en este build; se omite etiquetado ID3'
+          )
         }
 
         res.send(s)
@@ -1913,13 +1985,110 @@ app.post("/songs/save", async (req, res, next) => {
           details: saveError?.stack || saveError?.message || null
         })
       }
-    })();
-  });
+    })()
+  })
+})
 
+app.post('/songs/import', async (req, res, next) => {
+  const sourcePath = req.body?.filePath
+  const songName = req.body?.name
+  const artistIds = req.body?.artists || []
+  const tagIds = req.body?.tags || []
+
+  if (!sourcePath) {
+    return res.status(400).send({ message: 'Falta el archivo MP3' })
+  }
+
+  if (!songName?.trim()) {
+    return res.status(400).send({ message: 'Falta el nombre de la canción' })
+  }
+
+  if (!fs.existsSync(sourcePath)) {
+    return res.status(400).send({ message: 'El archivo no existe' })
+  }
+
+  const folder = 'm' + Math.floor(Math.random() * 100)
+  const dir = path.join(MUSIC_LIBRARY_DIR, folder)
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
+
+  const ytid = Date.now().toString() + Math.random().toString(36).slice(2)
+  let newPath = path.join(dir, ytid + '.mp3')
+
+  const FFMPEG_BIN = resolveBinaryFromCandidates('ffmpeg', process.env.VMUSIC_FFMPEG_BIN)
+  if (FFMPEG_BIN) {
+    const args = ['-i', sourcePath, '-b:a', '192k', newPath]
+    const ls = spawn(FFMPEG_BIN, args)
+    let ffmpegStderr = ''
+
+    ls.stderr.on('data', (data) => {
+      ffmpegStderr += data.toString()
+    })
+
+    await new Promise((resolve, reject) => {
+      ls.on('error', reject)
+      ls.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(ffmpegStderr.slice(-600)))
+        } else {
+          resolve()
+        }
+      })
+    })
+  } else {
+    fs.copyFileSync(sourcePath, newPath)
+  }
+
+  try {
+    const durationSeconds = await getAudioDurationInSeconds(newPath)
+    if (!durationSeconds) {
+      return res.status(500).send({ message: 'No se pudo leer la duración del mp3' })
+    }
+
+    const s = await Song.create({
+      folder: folder,
+      ytid: ytid,
+      name: songName.trim(),
+      duration: durationSeconds,
+      duration_original: convertTime(durationSeconds)
+    })
+
+    if (artistIds.length > 0) {
+      await s.addArtists(artistIds)
+    }
+
+    if (tagIds.length > 0) {
+      await s.addTags(tagIds)
+    }
+
+    if (typeof tagSongFileById === 'function') {
+      try {
+        await tagSongFileById({
+          db: dbContext,
+          baseDir: __dirname,
+          songId: s.id,
+          filePath: newPath
+        })
+      } catch (tagError) {
+        console.warn('[vmusic] No se pudo etiquetar ID3', tagError?.message || tagError)
+      }
+    }
+
+    res.send(s)
+  } catch (saveError) {
+    console.error(saveError)
+    return res.status(500).send({
+      message: 'No se pudo importar la canción',
+      error: saveError.message,
+      details: saveError?.stack || saveError?.message || null
+    })
+  }
 })
 
 /*ARTISTS*/
-app.get("/artists", async (req, res, next) => {
+app.get('/artists', async (req, res, next) => {
   const artists = await Artist.findAll({
     order: ['name'],
     include: [
@@ -1932,7 +2101,7 @@ app.get("/artists", async (req, res, next) => {
   res.send(artists)
 })
 
-app.post("/artists", async (req, res, next) => {
+app.post('/artists', async (req, res, next) => {
   if (req.body.name) {
     const results = await Artist.findAll({
       where: {
@@ -1943,35 +2112,35 @@ app.post("/artists", async (req, res, next) => {
     if (results.length > 0) {
       return res.status(400).send({
         message: 'El artista ya existe'
-      });
+      })
     } else {
-      const t = await Artist.create({ name: req.body.name.trim() });
+      const t = await Artist.create({ name: req.body.name.trim() })
       res.send(t)
     }
   } else {
     return res.status(400).send({
       message: 'El artista no puede ser vacío'
-    });
+    })
   }
 })
 
-app.post("/artists/:id", async (req, res, next) => {
+app.post('/artists/:id', async (req, res, next) => {
   await Artist.update(
     {
-      name: req.body.name,
+      name: req.body.name
     },
     {
       where: {
-        id: req.params.id,
-      },
-    },
-  );
+        id: req.params.id
+      }
+    }
+  )
 
   res.send('ok')
 })
 
-app.post("/artists/delete/:id", async (req, res, next) => {
-  const artist = await Artist.findByPk(req.params.id);
+app.post('/artists/delete/:id', async (req, res, next) => {
+  const artist = await Artist.findByPk(req.params.id)
   await artist.destroy()
   const artists = await Artist.findAll({
     order: ['name'],
@@ -1985,7 +2154,6 @@ app.post("/artists/delete/:id", async (req, res, next) => {
   res.send(artists)
 })
 
-
 async function startServer() {
   try {
     await sequelize.authenticate()
@@ -1995,7 +2163,7 @@ async function startServer() {
       cleanupSpeedCache().catch(() => {})
     }, SPEED_CACHE_CLEANUP_INTERVAL_MS)
     app.listen(port, () => {
-      console.log(`Example app listening at http://localhost:${port}`);
+      console.log(`Example app listening at http://localhost:${port}`)
     })
   } catch (error) {
     console.error('[vmusic] Failed to initialize database schema', error)
