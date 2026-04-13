@@ -4,68 +4,36 @@
       "version": "1.1.29",
       "date": "2026-04-13",
       "changes": {
-        "new": [],
-        "fix": [
-          "import changelog.json directly instead of fetch"
-        ],
-        "perf": [],
-        "refactor": [],
-        "other": []
+        "fix": ["Importar changelog.json directamente en lugar de fetch"]
       }
     },
     {
       "version": "1.1.28",
       "date": "2026-04-13",
       "changes": {
-        "new": [],
-        "fix": [
-          "add error logging to changelog fetch"
-        ],
-        "perf": [],
-        "refactor": [],
-        "other": []
+        "fix": ["Agregar registro de errores al obtener changelog"]
       }
     },
     {
       "version": "1.1.27",
       "date": "2026-04-13",
       "changes": {
-        "new": [],
-        "fix": [
-          "clean up changelog duplicates and fix release script path",
-          "clean up duplicate changelog entries"
-        ],
-        "perf": [],
-        "refactor": [],
-        "other": []
+        "fix": ["Limpiar entradas duplicadas del changelog", "Corregir ruta del script de release"]
       }
     },
     {
       "version": "1.1.26",
       "date": "2026-04-13",
       "changes": {
-        "new": [
-          "Sistema de changelog con automatización de release"
-        ],
-        "fix": [],
-        "perf": [],
-        "refactor": [],
-        "other": []
+        "new": ["Sistema de changelog con automatización de release"]
       }
     },
     {
       "version": "1.1.24",
       "date": "2026-04-13",
       "changes": {
-        "new": [
-          "Sistema de actualización integrado"
-        ],
-        "fix": [
-          "Corrección de errores menores"
-        ],
-        "perf": [],
-        "refactor": [],
-        "other": []
+        "new": ["Sistema de actualización integrado"],
+        "fix": ["Corrección de errores menores"]
       }
     }
   ]
