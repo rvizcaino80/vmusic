@@ -53,91 +53,30 @@ if (commits.length === 0) {
 
 const changes = { new: [], fix: [], perf: [], refactor: [], other: [] }
 
-const translateCommit = (text) => {
-  let result = text
-
-  const prefixes = {
-    feat: 'Nueva función',
-    fix: 'Corrección',
-    perf: 'Mejora de rendimiento',
-    refactor: 'Refactorización',
-    docs: 'Documentación',
-    chore: 'Tarea',
-    test: 'Prueba',
-    style: 'Estilo',
-    build: 'Build'
-  }
-
-  for (const [eng, esp] of Object.entries(prefixes)) {
-    const regex = new RegExp(`^${eng}:\\s*`, 'i')
-    if (regex.test(result)) {
-      result = result.replace(regex, esp + ': ')
-      break
-    }
-  }
-
-  const translations = {
-    fix: 'corregir',
-    feat: 'función',
-    add: 'agregar',
-    remove: 'eliminar',
-    update: 'actualizar',
-    create: 'crear',
-    improve: 'mejorar',
-    change: 'cambiar',
-    delete: 'eliminar',
-    implement: 'implementar',
-    refactor: 'refactorizar',
-    enable: 'habilitar',
-    disable: 'deshabilitar',
-    handle: 'manejar',
-    check: 'verificar',
-    use: 'usar',
-    load: 'cargar',
-    save: 'guardar',
-    get: 'obtener',
-    set: 'establecer',
-    convert: 'convertir',
-    clean: 'limpiar',
-    build: 'construir',
-    resolve: 'resolver',
-    generate: 'generar',
-    integrate: 'integrar',
-    import: 'importar',
-    export: 'exportar',
-    error: 'error',
-    bug: 'error',
-    fix: 'corrección',
-    issue: 'problema',
-    problem: 'problema',
-    fix: 'corrección',
-    file: 'archivo',
-    path: 'ruta',
-    script: 'script',
-    component: 'componente',
-    system: 'sistema',
-    changelog: 'registro de cambios',
-    release: 'lanzamiento',
-    automation: 'automatización'
-  }
-
-  for (const [eng, esp] of Object.entries(translations)) {
-    const regex = new RegExp(`\\b${eng}\\b`, 'gi')
-    result = result.replace(regex, esp)
-  }
-
-  result = result.charAt(0).toUpperCase() + result.slice(1)
-
-  return result
-}
-
 commits.forEach((commit) => {
-  const text = translateCommit(commit.replace(/^[^:]+:\s*/, '').trim())
-  if (commit.startsWith('feat')) changes.new.push(text)
-  else if (commit.startsWith('fix')) changes.fix.push(text)
-  else if (commit.startsWith('perf')) changes.perf.push(text)
-  else if (commit.startsWith('refactor')) changes.refactor.push(text)
-  else if (!commit.startsWith('docs') && !commit.startsWith('chore')) changes.other.push(text)
+  // Solo procesar commits con flag [user-facing]
+  if (!commit.includes('[user-facing]')) {
+    return // Ignorar commits sin el flag
+  }
+
+  // Extraer el tipo (feat, fix, perf, refactor, etc.)
+  const typeMatch = commit.match(/^([a-z]+):/)
+  if (!typeMatch) return
+
+  const type = typeMatch[1]
+
+  // Extraer el texto después de [user-facing]
+  const userFacingMatch = commit.match(/\[user-facing\]\s*(.+)/)
+  if (!userFacingMatch) return
+
+  const text = userFacingMatch[1].trim()
+
+  // Clasificar según el tipo
+  if (type === 'feat') changes.new.push(text)
+  else if (type === 'fix') changes.fix.push(text)
+  else if (type === 'perf') changes.perf.push(text)
+  else if (type === 'refactor') changes.refactor.push(text)
+  else changes.other.push(text)
 })
 
 const date = new Date().toISOString().split('T')[0]

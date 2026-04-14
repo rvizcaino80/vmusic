@@ -10,25 +10,30 @@ refactor = Cambio interno del codigo
 docs     = Documentacion (se ignora)
 chore    = Tareas de mantenimiento (se ignora)
 
-PASO 2: Escribe la descripcion en ESPAÑOL
------------------------------------------
+PASO 2: Agrega [user-facing] si es visible al usuario
+------------------------------------------------------
+Solo los commits con [user-facing] aparecen en el changelog.
+
+EJEMPLOS QUE VAN AL CHANGELOG:
+------------------------------
+git commit -m "feat: [user-facing] agregar boton de favoritos"
+git commit -m "fix: [user-facing] corregir error al reproducir mp3"
+git commit -m "perf: [user-facing] optimizar carga de biblioteca"
+git commit -m "refactor: [user-facing] simplificar logica del reproductor"
+
+EJEMPLOS QUE NO VAN AL CHANGELOG:
+---------------------------------
+git commit -m "feat: agregar validacion interna"
+git commit -m "fix: corregir ruta del script"
+git commit -m "chore: actualizar dependencias"
+git commit -m "docs: actualizar README"
+
+REGLAS
+------
+- Usa ESPAÑOL siempre
 - Sin mayuscula al inicio
 - Maximo 70 caracteres
 - Sin punto final
-
-EJEMPLOS CORRECTOS:
--------------------
-git commit -m "feat: agregar boton de favoritos"
-git commit -m "fix: corregir error al reproducir mp3"
-git commit -m "perf: optimizar carga de biblioteca"
-git commit -m "refactor: simplificar logica del reproductor"
-
-EJEMPLOS INCORRECTOS:
----------------------
-git commit -m "Agregar boton"           (falta el tipo)
-git commit -m "feat: Agregar boton"     (mayuscula al inicio)
-git commit -m "feat: add button"        (en ingles)
-git commit -m "feat: agregar boton."    (punto final)
 
 LISTO!
 ======

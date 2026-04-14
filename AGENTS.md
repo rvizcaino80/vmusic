@@ -64,3 +64,20 @@ git config commit.template .commit-msg-template
 cp scripts/verify-commit-msg.js .git/hooks/commit-msg
 chmod +x .git/hooks/commit-msg
 ```
+
+## Commits visibles al usuario
+
+Para que un commit aparezca en el changelog que ven los usuarios, debe incluir la flag `[user-facing]`.
+
+### Ejemplos
+
+```bash
+# Va al changelog (visible al usuario)
+git commit -m "feat: [user-facing] agregar modo oscuro"
+git commit -m "fix: [user-facing] corregir error al guardar playlist"
+
+# No va al changelog (tecnico/interno)
+git commit -m "refactor: simplificar logica del reproductor"
+git commit -m "chore: actualizar dependencias"
+git commit -m "fix: corregir ruta del script de release"
+```
