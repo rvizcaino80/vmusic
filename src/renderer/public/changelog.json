@@ -3,6 +3,18 @@
     {
       "version": "1.4.3",
       "date": "2026-04-14",
+      "changes": {
+        "fix": [
+          "Recuperar contador de reproducciones y rotación de CD"
+        ],
+        "other": [
+          "Revertir rollback que volvió a versión antigua"
+        ]
+      }
+    },
+    {
+      "version": "1.4.3",
+      "date": "2026-04-14",
       "changes": {}
     },
     {
