@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.4.6",
+      "date": "2026-04-14",
+      "changes": {
+        "fix": [
+          "Corregir contador de reproducciones y abreviar título de columna"
+        ]
+      }
+    },
+    {
       "version": "1.4.5",
       "date": "2026-04-14",
       "changes": {
