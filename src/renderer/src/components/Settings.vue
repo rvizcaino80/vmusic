@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col space-y-6 min-h-full">
+  <div class="flex flex-col space-y-6 min-h-[0]">
     <a-divider>Ajustes</a-divider>
 
     <a-form
@@ -148,13 +148,6 @@
       </a-form-item>
 
       <a-form-item
-        label="Actualizar portadas automáticamente"
-        name="autoUpdateCovers"
-      >
-        <a-checkbox v-model:checked="formState.autoUpdateCovers" />
-      </a-form-item>
-
-      <a-form-item
         label="Actualizaciones"
       >
         <div class="flex flex-col gap-2">
@@ -201,8 +194,7 @@ export default {
       baseSpeed: 0,
       excludeTags: [],
       colorSchema: 'sunset',
-      showAdvancedFunctions: false,
-      autoUpdateCovers: false
+      showAdvancedFunctions: false
     }
 
     const formState = reactive({
@@ -216,8 +208,7 @@ export default {
       deckSinkId: savedSettings.deckSinkId || null,
       excludeTags: savedSettings.excludeTags || [],
       colorSchema: savedSettings.colorSchema || 'sunset',
-      showAdvancedFunctions: Boolean(savedSettings.showAdvancedFunctions),
-      autoUpdateCovers: Boolean(savedSettings.autoUpdateCovers)
+      showAdvancedFunctions: Boolean(savedSettings.showAdvancedFunctions)
     })
 
     const tagOptions = ref([])
@@ -348,8 +339,7 @@ export default {
         deckSinkId: formState.deckSinkId === 'default' ? null : formState.deckSinkId || null,
         excludeTags: formState.excludeTags || [],
         colorSchema: formState.colorSchema || 'sunset',
-        showAdvancedFunctions: Boolean(formState.showAdvancedFunctions),
-        autoUpdateCovers: Boolean(formState.autoUpdateCovers)
+        showAdvancedFunctions: Boolean(formState.showAdvancedFunctions)
       }
       localStorage.setItem('vmusic_settings', JSON.stringify(s))
       context.emit('saved')

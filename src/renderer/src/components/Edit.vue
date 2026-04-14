@@ -79,30 +79,20 @@
 
       <div>
         <div class="flex items-center justify-between">
-          <label class="text-sm text-gray-500 block">URL de portada o metadata</label>
-          <div class="flex items-center gap-3">
-            <a
-              href="#"
-              class="text-sm hover:underline"
-              style="color: var(--vm-ant-primary);"
-              @click.prevent="selectCoverFromDisk"
-            >
-              Seleccionar imagen
-            </a>
-            <a
-              v-if="spotifySearchUrl"
-              :href="spotifySearchUrl"
-              class="text-sm hover:underline"
-              style="color: var(--vm-ant-primary);"
-              target="_blank"
-              rel="noopener"
-            >Buscar en Spotify</a>
-          </div>
+          <label class="text-sm text-gray-500 block">URL de metadata (Spotify / Shazam)</label>
+          <a
+            v-if="spotifySearchUrl"
+            :href="spotifySearchUrl"
+            class="text-sm hover:underline"
+            style="color: var(--vm-ant-primary);"
+            target="_blank"
+            rel="noopener"
+          >Buscar en Spotify</a>
         </div>
         <a-input
           v-model:value="metadataUrl"
           class="w-full"
-          placeholder="Pega una URL de imagen, Spotify o Shazam"
+          placeholder="Pega el enlace de Spotify o Shazam"
         />
       </div>
 
@@ -154,7 +144,6 @@ import { computed, onMounted, ref, watch } from 'vue'
 import axios from 'axios'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
-import { buildSpotifySearchUrl } from '../lib/spotify-cover'
 
 // Download
 const song = ref('')
@@ -186,7 +175,12 @@ const selectedArtistNames = computed(() => {
     .filter(Boolean)
 })
 const spotifySearchUrl = computed(() => {
-  return buildSpotifySearchUrl(song.value, selectedArtistNames.value)
+  const title = song.value?.trim() || ''
+  const artists = selectedArtistNames.value.join(' ').trim()
+  const term = `${artists} ${title}`.trim()
+  if (!term) return ''
+
+  return `https://open.spotify.com/search/${encodeURIComponent(term)}`
 })
 
 const emit = defineEmits(['updated'])
@@ -231,7 +225,6 @@ onMounted(async() => {
       }
 
       selectedTags.value = response.data.Tags.map((item) => (item.id))
-      coverUrl.value = getStoredCoverUrl(response.data.ytid)
       loadNote()
     })
     .catch(function(error) {
@@ -245,12 +238,12 @@ onMounted(async() => {
 async function getTags() {
   const response = await fetch('http://localhost:3000/tags')
   const data = await response.json()
-  let indexedData = []
-  if (data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data).every((key) => (/^\d+$/).test(key))) {
-    indexedData = Object.keys(data.data).map((key) => Number(key))
+  const indexedData = data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data)
+    .every((key) => (/^\d+$/).test(key))
+? Object.keys(data.data).map((key) => Number(key))
       .sort((a, b) => a - b)
       .map((index) => data.data[String(index)])
-  }
+: []
   const normalized = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : indexedData
 
   return normalized.sort((a, b) => a.name.localeCompare(b.name)).filter((t) => t.id !== 9998)
@@ -259,12 +252,12 @@ async function getTags() {
 async function getArtists() {
   const response = await fetch('http://localhost:3000/artists')
   const data = await response.json()
-  let indexedData = []
-  if (data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data).every((key) => (/^\d+$/).test(key))) {
-    indexedData = Object.keys(data.data).map((key) => Number(key))
+  const indexedData = data?.data && typeof data.data === 'object' && !Array.isArray(data.data) && Object.keys(data.data)
+    .every((key) => (/^\d+$/).test(key))
+? Object.keys(data.data).map((key) => Number(key))
       .sort((a, b) => a - b)
       .map((index) => data.data[String(index)])
-  }
+: []
   const normalized = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : indexedData
 
   return normalized.sort((a, b) => a.name.localeCompare(b.name))
@@ -279,24 +272,10 @@ function saveSong() {
   let artistIds = selectedArtists.value.filter((item) => item)
   let composerIds = selectedComposers.value.filter((item) => item)
 
-  const metadataPromise = metadataUrl.value.trim().length > 0 ? resolveCoverFromInput(metadataUrl.value.trim()) : Promise.resolve(coverUrl.value || null)
+  const metadataPromise = metadataUrl.value.trim().length > 0 ? extractCoverFromMetadata(metadataUrl.value.trim()) : Promise.resolve(null)
 
-  metadataPromise.then(async(cover) => {
-    if (cover) {
-      coverUrl.value = cover
-      if (
-        ytid.value && window.electron2?.cacheCoverImage && (/^https?:/i).test(coverUrl.value)
-      ) {
-        const cachedCoverUrl = await window.electron2.cacheCoverImage({
-          cacheKey: ytid.value,
-          url: coverUrl.value,
-          forceRefresh: true
-        })
-        if (cachedCoverUrl) {
-          coverUrl.value = cachedCoverUrl
-        }
-      }
-    }
+  metadataPromise.then((cover) => {
+    coverUrl.value = cover || ''
     if (ytid.value && coverUrl.value) {
       try {
         const stored = localStorage.getItem(COVER_MAP_STORAGE_KEY)
@@ -317,7 +296,7 @@ function saveSong() {
       })
       .then(function(response) {
         saveNoteLocally(ytid.value, note)
-        emit('updated', { id: props.id, coverUrl: coverUrl.value || '', ytid: ytid.value || '' })
+        emit('updated', props.id)
       })
       .catch(function(error) {})
       .finally(function() {
@@ -326,7 +305,7 @@ function saveSong() {
   })
 }
 
-async function resolveCoverFromInput(value) {
+async function extractCoverFromMetadata(value) {
   try {
     const isSpotify = value.includes('open.spotify.com')
     const isShazam = value.includes('shazam.com/song/')
@@ -337,48 +316,12 @@ async function resolveCoverFromInput(value) {
 
       return $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content') || null
     }
-
-    const parsed = new URL(value)
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return parsed.toString()
-    }
   } catch (error) {
     return null
   }
 
   return null
 }
-
-function getStoredCoverUrl(ytidValue) {
-  if (!ytidValue) return ''
-
-  try {
-    const stored = localStorage.getItem(COVER_MAP_STORAGE_KEY)
-    const parsed = stored ? JSON.parse(stored) : {}
-
-    return parsed[ytidValue] || ''
-  } catch (error) {
-    return ''
-  }
-}
-
-async function selectCoverFromDisk() {
-  if (!ytid.value || !window.electron2?.importCoverFile) return
-
-  try {
-    const importedCoverUrl = await window.electron2.importCoverFile({ cacheKey: ytid.value })
-    if (!importedCoverUrl) return
-
-    coverUrl.value = importedCoverUrl
-    const stored = localStorage.getItem(COVER_MAP_STORAGE_KEY)
-    const parsed = stored ? JSON.parse(stored) : {}
-    parsed[ytid.value] = importedCoverUrl
-    localStorage.setItem(COVER_MAP_STORAGE_KEY, JSON.stringify(parsed))
-  } catch (error) {
-    console.warn('[vmusic][edit] no se pudo importar portada', error)
-  }
-}
-
 function addArtist() {
   totalArtists.value += 1
 }
@@ -415,7 +358,6 @@ function saveNoteLocally(ytidValue, note) {
       delete parsed[ytidValue]
     }
     localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(parsed))
-    window.dispatchEvent(new CustomEvent('vmusic-song-notes-changed'))
   } catch (error) {
     // ignore
   }

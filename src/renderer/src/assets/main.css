@@ -33,7 +33,6 @@ html,
 body,
 #app {
   @apply font-sans;
-  overflow: hidden;
   min-height: 100vh;
 }
 
@@ -398,7 +397,6 @@ div.fullheight {
 
 body {
   background-color: var(--vm-bg-body);
-  overflow: hidden;
 }
 
 html.vm-theme-transitioning *,

@@ -1,6 +1,6 @@
 {
   "name": "salsamania",
-  "version": "1.4.2",
+  "version": "1.1.17",
   "description": "An Electron application with Vue",
   "main": "./out/main/index.js",
   "author": "Rogers Vizcaino",
@@ -20,9 +20,8 @@
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac --arm64",
     "build:linux": "npm run build && electron-builder --linux",
-    "release": "node scripts/release.js",
-    "release:github:mac": "npm run build && electron-builder --mac --arm64 --publish always --config.extraResources=[{\"from\":\"resources/changelog.json\",\"to\":\"changelog.json\"}]",
-    "release:github:win": "npm run build && electron-builder --win --publish always --config.extraResources=[{\"from\":\"resources/changelog.json\",\"to\":\"changelog.json\"}]"
+    "release:github:mac": "npm run build && electron-builder --mac --arm64 --publish always",
+    "release:github:win": "npm run build && electron-builder --win --publish always"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.0",
@@ -55,7 +54,7 @@
     "@vue/compiler-sfc": "^3.4.37",
     "@vue/eslint-config-prettier": "^9.0.0",
     "autoprefixer": "^10.4.19",
-    "electron": "^36.9.5",
+    "electron": "^36.2.0",
     "electron-builder": "^26.0.15",
     "electron-vite": "^3.1.0",
     "eslint": "^9.5.0",
