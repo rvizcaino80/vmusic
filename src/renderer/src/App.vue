@@ -8,16 +8,16 @@
       @click.right="closeContextMenu"
     />
 
-    <div
-      v-if="currentSelectedOption"
-      class="backdrop z-50 fixed w-full h-full"
-      @click="hideMenu"
-    >
+    <div v-if="currentSelectedOption" class="backdrop z-50 fixed w-full h-full" @click="hideMenu">
       <div
         :class="{
-          'w-9/12': currentSelectedOption === options.library || currentSelectedOption === options.history,
+          'w-9/12':
+            currentSelectedOption === options.library || currentSelectedOption === options.history,
           'w-11/12': currentSelectedOption === options.wave,
-          'w-2/5': currentSelectedOption !== options.wave && currentSelectedOption !== options.library && currentSelectedOption !== options.history
+          'w-2/5':
+            currentSelectedOption !== options.wave &&
+            currentSelectedOption !== options.library &&
+            currentSelectedOption !== options.history
         }"
         class="vm-secondary-panel right-[40px] fixed flex h-full flex-col min-h-[0] bg-gray-300 p-6 text-black"
         @click="hideMenu"
@@ -25,14 +25,14 @@
         <Edit
           v-if="currentSelectedOption && currentSelectedOption === options.edit"
           :id="selectedSongs.length > 0 ? selectedSongs[0] : 0"
-          :tags="tags.filter(t => t.id != 9998)"
+          :tags="tags.filter((t) => t.id != 9998)"
           :artists="artists"
           @updated="updated"
         />
 
         <Download
           v-if="currentSelectedOption && currentSelectedOption === options.download"
-          :tags="tags.filter(t => t.id != 9998)"
+          :tags="tags.filter((t) => t.id != 9998)"
           :artists="artists"
           :selected-artist="downloadSelectedArtist"
           @downloaded="downloaded"
@@ -48,7 +48,7 @@
 
         <Tags
           v-if="currentSelectedOption && currentSelectedOption === options.tags"
-          :tags="tags.filter(t => t.id != 9998)"
+          :tags="tags.filter((t) => t.id != 9998)"
           @added="getTags"
         />
 
@@ -77,12 +77,7 @@
                 <span>Todos</span>
               </button-->
 
-                <a-button
-                  size="small"
-                  @click="selectAllArtists"
-                >
-                  Todos
-                </a-button>
+                <a-button size="small" @click="selectAllArtists"> Todos </a-button>
 
                 <!--button
                 class="px-2 py-1 bg-gray-700 flex items-center space-x-1"
@@ -95,12 +90,7 @@
                 <span>Ninguno</span>
               </button-->
 
-                <a-button
-                  size="small"
-                  @click="selectNoneArtists"
-                >
-                  Ninguno
-                </a-button>
+                <a-button size="small" @click="selectNoneArtists"> Ninguno </a-button>
 
                 <a-switch
                   v-if="showAdvancedFunctions"
@@ -136,19 +126,9 @@
 
             <div class="h-full flex-1 flex flex-col min-h-[0]">
               <div class="flex items-center space-x-2 text-xs text-white mb-2">
-                <a-button
-                  size="small"
-                  @click="selectAllTags($event)"
-                >
-                  Todos
-                </a-button>
+                <a-button size="small" @click="selectAllTags($event)"> Todos </a-button>
 
-                <a-button
-                  size="small"
-                  @click="selectNoneTags"
-                >
-                  Ninguno
-                </a-button>
+                <a-button size="small" @click="selectNoneTags"> Ninguno </a-button>
 
                 <a-switch
                   v-if="showAdvancedFunctions"
@@ -207,9 +187,7 @@
                 class="flex items-center space-x-1 pl-2.5"
                 @click="addToPlaylist(0, false, { ignoreMarks: $event.altKey })"
               >
-                <i-mdi-plus
-                  class="w-5 h-5"
-                />
+                <i-mdi-plus class="w-5 h-5" />
                 Agregar
               </a-button>
 
@@ -234,12 +212,9 @@
                 class="flex items-center space-x-1 pl-2.5"
                 @click="addToPlaylist(3)"
               >
-                <i-mdi-shuffle
-                  class="w-4 h-4"
-                />
+                <i-mdi-shuffle class="w-4 h-4" />
                 Aleatorio
               </a-button>
-
 
               <template v-if="playlistDetails.length > 0">
                 <!--button
@@ -261,9 +236,7 @@
                   class="flex items-center space-x-1 pl-2.5"
                   @click="addToPlaylist(1, false, { ignoreMarks: $event.altKey })"
                 >
-                  <i-ic-baseline-move-up
-                    class="w-5 h-5"
-                  />
+                  <i-ic-baseline-move-up class="w-5 h-5" />
                   Al comienzo
                 </a-button>
 
@@ -286,9 +259,7 @@
                   class="flex items-center space-x-1 pl-2.5"
                   @click="addToPlaylist(2, false, { ignoreMarks: $event.altKey })"
                 >
-                  <i-ic-baseline-move-down
-                    class="w-5 h-5"
-                  />
+                  <i-ic-baseline-move-down class="w-5 h-5" />
                   Al final
                 </a-button>
               </template>
@@ -311,9 +282,7 @@
                 class="flex items-center space-x-1 pl-2.5"
                 @click="currentSelectedOption = options.edit"
               >
-                <i-material-symbols-info-outline
-                  class="w-5 h-5"
-                />
+                <i-material-symbols-info-outline class="w-5 h-5" />
                 Info
               </a-button>
 
@@ -349,9 +318,7 @@
                 class="flex items-center space-x-1 pl-2.5"
                 @click="deleteSong"
               >
-                <i-iwwa-delete
-                  class="w-4 h-4"
-                />
+                <i-iwwa-delete class="w-4 h-4" />
                 Eliminar
               </a-button>
               <a-button
@@ -360,9 +327,7 @@
                 class="flex items-center space-x-1 pl-2.5"
                 @click="exportM3U"
               >
-                <i-mdi-file-export-outline
-                  class="w-4 h-4"
-                />
+                <i-mdi-file-export-outline class="w-4 h-4" />
                 {{ isExportingM3U ? 'Exportando...' : 'Exportar' }}
               </a-button>
             </div>
@@ -383,19 +348,10 @@
                   <i-mdi-menu-down class="w-4 h-4" />
                 </a-button>
                 <template #overlay>
-                  <a-menu
-                    :selected-keys="[m3uExportSourceFilter]"
-                    @click="onM3uSourceSelect"
-                  >
-                    <a-menu-item key="any">
-                      Cualquier fuente
-                    </a-menu-item>
-                    <a-menu-item key="apple">
-                      Apple Music
-                    </a-menu-item>
-                    <a-menu-item key="youtube">
-                      Youtube
-                    </a-menu-item>
+                  <a-menu :selected-keys="[m3uExportSourceFilter]" @click="onM3uSourceSelect">
+                    <a-menu-item key="any"> Cualquier fuente </a-menu-item>
+                    <a-menu-item key="apple"> Apple Music </a-menu-item>
+                    <a-menu-item key="youtube"> Youtube </a-menu-item>
                   </a-menu>
                 </template>
               </a-dropdown>
@@ -406,12 +362,32 @@
             <a-table
               class="ant-table-striped"
               :animate-rows="false"
-              :row-key="record => record.id"
-              :row-class-name="(_record, index) => (deletedSongsSet.has(_record.id) ? 'table-deleted' : index % 2 === 1 ? 'table-striped' : null)"
+              :row-key="(record) => record.id"
+              :row-class-name="
+                (_record, index) =>
+                  deletedSongsSet.has(_record.id)
+                    ? 'table-deleted'
+                    : index % 2 === 1
+                      ? 'table-striped'
+                      : null
+              "
               :show-sorter-tooltip="false"
               :loading="isLoadingLibrary"
-              :pagination="{ current: libraryState.page, hideOnSinglePage: false, total: filteredSongs2.length, 'show-total': (total) => `${selectedSongs.length} seleccionadas / ${total} canciones`, defaultPageSize: 24, pageSize: pageSizeRef, showSizeChanger: false }"
-              :row-selection="{ selectedRowKeys: selectedSongs, onChange: onSelectChange, onSelectAll: onSelectAll }"
+              :pagination="{
+                current: libraryState.page,
+                hideOnSinglePage: false,
+                total: filteredSongs2.length,
+                'show-total': (total) =>
+                  `${selectedSongs.length} seleccionadas / ${total} canciones`,
+                defaultPageSize: 24,
+                pageSize: pageSizeRef,
+                showSizeChanger: false
+              }"
+              :row-selection="{
+                selectedRowKeys: selectedSongs,
+                onChange: onSelectChange,
+                onSelectAll: onSelectAll
+              }"
               sticky
               size="small"
               :data-source="filteredSongs2"
@@ -419,17 +395,19 @@
               @change="onTableChange"
             >
               <template #emptyText>
-                <div class="min-h-[40px] leading-[40px]">
-                  No hay canciones que mostrar.
-                </div>
+                <div class="min-h-[40px] leading-[40px]">No hay canciones que mostrar.</div>
               </template>
-              <template #bodyCell="{text, record, column}">
+              <template #bodyCell="{ text, record, column }">
                 <template v-if="column.dataIndex === 'preview'">
                   <div class="flex items-center justify-center gap-1">
                     <a-button
                       class="flex items-center justify-center w-8 h-8 p-0"
                       size="small"
-                      :type="previewSongId === record.id && previewStatus === 'playing' ? 'primary' : 'default'"
+                      :type="
+                        previewSongId === record.id && previewStatus === 'playing'
+                          ? 'primary'
+                          : 'default'
+                      "
                       :loading="isPreviewLoading && previewSongId === record.id"
                       @mousedown.stop.prevent="startPreview(record)"
                       @mouseup.stop="stopPreview()"
@@ -437,9 +415,7 @@
                       @touchstart.stop.prevent="startPreview(record)"
                       @touchend.stop="stopPreview()"
                     >
-                      <i-mdi-headphones
-                        class="w-4 h-4"
-                      />
+                      <i-mdi-headphones class="w-4 h-4" />
                     </a-button>
                     <a-button
                       class="flex items-center justify-center w-8 h-8 p-0"
@@ -454,9 +430,10 @@
                   <div class="flex items-center space-x-2">
                     <span>{{ text }}</span>
                     <span
-                      v-if="record.Tags.some(tag => tag.id === 9998)"
+                      v-if="record.Tags.some((tag) => tag.id === 9998)"
                       class="px-[10px] py-[1px] rounded-full bg-yellow-200 text-yellow-00 text-xs"
-                    >Reciente</span>
+                      >Reciente</span
+                    >
                   </div>
                 </template>
                 <template v-else-if="column.dataIndex === 'artistsJoined'">
@@ -477,15 +454,12 @@
                     </div>
                   </div>
                 </template>
+                <template v-else-if="column.dataIndex === 'playCount'">
+                  <span class="tabular-nums text-center block">{{ record.playCount || 0 }}</span>
+                </template>
                 <template v-else-if="column.dataIndex === 'source'">
-                  <i-ic-baseline-apple
-                    v-if="record.isAppleMusic"
-                    class="mx-auto w-5 h-5"
-                  />
-                  <i-mingcute-youtube-fill
-                    v-else
-                    class="mx-auto w-5 h-5"
-                  />
+                  <i-ic-baseline-apple v-if="record.isAppleMusic" class="mx-auto w-5 h-5" />
+                  <i-mingcute-youtube-fill v-else class="mx-auto w-5 h-5" />
                 </template>
                 <template v-else-if="column.dataIndex === 'decks'">
                   <div class="flex items-center justify-center space-x-2">
@@ -495,9 +469,7 @@
                       class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
                       @click.stop="loadLibrarySongToDeck(record, 'A')"
                     >
-                      <i-ic-baseline-download
-                        class="w-6 h-6 deck-a-indicator"
-                      />
+                      <i-ic-baseline-download class="w-6 h-6 deck-a-indicator" />
                       <span class="inline-block p-1 leading-none deck-a-badge">A</span>
                     </button>
 
@@ -507,9 +479,7 @@
                       class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
                       @click.stop="loadLibrarySongToDeck(record, 'B')"
                     >
-                      <i-ic-baseline-download
-                        class="w-6 h-6 deck-b-indicator"
-                      />
+                      <i-ic-baseline-download class="w-6 h-6 deck-b-indicator" />
                       <span class="inline-block p-1 leading-none deck-b-badge">B</span>
                     </button>
                   </div>
@@ -579,7 +549,7 @@
             <a-table
               class="ant-table-striped"
               :animate-rows="false"
-              :row-key="record => record.historyId"
+              :row-key="(record) => record.historyId"
               :row-class-name="(_record, index) => (index % 2 === 1 ? 'table-striped' : null)"
               :show-sorter-tooltip="false"
               :pagination="false"
@@ -587,12 +557,13 @@
               size="small"
               :data-source="recentSongHistory"
               :columns="historyColumns"
-              :row-selection="{ selectedRowKeys: historySelectedRows, onChange: onHistorySelectChange }"
+              :row-selection="{
+                selectedRowKeys: historySelectedRows,
+                onChange: onHistorySelectChange
+              }"
             >
               <template #emptyText>
-                <div class="min-h-[40px] leading-[40px]">
-                  No hay canciones en historial.
-                </div>
+                <div class="min-h-[40px] leading-[40px]">No hay canciones en historial.</div>
               </template>
               <template #bodyCell="{ record, column }">
                 <template v-if="column.dataIndex === 'artistsJoined'">
@@ -614,14 +585,8 @@
                   </div>
                 </template>
                 <template v-else-if="column.dataIndex === 'source'">
-                  <i-ic-baseline-apple
-                    v-if="record.isAppleMusic"
-                    class="mx-auto w-5 h-5"
-                  />
-                  <i-mingcute-youtube-fill
-                    v-else
-                    class="mx-auto w-5 h-5"
-                  />
+                  <i-ic-baseline-apple v-if="record.isAppleMusic" class="mx-auto w-5 h-5" />
+                  <i-mingcute-youtube-fill v-else class="mx-auto w-5 h-5" />
                 </template>
                 <template v-else-if="column.dataIndex === 'decks'">
                   <div class="flex items-center justify-center space-x-2">
@@ -653,10 +618,7 @@
       </div>
     </div>
 
-    <div
-      v-if="customUpdaterBlocking"
-      class="vm-update-screen"
-    >
+    <div v-if="customUpdaterBlocking" class="vm-update-screen">
       <div
         class="vm-update-shell"
         :class="{ 'vm-update-shell-error': customUpdaterState.status === 'error' }"
@@ -668,9 +630,7 @@
           >
             S
           </div>
-          <div class="vm-update-name">
-            Salsamania
-          </div>
+          <div class="vm-update-name">Salsamania</div>
         </div>
         <div
           v-if="customUpdaterState.status !== 'downloaded' && customUpdaterState.status !== 'error'"
@@ -689,10 +649,7 @@
         >
           {{ customUpdaterMessage }}
         </div>
-        <div
-          v-if="customUpdaterState.version"
-          class="vm-update-version"
-        >
+        <div v-if="customUpdaterState.version" class="vm-update-version">
           Version {{ customUpdaterState.version }}
         </div>
         <div class="vm-update-actions">
@@ -716,10 +673,7 @@
       </div>
     </div>
 
-    <div
-      v-else
-      class="vmusic-app flex items-stretch min-w-0"
-    >
+    <div v-else class="vmusic-app flex items-stretch min-w-0">
       <div class="flex-[5] flex flex-col justify-between min-w-0">
         <Player
           ref="player1"
@@ -754,10 +708,7 @@
                 <div class="vm-center-times">
                   {{ centerVisualizerTimeText }}
                 </div>
-                <div
-                  class="vm-center-rms-bars"
-                  aria-hidden="true"
-                >
+                <div class="vm-center-rms-bars" aria-hidden="true">
                   <span
                     v-for="(height, index) in centerVisualizerBarHeights"
                     :key="index"
@@ -768,10 +719,7 @@
               </div>
             </div>
           </div>
-          <div
-            v-else
-            class="vm-center-logo-wrap relative"
-          >
+          <div v-else class="vm-center-logo-wrap relative">
             <div
               id="logo"
               class="vm-logo w-full h-auto select-none"
@@ -811,68 +759,67 @@
                   (player1.status === playerStatuses.Reproduciendo ||
                     player1.status === playerStatuses.Cambiando ||
                     player1.status === playerStatuses.Nivelando)) ||
-                  (player2 &&
-                    (player2.status === playerStatuses.Reproduciendo ||
-                      player2.status === playerStatuses.Cambiando ||
-                      player2.status === playerStatuses.Nivelando))
+                (player2 &&
+                  (player2.status === playerStatuses.Reproduciendo ||
+                    player2.status === playerStatuses.Cambiando ||
+                    player2.status === playerStatuses.Nivelando))
               "
               :disabled="
                 isDeckAInitialPreprocessBlockingPlayback ||
-                  (player1 && player1.status === playerStatuses.Cambiando) ||
-                  (player2 && player2.status === playerStatuses.Cambiando)
+                (player1 && player1.status === playerStatuses.Cambiando) ||
+                (player2 && player2.status === playerStatuses.Cambiando)
               "
               type="button"
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="pause"
             >
-              <i-material-symbols-pause
-                class="w-10 h-10 text-white"
-              />
+              <i-material-symbols-pause class="w-10 h-10 text-white" />
             </button>
 
             <button
               v-else
               :disabled="
                 isDeckAInitialPreprocessBlockingPlayback ||
-                  (
-                    (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
-                      playerStatuses['Sin Carga'])
-                    && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
-                      player2.status === playerStatuses.Cambiando)
-                  )
+                ((!player1 ||
+                  player1.status === playerStatuses.Cambiando ||
+                  player1.status === playerStatuses['Sin Carga']) &&
+                  (!player2 ||
+                    player2.status === playerStatuses['Sin Carga'] ||
+                    player2.status === playerStatuses.Cambiando))
               "
               type="button"
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="play"
             >
-              <i-mdi-play
-                class="w-10 h-10 text-white"
-              />
+              <i-mdi-play class="w-10 h-10 text-white" />
             </button>
 
             <button
               :disabled="
                 isDeckAInitialPreprocessBlockingPlayback ||
-                  isNextDeckSpeedPreprocessBlocking ||
-                  (
-                    (!player1 || player1.status === playerStatuses.Cambiando || player1.status ===
-                      playerStatuses['Sin Carga'])
-                    && (!player2 || player2.status === playerStatuses['Sin Carga'] ||
-                      player2.status === playerStatuses.Cambiando)
-                  )
+                isNextDeckSpeedPreprocessBlocking ||
+                ((!player1 ||
+                  player1.status === playerStatuses.Cambiando ||
+                  player1.status === playerStatuses['Sin Carga']) &&
+                  (!player2 ||
+                    player2.status === playerStatuses['Sin Carga'] ||
+                    player2.status === playerStatuses.Cambiando))
               "
               type="button"
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="next"
             >
-              <i-material-symbols-skip-next
-                class="w-6 h-6 text-white"
-              />
+              <i-material-symbols-skip-next class="w-6 h-6 text-white" />
             </button>
 
             <div class="flex items-center">
               <a-checkbox
-                v-if="player1 && player2 && (player1.status === playerStatuses.Reproduciendo || player2.status === playerStatuses.Reproduciendo)"
+                v-if="
+                  player1 &&
+                  player2 &&
+                  (player1.status === playerStatuses.Reproduciendo ||
+                    player2.status === playerStatuses.Reproduciendo)
+                "
                 v-model:checked="autopause"
                 class="text-white"
               >
@@ -881,10 +828,7 @@
             </div>
           </div>
 
-          <div
-            v-if="playlistDetails.length > 0"
-            class="flex items-center space-x-3"
-          >
+          <div v-if="playlistDetails.length > 0" class="flex items-center space-x-3">
             <button
               :disabled="selectedRows.length <= 0"
               type="button"
@@ -903,9 +847,7 @@
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="moveUp(playlistDetails, selectedRows[0])"
             >
-              <i-teenyicons-up-solid
-                class="w-6 h-6 text-white"
-              />
+              <i-teenyicons-up-solid class="w-6 h-6 text-white" />
             </button>
 
             <button
@@ -914,9 +856,7 @@
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 p-2"
               @click="moveDown(playlistDetails, selectedRows[0])"
             >
-              <i-teenyicons-down-solid
-                class="w-6 h-6 text-white"
-              />
+              <i-teenyicons-down-solid class="w-6 h-6 text-white" />
             </button>
 
             <button
@@ -925,19 +865,18 @@
               class="disabled:opacity-30 disabled:cursor-default cursor-pointer rounded-full bg-black/30 text-white p-2"
               @click="remove(playlistDetails, selectedRows[0])"
             >
-              <i-mdi-remove-bold
-                class="w-6 h-6 text-white"
-              />
+              <i-mdi-remove-bold class="w-6 h-6 text-white" />
             </button>
           </div>
 
-          <div
-            v-if="playlistDetails.length > 0"
-            class="flex items-center space-x-3"
-          >
+          <div v-if="playlistDetails.length > 0" class="flex items-center space-x-3">
             <button
-              :disabled="!player1 || selectedRows.length <= 0 || player1.status === playerStatuses.Reproduciendo ||
-                player1.status === playerStatuses.Cambiando"
+              :disabled="
+                !player1 ||
+                selectedRows.length <= 0 ||
+                player1.status === playerStatuses.Reproduciendo ||
+                player1.status === playerStatuses.Cambiando
+              "
               type="button"
               class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-black/30 text-white p-2"
               @click="loadDeck('A')"
@@ -947,8 +886,12 @@
             </button>
 
             <button
-              :disabled="!player2 || selectedRows.length <= 0 || player2.status === playerStatuses.Reproduciendo ||
-                player2.status === playerStatuses.Cambiando"
+              :disabled="
+                !player2 ||
+                selectedRows.length <= 0 ||
+                player2.status === playerStatuses.Reproduciendo ||
+                player2.status === playerStatuses.Cambiando
+              "
               type="button"
               class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-black/30 text-white p-2"
               @click="loadDeck('B')"
@@ -966,10 +909,10 @@
           <div v-bind="playlistWrapperProps">
             <table class="dark playlist-table border-collapse w-full text-sm table-fixed">
               <colgroup>
-                <col style="width: 56px">
-                <col style="width: calc((100% - 88px) / 2)">
-                <col style="width: calc((100% - 88px) / 2)">
-                <col style="width: 32px">
+                <col style="width: 56px" />
+                <col style="width: calc((100% - 88px) / 2)" />
+                <col style="width: calc((100% - 88px) / 2)" />
+                <col style="width: 32px" />
               </colgroup>
               <tbody>
                 <tr
@@ -1025,35 +968,30 @@
           </div>
         </div>
 
-        <div
-          v-if="playlistDetails.length > 0"
-          class="flex items-center justify-between"
-        >
+        <div v-if="playlistDetails.length > 0" class="flex items-center justify-between">
           <div class="play-next-status text-xs text-white">
             <span v-if="playlistDetails.length <= 0">No hay más canciones</span>
-            <span v-else-if="playlistDetails.length > 1">{{ playlistDetails.length }} canciones</span>
+            <span v-else-if="playlistDetails.length > 1"
+              >{{ playlistDetails.length }} canciones</span
+            >
             <span v-else>1 canción restante</span>
-            <span
-              v-if="playlistEtaText"
-              class="text-lime-500"
-            >. {{ playlistEtaText }}</span>
+            <span v-if="playlistEtaText" class="text-lime-500">. {{ playlistEtaText }}</span>
             <span v-else>.</span>
           </div>
 
           <div class="flex items-center space-x-2">
-            <div
-              v-if="playlistDetails.length > 3"
-              class="flex items-center space-x-2 mr-4"
-            >
+            <div v-if="playlistDetails.length > 3" class="flex items-center space-x-2 mr-4">
               <input
                 v-model="playlistSearchQuery"
                 type="text"
                 class="bg-black text-white text-xs px-2 py-1 w-40 outline-none"
                 placeholder="Buscar en lista"
                 @input="onPlaylistSearchInput"
-              >
+              />
               <span class="text-white text-xs whitespace-nowrap">
-                {{ playlistSearchResults.length > 0 ? playlistSearchIndex + 1 : 0 }}/{{ playlistSearchResults.length }}
+                {{ playlistSearchResults.length > 0 ? playlistSearchIndex + 1 : 0 }}/{{
+                  playlistSearchResults.length
+                }}
               </span>
               <div class="flex items-center space-x-1">
                 <button
@@ -1080,7 +1018,7 @@
               accept=".m3u"
               class="hidden"
               @change="onM3UFileChange"
-            >
+            />
             <button
               v-if="false"
               :disabled="isImportingM3U"
@@ -1088,9 +1026,7 @@
               class="flex text-white text-xs items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer bg-black/30 p-1 px-2"
               @click="openM3UPicker"
             >
-              <i-mdi-file-music-outline
-                class="w-4 h-4"
-              />
+              <i-mdi-file-music-outline class="w-4 h-4" />
               <span>{{ isImportingM3U ? 'Cargando...' : 'Cargar' }}</span>
             </button>
             <a-button
@@ -1133,9 +1069,7 @@
             @click="setOption(options.library)"
           >
             <div>
-              <i-material-symbols-library-music-outline-sharp
-                class="w-7 h-7"
-              />
+              <i-material-symbols-library-music-outline-sharp class="w-7 h-7" />
             </div>
           </div>
 
@@ -1145,9 +1079,7 @@
             @click="setOption(options.download)"
           >
             <div class="relative">
-              <i-ic-sharp-download
-                class="w-8 h-8"
-              />
+              <i-ic-sharp-download class="w-8 h-8" />
               <span
                 v-if="downloadTasksCount > 0"
                 class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[16px] text-center"
@@ -1175,9 +1107,7 @@
             @click="setOption(options.artists)"
           >
             <div>
-              <i-material-symbols-artist
-                class="w-8 h-8"
-              />
+              <i-material-symbols-artist class="w-8 h-8" />
             </div>
           </div>
 
@@ -1187,9 +1117,7 @@
             @click="setOption(options.tags)"
           >
             <div>
-              <i-mdi-tags
-                class="w-8 h-8"
-              />
+              <i-mdi-tags class="w-8 h-8" />
             </div>
           </div>
 
@@ -1199,9 +1127,7 @@
             @click="openCustomUpdaterOverlay()"
           >
             <div class="relative">
-              <i-ic-baseline-update
-                class="w-8 h-8"
-              />
+              <i-ic-baseline-update class="w-8 h-8" />
               <span class="vm-side-alert-dot" />
             </div>
           </div>
@@ -1212,13 +1138,11 @@
             @click="setOption(options.settings)"
           >
             <div>
-              <i-mdi-settings
-                class="w-8 h-8"
-              />
+              <i-mdi-settings class="w-8 h-8" />
             </div>
           </div>
 
-        <!--div
+          <!--div
           :class="{ 'bg-gray-300': currentSelectedOption === options.settings }"
           class="group hover:cursor-pointer flex flex-col items-center justify-center px-3 pt-3 pb-3"
           @click="setOption(options.settings)"
@@ -1275,7 +1199,19 @@ const playerStatuses = {
 }
 const HEADPHONE_REGEX = /(head(phone|set)|aud[ií]fono|auricular|earbud)/i
 const COLOR_SCHEMA_DEFAULT = 'sunset'
-const COLOR_SCHEMA_VALUES = ['monochrome', 'sunset', 'aurora', 'orquidea', 'tormenta_cobre', 'bosque', 'linen', 'coral', 'nocturno', 'ocean', 'oceano']
+const COLOR_SCHEMA_VALUES = [
+  'monochrome',
+  'sunset',
+  'aurora',
+  'orquidea',
+  'tormenta_cobre',
+  'bosque',
+  'linen',
+  'coral',
+  'nocturno',
+  'ocean',
+  'oceano'
+]
 const COLOR_SCHEMA_TRANSITION_MS = 1000
 let colorSchemaTransitionTimer = null
 let colorSchemaTransitionRaf = null
@@ -1351,9 +1287,11 @@ function applyColorSchema(schema) {
   }
   colorSchemaTransitionRaf = requestAnimationFrame(() => {
     root.setAttribute('data-color-schema', normalized)
-    window.dispatchEvent(new CustomEvent('vmusic-color-schema-changed', {
-      detail: { schema: normalized }
-    }))
+    window.dispatchEvent(
+      new CustomEvent('vmusic-color-schema-changed', {
+        detail: { schema: normalized }
+      })
+    )
     colorSchemaTransitionRaf = null
   })
   if (colorSchemaTransitionTimer) {
@@ -1408,7 +1346,10 @@ const hasStoredSettings = Boolean(localStorage.getItem('vmusic_settings'))
 const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
 const normalizedHistoryLimit = normalizeHistoryLimit(savedSettingsRef.historyLimit)
 const normalizedRowsPerPage = normalizeRowsPerPage(savedSettingsRef.rowsPerPage, 24)
-const normalizedRowsPerPageFs = normalizeRowsPerPage(savedSettingsRef.rowsPerPageFs, normalizedRowsPerPage)
+const normalizedRowsPerPageFs = normalizeRowsPerPage(
+  savedSettingsRef.rowsPerPageFs,
+  normalizedRowsPerPage
+)
 const normalizedShowAdvancedFunctions = Boolean(savedSettingsRef.showAdvancedFunctions)
 previewSinkId.value = savedSettingsRef.previewSinkId || null
 deckSinkId.value = savedSettingsRef.deckSinkId || null
@@ -1416,18 +1357,24 @@ const excludedTags = ref(savedSettingsRef.excludeTags || [])
 const colorSchema = ref(applyColorSchema(savedSettingsRef.colorSchema))
 const showAdvancedFunctions = ref(normalizedShowAdvancedFunctions)
 if (
-  hasStoredSettings && (
-    savedSettingsRef.colorSchema !== colorSchema.value || savedSettingsRef.historyLimit !== normalizedHistoryLimit || savedSettingsRef.rowsPerPage !== normalizedRowsPerPage || savedSettingsRef.rowsPerPageFs !== normalizedRowsPerPageFs || savedSettingsRef.showAdvancedFunctions !== normalizedShowAdvancedFunctions
-  )
+  hasStoredSettings &&
+  (savedSettingsRef.colorSchema !== colorSchema.value ||
+    savedSettingsRef.historyLimit !== normalizedHistoryLimit ||
+    savedSettingsRef.rowsPerPage !== normalizedRowsPerPage ||
+    savedSettingsRef.rowsPerPageFs !== normalizedRowsPerPageFs ||
+    savedSettingsRef.showAdvancedFunctions !== normalizedShowAdvancedFunctions)
 ) {
-  localStorage.setItem('vmusic_settings', JSON.stringify({
-    ...savedSettingsRef,
-    colorSchema: colorSchema.value,
-    historyLimit: normalizedHistoryLimit,
-    rowsPerPage: normalizedRowsPerPage,
-    rowsPerPageFs: normalizedRowsPerPageFs,
-    showAdvancedFunctions: normalizedShowAdvancedFunctions
-  }))
+  localStorage.setItem(
+    'vmusic_settings',
+    JSON.stringify({
+      ...savedSettingsRef,
+      colorSchema: colorSchema.value,
+      historyLimit: normalizedHistoryLimit,
+      rowsPerPage: normalizedRowsPerPage,
+      rowsPerPageFs: normalizedRowsPerPageFs,
+      showAdvancedFunctions: normalizedShowAdvancedFunctions
+    })
+  )
 }
 const downloadTasksCount = ref(0)
 const DOWNLOAD_TASKS_STORAGE_KEY = 'vmusic_download_tasks'
@@ -1441,7 +1388,8 @@ const customUpdaterState = ref({
 })
 const customUpdaterOverlayOpen = ref(false)
 const customUpdaterInitialStateHandled = ref(false)
-const isMacPlatform = typeof navigator !== 'undefined' && (/mac/i).test(navigator.platform || navigator.userAgent || '')
+const isMacPlatform =
+  typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || navigator.userAgent || '')
 const customUpdaterListener = (_event, payload) => {
   customUpdaterState.value = {
     ...customUpdaterState.value,
@@ -1477,12 +1425,12 @@ let isPlaylistPressPreviewActive = false
 const m3uExportSourceFilter = ref('any')
 const m3uSourceLabel = computed(() => {
   switch (m3uExportSourceFilter.value) {
-  case 'apple':
-    return 'Apple Music'
-  case 'youtube':
-    return 'Youtube'
-  default:
-    return 'Cualquier fuente'
+    case 'apple':
+      return 'Apple Music'
+    case 'youtube':
+      return 'Youtube'
+    default:
+      return 'Cualquier fuente'
   }
 })
 
@@ -1495,12 +1443,21 @@ let initialDeckBLoadTimer = null
 let logoAnimationIntervalId = null
 const isWindowFullscreen = ref(false)
 const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
-const mediaKeyCodes = new Set(['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaStop'])
+const mediaKeyCodes = new Set([
+  'MediaPlayPause',
+  'MediaPlay',
+  'MediaPause',
+  'MediaTrackNext',
+  'MediaTrackPrevious',
+  'MediaStop'
+])
 const KEYBOARD_SEEK_SECONDS = 5
 const KEYBOARD_SPEED_STEP = 1
 const CENTER_VISUALIZER_BAR_COUNT = 20
 const centerVisualizerEnabled = ref(true)
-const centerVisualizerBarHeights = ref(Array.from({ length: CENTER_VISUALIZER_BAR_COUNT }, () => 0.16))
+const centerVisualizerBarHeights = ref(
+  Array.from({ length: CENTER_VISUALIZER_BAR_COUNT }, () => 0.16)
+)
 const centerVisualizerDebugRms = ref(0)
 let centerVisualizerAudioContext = null
 let centerVisualizerAnalyser = null
@@ -1516,8 +1473,10 @@ function normalizeOutputDeviceId(deviceId) {
 }
 
 function shouldDuckDeckPlayersForPreview() {
-  const isStandardPreviewActive = previewStatus.value === 'loading' || previewStatus.value === 'playing'
-  const sameOutputDevice = normalizeOutputDeviceId(previewSinkId.value) === normalizeOutputDeviceId(deckSinkId.value)
+  const isStandardPreviewActive =
+    previewStatus.value === 'loading' || previewStatus.value === 'playing'
+  const sameOutputDevice =
+    normalizeOutputDeviceId(previewSinkId.value) === normalizeOutputDeviceId(deckSinkId.value)
 
   return sameOutputDevice && (isStandardPreviewActive || waveEditorPreviewActive.value)
 }
@@ -1533,9 +1492,13 @@ function syncPreviewDeckDucking() {
   }
 }
 
-watch([previewStatus, previewSinkId, deckSinkId, waveEditorPreviewActive, player1, player2], () => {
-  syncPreviewDeckDucking()
-}, { immediate: true })
+watch(
+  [previewStatus, previewSinkId, deckSinkId, waveEditorPreviewActive, player1, player2],
+  () => {
+    syncPreviewDeckDucking()
+  },
+  { immediate: true }
+)
 
 function onWavePreviewPlayState(isPlaying) {
   waveEditorPreviewActive.value = Boolean(isPlaying)
@@ -1554,8 +1517,7 @@ const libraryState = ref({
 })
 
 const downloadSelectedArtist = ref(null)
-const generateEntryId = () => `${Date.now()}-${Math.random().toString(16)
-  .slice(2)}`
+const generateEntryId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`
 const createPlaylistEntry = (song, options = {}) => {
   const entry = {
     ...song,
@@ -1615,13 +1577,16 @@ const filteredSongs2 = computed(() => {
 
   return filtered.filter((item) => {
     const normalizedName = item.nameNorm || removeAccents((item.name || '').toLowerCase())
-    const normalizedArtists = item.artistsNorm || removeAccents((item.Artists || []).map((a) => a.name)
-      .join(' ')
-      .toLowerCase())
+    const normalizedArtists =
+      item.artistsNorm ||
+      removeAccents(
+        (item.Artists || [])
+          .map((a) => a.name)
+          .join(' ')
+          .toLowerCase()
+      )
 
-    return (
-      normalizedName.includes(normalizedQuery) || normalizedArtists.includes(normalizedQuery)
-    )
+    return normalizedName.includes(normalizedQuery) || normalizedArtists.includes(normalizedQuery)
   })
 })
 
@@ -1660,6 +1625,15 @@ const columns = computed(() => {
       }
     },
     {
+      title: 'Reproducciones',
+      dataIndex: 'playCount',
+      width: 120,
+      align: 'center',
+      sorter: {
+        compare: (a, b) => (a.playCount || 0) - (b.playCount || 0)
+      }
+    },
+    {
       title: 'Fuente',
       dataIndex: 'source',
       align: 'center',
@@ -1680,7 +1654,9 @@ const columns = computed(() => {
       delete col.sortOrder
     })
 
-    const foundCol = cols.find((item) => item.dataIndex && item.dataIndex.trim() === sortConfig.column.trim())
+    const foundCol = cols.find(
+      (item) => item.dataIndex && item.dataIndex.trim() === sortConfig.column.trim()
+    )
     if (foundCol) {
       foundCol.sortOrder = sortConfig.order
     }
@@ -1689,7 +1665,7 @@ const columns = computed(() => {
   return cols
 })
 
-const historyColumns = computed(() => ([
+const historyColumns = computed(() => [
   {
     title: 'Título',
     dataIndex: 'name',
@@ -1716,7 +1692,7 @@ const historyColumns = computed(() => ([
     align: 'center',
     width: 190
   }
-]))
+])
 
 const recentSongHistory = computed(() => {
   const limit = normalizeHistoryLimit(savedSettingsRef.historyLimit)
@@ -1731,7 +1707,9 @@ const addButtonDisabled = computed(() => {
   const player2Status = player2.value?.status
 
   return (
-    selectedSongs.value.length <= 0 || player1Status === playerStatuses.Cambiando || player2Status === playerStatuses.Cambiando
+    selectedSongs.value.length <= 0 ||
+    player1Status === playerStatuses.Cambiando ||
+    player2Status === playerStatuses.Cambiando
   )
 })
 
@@ -1742,23 +1720,31 @@ const addRandomButtonDisabled = computed(() => {
   const candidateCount = selectedCount > 0 ? selectedCount : filteredSongs2.value.length
 
   return (
-    candidateCount <= 1 || player1Status === playerStatuses.Cambiando || player2Status === playerStatuses.Cambiando
+    candidateCount <= 1 ||
+    player1Status === playerStatuses.Cambiando ||
+    player2Status === playerStatuses.Cambiando
   )
 })
 
 const isDeckAInitialPreprocessBlockingPlayback = computed(() => {
-  return Boolean(player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed)
+  return Boolean(
+    player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed
+  )
 })
 
 const isNextDeckSpeedPreprocessBlocking = computed(() => {
   if (!player1.value || !player2.value) return false
 
   if (player1.value.status === playerStatuses.Reproduciendo) {
-    return Boolean(player2.value?.isInitialSpeedPreprocessPending || player2.value?.isPreprocessingSpeed)
+    return Boolean(
+      player2.value?.isInitialSpeedPreprocessPending || player2.value?.isPreprocessingSpeed
+    )
   }
 
   if (player2.value.status === playerStatuses.Reproduciendo) {
-    return Boolean(player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed)
+    return Boolean(
+      player1.value?.isInitialSpeedPreprocessPending || player1.value?.isPreprocessingSpeed
+    )
   }
 
   return false
@@ -1767,37 +1753,46 @@ const isNextDeckSpeedPreprocessBlocking = computed(() => {
 const customUpdaterVisible = computed(() => {
   if (!isMacPlatform) return false
 
-  return ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(customUpdaterState.value.status)
+  return ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(
+    customUpdaterState.value.status
+  )
 })
 
 const customUpdaterBlocking = computed(() => {
   if (!isMacPlatform) return false
 
-  return customUpdaterOverlayOpen.value && ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(customUpdaterState.value.status)
+  return (
+    customUpdaterOverlayOpen.value &&
+    ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(
+      customUpdaterState.value.status
+    )
+  )
 })
 
 const customUpdaterActionVisible = computed(() => {
   if (!isMacPlatform) return false
 
-  return ['available', 'downloading', 'downloaded', 'installing'].includes(customUpdaterState.value.status)
+  return ['available', 'downloading', 'downloaded', 'installing'].includes(
+    customUpdaterState.value.status
+  )
 })
 
 const customUpdaterTitle = computed(() => {
   switch (customUpdaterState.value.status) {
-  case 'checking':
-    return 'Buscando actualización'
-  case 'available':
-    return `Nueva versión ${customUpdaterState.value.version || ''}`.trim()
-  case 'downloading':
-    return `Descargando ${customUpdaterState.value.version || 'actualización'}`
-  case 'downloaded':
-    return `Actualización lista ${customUpdaterState.value.version || ''}`.trim()
-  case 'installing':
-    return 'Instalando actualización'
-  case 'error':
-    return 'No se pudo actualizar'
-  default:
-    return 'Actualización'
+    case 'checking':
+      return 'Buscando actualización'
+    case 'available':
+      return `Nueva versión ${customUpdaterState.value.version || ''}`.trim()
+    case 'downloading':
+      return `Descargando ${customUpdaterState.value.version || 'actualización'}`
+    case 'downloaded':
+      return `Actualización lista ${customUpdaterState.value.version || ''}`.trim()
+    case 'installing':
+      return 'Instalando actualización'
+    case 'error':
+      return 'No se pudo actualizar'
+    default:
+      return 'Actualización'
   }
 })
 
@@ -1806,7 +1801,9 @@ const customUpdaterMessage = computed(() => {
 })
 
 function shouldAutoOpenLibraryAtStartup(status) {
-  return !['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(String(status || ''))
+  return !['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(
+    String(status || '')
+  )
 }
 
 async function checkCustomUpdater() {
@@ -1823,22 +1820,28 @@ function openCustomUpdaterOverlay() {
   customUpdaterOverlayOpen.value = true
 }
 
-watch(() => customUpdaterState.value.status, (status) => {
-  if (!customUpdaterInitialStateHandled.value && ['available', 'downloading', 'downloaded', 'installing', 'error'].includes(status)) {
-    customUpdaterOverlayOpen.value = true
-    customUpdaterInitialStateHandled.value = true
+watch(
+  () => customUpdaterState.value.status,
+  (status) => {
+    if (
+      !customUpdaterInitialStateHandled.value &&
+      ['available', 'downloading', 'downloaded', 'installing', 'error'].includes(status)
+    ) {
+      customUpdaterOverlayOpen.value = true
+      customUpdaterInitialStateHandled.value = true
 
-    return
-  }
+      return
+    }
 
-  if (!customUpdaterInitialStateHandled.value && ['up-to-date', 'idle'].includes(status)) {
-    customUpdaterInitialStateHandled.value = true
-  }
+    if (!customUpdaterInitialStateHandled.value && ['up-to-date', 'idle'].includes(status)) {
+      customUpdaterInitialStateHandled.value = true
+    }
 
-  if (['idle', 'up-to-date'].includes(status)) {
-    customUpdaterOverlayOpen.value = false
+    if (['idle', 'up-to-date'].includes(status)) {
+      customUpdaterOverlayOpen.value = false
+    }
   }
-})
+)
 
 async function installCustomUpdaterNow() {
   if (!window.electron2?.installCustomUpdaterNow) return
@@ -1921,8 +1924,12 @@ function normalizeSongForHistory(song) {
   return {
     ...song,
     key: song.id,
-    artistsJoined: Array.isArray(song.Artists) ? song.Artists.map((artist) => artist.name).join(', ') : '',
-    composersJoined: Array.isArray(song.Composers) ? song.Composers.map((composer) => composer.name).join(', ') : ''
+    artistsJoined: Array.isArray(song.Artists)
+      ? song.Artists.map((artist) => artist.name).join(', ')
+      : '',
+    composersJoined: Array.isArray(song.Composers)
+      ? song.Composers.map((composer) => composer.name).join(', ')
+      : ''
   }
 }
 
@@ -1948,8 +1955,9 @@ function loadSongHistory() {
     songHistory.value = parsed
       .map((item) => ({
         ...normalizeSongForHistory(item),
-        historyId: item.historyId || `${item.id}-${item.playedAt || Date.now()}-${Math.random().toString(16)
-          .slice(2)}`,
+        historyId:
+          item.historyId ||
+          `${item.id}-${item.playedAt || Date.now()}-${Math.random().toString(16).slice(2)}`,
         playedAt: item.playedAt || Date.now(),
         playedAtText: formatHistoryPlayedAt(item.playedAt || Date.now())
       }))
@@ -1966,12 +1974,13 @@ function recordSongToHistory(song) {
   const playedAt = Date.now()
   const entry = {
     ...normalized,
-    historyId: `${normalized.id}-${playedAt}-${Math.random().toString(16)
-      .slice(2)}`,
+    historyId: `${normalized.id}-${playedAt}-${Math.random().toString(16).slice(2)}`,
     playedAt,
     playedAtText: formatHistoryPlayedAt(playedAt)
   }
-  const limit = normalizeHistoryLimit(JSON.parse(localStorage.getItem('vmusic_settings'))?.historyLimit)
+  const limit = normalizeHistoryLimit(
+    JSON.parse(localStorage.getItem('vmusic_settings'))?.historyLimit
+  )
   songHistory.value = [entry, ...songHistory.value]
     .sort((a, b) => (b.playedAt || 0) - (a.playedAt || 0))
     .slice(0, limit)
@@ -1982,12 +1991,12 @@ loadSongHistory()
 
 onMounted(() => {
   // filterSongs()
-  logoAnimationIntervalId = setInterval(function() {
+  logoAnimationIntervalId = setInterval(function () {
     const logo = document.getElementById('logo')
     if (!logo) return
 
     logo.classList.add('jello-horizontal')
-    setTimeout(function() {
+    setTimeout(function () {
       logo.classList.remove('jello-horizontal')
     }, 1000)
   }, 10000)
@@ -2006,16 +2015,27 @@ function refreshDownloadCount() {
       const now = Date.now()
       const filtered = parsed.filter((task) => {
         if (task.status === 'done' || task.status === 'error') return false
-        const updatedAt = typeof task.updatedAt === 'number' ? task.updatedAt : (typeof task.createdAt === 'number' ? task.createdAt : 0)
+        const updatedAt =
+          typeof task.updatedAt === 'number'
+            ? task.updatedAt
+            : typeof task.createdAt === 'number'
+              ? task.createdAt
+              : 0
         if (!updatedAt) return false
 
-        return (now - updatedAt) <= DOWNLOAD_TASK_TIMEOUT_MS
+        return now - updatedAt <= DOWNLOAD_TASK_TIMEOUT_MS
       })
-      if (filtered.length !== parsed.filter((task) => task.status !== 'done' && task.status !== 'error').length) {
-        localStorage.setItem(DOWNLOAD_TASKS_STORAGE_KEY, JSON.stringify([
-          ...parsed.filter((task) => task.status === 'done' || task.status === 'error'),
-          ...filtered
-        ]))
+      if (
+        filtered.length !==
+        parsed.filter((task) => task.status !== 'done' && task.status !== 'error').length
+      ) {
+        localStorage.setItem(
+          DOWNLOAD_TASKS_STORAGE_KEY,
+          JSON.stringify([
+            ...parsed.filter((task) => task.status === 'done' || task.status === 'error'),
+            ...filtered
+          ])
+        )
       }
       downloadTasksCount.value = filtered.length
     } else {
@@ -2029,7 +2049,8 @@ function refreshDownloadCount() {
 onMounted(() => {
   refreshDownloadCount()
   if (window.electron2?.getCustomUpdaterState) {
-    window.electron2.getCustomUpdaterState()
+    window.electron2
+      .getCustomUpdaterState()
       .then((state) => {
         customUpdaterState.value = {
           ...customUpdaterState.value,
@@ -2121,49 +2142,65 @@ watch(playlistDetails, () => {
   }
 })
 
-watch(filterQuery, (value) => {
-  if (filterQueryDebounceTimer) {
-    clearTimeout(filterQueryDebounceTimer)
-    filterQueryDebounceTimer = null
-  }
+watch(
+  filterQuery,
+  (value) => {
+    if (filterQueryDebounceTimer) {
+      clearTimeout(filterQueryDebounceTimer)
+      filterQueryDebounceTimer = null
+    }
 
-  filterQueryDebounceTimer = setTimeout(() => {
-    debouncedFilterQuery.value = value || ''
-    filterQueryDebounceTimer = null
-  }, 160)
-}, { immediate: true })
+    filterQueryDebounceTimer = setTimeout(() => {
+      debouncedFilterQuery.value = value || ''
+      filterQueryDebounceTimer = null
+    }, 160)
+  },
+  { immediate: true }
+)
 
 watch(recentSongHistory, (rows) => {
   const validIds = new Set(rows.map((row) => row.historyId))
   historySelectedRows.value = historySelectedRows.value.filter((key) => validIds.has(key))
 })
 
-watch(() => [
-  player1.value?.status,
-  player2.value?.status,
-  player1.value?.songFull?.id,
-  player2.value?.songFull?.id,
-  player1.value?.songFull?.name,
-  player2.value?.songFull?.name
-], () => {
-  updateMediaSessionState()
-  updateMediaSessionMetadata()
-})
-
-watch(() => [
-  player1.value?.status,
-  player2.value?.status
-], () => {
-  if (player1.value?.status === playerStatuses.Reproduciendo || player1.value?.status === playerStatuses.Cambiando || player1.value?.status === playerStatuses.Nivelando) {
-    rememberActiveDeck(player1.value)
-
-    return
+watch(
+  () => [
+    player1.value?.status,
+    player2.value?.status,
+    player1.value?.songFull?.id,
+    player2.value?.songFull?.id,
+    player1.value?.songFull?.name,
+    player2.value?.songFull?.name
+  ],
+  () => {
+    updateMediaSessionState()
+    updateMediaSessionMetadata()
   }
+)
 
-  if (player2.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Cambiando || player2.value?.status === playerStatuses.Nivelando) {
-    rememberActiveDeck(player2.value)
-  }
-}, { immediate: true })
+watch(
+  () => [player1.value?.status, player2.value?.status],
+  () => {
+    if (
+      player1.value?.status === playerStatuses.Reproduciendo ||
+      player1.value?.status === playerStatuses.Cambiando ||
+      player1.value?.status === playerStatuses.Nivelando
+    ) {
+      rememberActiveDeck(player1.value)
+
+      return
+    }
+
+    if (
+      player2.value?.status === playerStatuses.Reproduciendo ||
+      player2.value?.status === playerStatuses.Cambiando ||
+      player2.value?.status === playerStatuses.Nivelando
+    ) {
+      rememberActiveDeck(player2.value)
+    }
+  },
+  { immediate: true }
+)
 
 watch(centerVisualizerEnabled, (enabled) => {
   localStorage.setItem(CENTER_VISUALIZER_STORAGE_KEY, enabled ? '1' : '0')
@@ -2174,8 +2211,10 @@ watch(centerVisualizerEnabled, (enabled) => {
   }
 })
 
-const removeAccents = (str) => String(str || '').normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
+const removeAccents = (str) =>
+  String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 
 function onSearchBlur(searchValue) {
   saveLibraryView()
@@ -2186,9 +2225,7 @@ const state = reactive({
 })
 
 function formatMeridiemLabel(time) {
-  return time
-    .replace('AM', 'A.M.')
-    .replace('PM', 'P.M.')
+  return time.replace('AM', 'A.M.').replace('PM', 'P.M.')
 }
 
 const playlistEtaText = computed(() => {
@@ -2274,8 +2311,11 @@ function pickPreferredOutputDevice(outputs, preferredId = null) {
     }
   }
 
-  const builtInDevice = outputs.find((device) => String(device.label || '').toLowerCase()
-    .includes('built-in'))
+  const builtInDevice = outputs.find((device) =>
+    String(device.label || '')
+      .toLowerCase()
+      .includes('built-in')
+  )
   if (builtInDevice) {
     return builtInDevice.deviceId
   }
@@ -2285,10 +2325,13 @@ function pickPreferredOutputDevice(outputs, preferredId = null) {
 
 function persistResolvedOutputSettings(nextValues = {}) {
   const currentSettings = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
-  localStorage.setItem('vmusic_settings', JSON.stringify({
-    ...currentSettings,
-    ...nextValues
-  }))
+  localStorage.setItem(
+    'vmusic_settings',
+    JSON.stringify({
+      ...currentSettings,
+      ...nextValues
+    })
+  )
 }
 
 function applyDeckSinkToPlayers() {
@@ -2329,7 +2372,11 @@ async function initializePreferredOutputDevices() {
   const resolved = await resolvePreferredOutputDevices()
   applyDeckSinkToPlayers()
 
-  if (previewAudio.value && typeof previewAudio.value.setSinkId === 'function' && resolved.previewSinkId) {
+  if (
+    previewAudio.value &&
+    typeof previewAudio.value.setSinkId === 'function' &&
+    resolved.previewSinkId
+  ) {
     try {
       await previewAudio.value.setSinkId(resolved.previewSinkId)
     } catch (error) {
@@ -2374,7 +2421,11 @@ async function onPreviewSinkChange(deviceId) {
     await ensurePreviewPlayer()
   }
 
-  if (previewAudio.value && typeof previewAudio.value.setSinkId === 'function' && previewSinkId.value) {
+  if (
+    previewAudio.value &&
+    typeof previewAudio.value.setSinkId === 'function' &&
+    previewSinkId.value
+  ) {
     try {
       await previewAudio.value.setSinkId(previewSinkId.value)
     } catch (error) {
@@ -2443,7 +2494,9 @@ async function startPreview(song, options = {}) {
     const startAt = typeof song.start === 'number' ? song.start : 0
     if (startAt > 0) {
       const seekToStart = () => {
-        const maxStart = Number.isFinite(audio.duration) ? Math.max(0, audio.duration - 0.01) : startAt
+        const maxStart = Number.isFinite(audio.duration)
+          ? Math.max(0, audio.duration - 0.01)
+          : startAt
         audio.currentTime = Math.min(startAt, maxStart)
       }
       if (Number.isFinite(audio.duration) && audio.duration > 0) {
@@ -2637,7 +2690,7 @@ async function setOption(option, extraArtists = [], recent = false) {
         selectedTags.value = tags.value
           .filter((item) => !excludedTags.value.includes(item.id))
           .map((item) => item.id)
-        selectedArtists.value = artists.value.map((a) => (a.id))
+        selectedArtists.value = artists.value.map((a) => a.id)
       }
     }
 
@@ -2679,7 +2732,7 @@ function toArrayPayload(payload) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null
     const keys = Object.keys(value)
     if (keys.length === 0) return []
-    if (!keys.every((key) => (/^\d+$/).test(key))) return null
+    if (!keys.every((key) => /^\d+$/.test(key))) return null
 
     return keys
       .map((key) => Number(key))
@@ -2810,11 +2863,20 @@ async function filterSongs() {
     Composers: Array.isArray(item.Composers) ? item.Composers : [],
     Tags: Array.isArray(item.Tags) ? item.Tags : [],
     key: item.id,
-    artistsJoined: (Array.isArray(item.Artists) ? item.Artists : []).map((artist) => artist.name).join(', '),
-    composersJoined: (Array.isArray(item.Composers) ? item.Composers : []).map((composer) => composer.name).join(', '),
+    artistsJoined: (Array.isArray(item.Artists) ? item.Artists : [])
+      .map((artist) => artist.name)
+      .join(', '),
+    composersJoined: (Array.isArray(item.Composers) ? item.Composers : [])
+      .map((composer) => composer.name)
+      .join(', '),
     nameNorm: removeAccents((item.name || '').toLowerCase()),
-    artistsNorm: removeAccents((Array.isArray(item.Artists) ? item.Artists : []).map((artist) => artist.name).join(' ')
-      .toLowerCase())
+    artistsNorm: removeAccents(
+      (Array.isArray(item.Artists) ? item.Artists : [])
+        .map((artist) => artist.name)
+        .join(' ')
+        .toLowerCase()
+    ),
+    playCount: item.playCount || 0
   }))
 
   if (libraryState.value && libraryState.value.search?.length > 0) {
@@ -2825,7 +2887,6 @@ async function filterSongs() {
   }
 
   // tags.value = data.tags.sort((a, b) => a.name.localeCompare(b.name))
-
 
   const pageSize = pageSizeRef.value || 24
   const totalPages = Math.max(1, Math.ceil((filteredSongs2.value.length || 1) / pageSize))
@@ -2856,7 +2917,8 @@ function applyCombinedFilters(items) {
   const allArtistIds = normalizeSelectionIds(artists.value.map((artist) => artist.id))
   const allTagIds = normalizeSelectionIds(tags.value.map((tag) => tag.id))
 
-  const hasArtistFilter = selectedArtistIds.length > 0 && selectedArtistIds.length < allArtistIds.length
+  const hasArtistFilter =
+    selectedArtistIds.length > 0 && selectedArtistIds.length < allArtistIds.length
   const hasTagFilter = selectedTagIds.length > 0 && selectedTagIds.length < allTagIds.length
   const hasNoArtistsSelected = selectedArtistIds.length === 0
   const hasNoTagsSelected = selectedTagIds.length === 0
@@ -2869,9 +2931,17 @@ function applyCombinedFilters(items) {
     const songArtistIds = new Set((song.Artists || []).map((artist) => String(artist.id)))
     const songTagIds = new Set((song.Tags || []).map((tag) => String(tag.id)))
 
-    const artistMatch = !hasArtistFilter ? true : (artistFilterMode.value === 'all' ? selectedArtistIds.every((artistId) => songArtistIds.has(artistId)) : selectedArtistIds.some((artistId) => songArtistIds.has(artistId)))
+    const artistMatch = !hasArtistFilter
+      ? true
+      : artistFilterMode.value === 'all'
+        ? selectedArtistIds.every((artistId) => songArtistIds.has(artistId))
+        : selectedArtistIds.some((artistId) => songArtistIds.has(artistId))
 
-    const tagMatch = !hasTagFilter ? true : (tagFilterMode.value === 'all' ? selectedTagIds.every((tagId) => songTagIds.has(tagId)) : selectedTagIds.some((tagId) => songTagIds.has(tagId)))
+    const tagMatch = !hasTagFilter
+      ? true
+      : tagFilterMode.value === 'all'
+        ? selectedTagIds.every((tagId) => songTagIds.has(tagId))
+        : selectedTagIds.some((tagId) => songTagIds.has(tagId))
 
     return artistMatch && tagMatch
   })
@@ -2938,13 +3008,13 @@ function deleteSong() {
     .post('http://localhost:3000/songs/delete', {
       id: songIdToDelete
     })
-    .then(function(response) {
+    .then(function (response) {
       filteredSongs.value = filteredSongs.value.filter((song) => song.id !== response.data[0])
       deletedSongs.value.push(response.data[0])
       markSongAsDeleted(songIdToDelete)
     })
-    .catch(function(error) {})
-    .finally(function() {
+    .catch(function (error) {})
+    .finally(function () {
       selectedSongs.value = []
     })
 }
@@ -2967,7 +3037,9 @@ function shufflePlaylist(event) {
   if (playlistDetails.value.length <= 1) return
 
   const shuffleFromSelectedNext = Boolean(event?.altKey) && selectedRows.value.length > 0
-  const selectedIndex = shuffleFromSelectedNext ? playlistDetails.value.findIndex((item) => item.entryId === selectedRows.value[0]) : -1
+  const selectedIndex = shuffleFromSelectedNext
+    ? playlistDetails.value.findIndex((item) => item.entryId === selectedRows.value[0])
+    : -1
   const startShuffleIndex = selectedIndex >= 0 ? selectedIndex + 1 : 0
 
   if (startShuffleIndex >= playlistDetails.value.length - 1) return
@@ -2985,7 +3057,9 @@ function shufflePlaylist(event) {
   syncPlaylistStateFromDetails()
 
   if (selectedRows.value.length > 0) {
-    const stillPresent = selectedRows.value.filter((entryId) => shuffled.some((item) => item.entryId === entryId))
+    const stillPresent = selectedRows.value.filter((entryId) =>
+      shuffled.some((item) => item.entryId === entryId)
+    )
     selectedRows.value = stillPresent
   }
 }
@@ -3286,7 +3360,7 @@ function addSongsToPlaylist(songIds, action, play = false, options = {}) {
     .post('http://localhost:3000/songs/by-id', {
       ids
     })
-    .then(function(response) {
+    .then(function (response) {
       let temp = []
       ids.forEach((item) => {
         temp.push(response.data.filter((s) => s.id === item)[0])
@@ -3308,17 +3382,19 @@ function addSongsToPlaylist(songIds, action, play = false, options = {}) {
         })
       }
     })
-    .catch(function(error) {
+    .catch(function (error) {
       console.log(error)
     })
-    .finally(function() {
+    .finally(function () {
       loadPlayers(play)
     })
 }
 
 function addToPlaylist(action, play = false, options = {}) {
   const useFilteredSongsForRandom = action === 3 && selectedSongs.value.length === 0
-  const songIds = useFilteredSongsForRandom ? filteredSongs2.value.map((song) => song.id) : selectedSongs.value
+  const songIds = useFilteredSongsForRandom
+    ? filteredSongs2.value.map((song) => song.id)
+    : selectedSongs.value
   addSongsToPlaylist(songIds, action, play, options)
 }
 
@@ -3338,8 +3414,10 @@ function loadPlayers(play = false) {
 
   const player1Status = player1.value?.status
   const player2Status = player2.value?.status
-  const shouldLoadPlayer1 = player1Status === playerStatuses.Detenido || player1Status === playerStatuses['Sin Carga']
-  const shouldLoadPlayer2 = player2Status === playerStatuses.Detenido || player2Status === playerStatuses['Sin Carga']
+  const shouldLoadPlayer1 =
+    player1Status === playerStatuses.Detenido || player1Status === playerStatuses['Sin Carga']
+  const shouldLoadPlayer2 =
+    player2Status === playerStatuses.Detenido || player2Status === playerStatuses['Sin Carga']
 
   if (initialDeckBLoadTimer) {
     clearTimeout(initialDeckBLoadTimer)
@@ -3358,7 +3436,9 @@ function loadPlayers(play = false) {
     const loadDeckB = () => {
       initialDeckBLoadTimer = null
       const currentPlayer2Status = player2.value?.status
-      const stillNeedsLoad = currentPlayer2Status === playerStatuses.Detenido || currentPlayer2Status === playerStatuses['Sin Carga']
+      const stillNeedsLoad =
+        currentPlayer2Status === playerStatuses.Detenido ||
+        currentPlayer2Status === playerStatuses['Sin Carga']
       if (!stillNeedsLoad) return
 
       const nextSong = getFirstUnplayedSong()
@@ -3401,11 +3481,20 @@ function loadDeck(deck) {
 
   const [found] = playlistDetails.value.splice(index, 1)
   const targetPlayer = deck === 'A' ? player1.value : player2.value
-  const canSwapLoadedSong = targetPlayer && (targetPlayer.status === playerStatuses.Listo || targetPlayer.status === playerStatuses.Pausado)
-  const canLoadDirectly = targetPlayer && (targetPlayer.status === playerStatuses.Detenido || targetPlayer.status === playerStatuses['Sin Carga'])
+  const canSwapLoadedSong =
+    targetPlayer &&
+    (targetPlayer.status === playerStatuses.Listo || targetPlayer.status === playerStatuses.Pausado)
+  const canLoadDirectly =
+    targetPlayer &&
+    (targetPlayer.status === playerStatuses.Detenido ||
+      targetPlayer.status === playerStatuses['Sin Carga'])
 
   if (canSwapLoadedSong) {
-    const songToInsert = targetPlayer.songFull?.entryId ? targetPlayer.songFull : (targetPlayer.songFull ? createPlaylistEntry(targetPlayer.songFull) : null)
+    const songToInsert = targetPlayer.songFull?.entryId
+      ? targetPlayer.songFull
+      : targetPlayer.songFull
+        ? createPlaylistEntry(targetPlayer.songFull)
+        : null
     if (songToInsert) {
       playlistDetails.value.splice(index, 0, songToInsert)
     }
@@ -3423,10 +3512,18 @@ function loadDeck(deck) {
 
 function isDeckManualLoadDisabled(deck) {
   if (deck === 'A') {
-    return !player1.value || player1.value.status === playerStatuses.Reproduciendo || player1.value.status === playerStatuses.Cambiando
+    return (
+      !player1.value ||
+      player1.value.status === playerStatuses.Reproduciendo ||
+      player1.value.status === playerStatuses.Cambiando
+    )
   }
 
-  return !player2.value || player2.value.status === playerStatuses.Reproduciendo || player2.value.status === playerStatuses.Cambiando
+  return (
+    !player2.value ||
+    player2.value.status === playerStatuses.Reproduciendo ||
+    player2.value.status === playerStatuses.Cambiando
+  )
 }
 
 function loadLibrarySongToDeck(song, deck) {
@@ -3437,7 +3534,10 @@ function loadLibrarySongToDeck(song, deck) {
   if (!targetPlayer) return
 
   if (
-    targetPlayer.status === playerStatuses.Listo || targetPlayer.status === playerStatuses.Pausado || targetPlayer.status === playerStatuses.Detenido || targetPlayer.status === playerStatuses['Sin Carga']
+    targetPlayer.status === playerStatuses.Listo ||
+    targetPlayer.status === playerStatuses.Pausado ||
+    targetPlayer.status === playerStatuses.Detenido ||
+    targetPlayer.status === playerStatuses['Sin Carga']
   ) {
     targetPlayer.setSong(entry)
   }
@@ -3519,7 +3619,10 @@ function checkPlayers(play = false) {
   const player2Status = player2.value?.status
 
   if (
-    player1Status === playerStatuses.Detenido || player1Status === playerStatuses['Sin Carga'] || player2Status === playerStatuses.Detenido || player2Status === playerStatuses['Sin Carga']
+    player1Status === playerStatuses.Detenido ||
+    player1Status === playerStatuses['Sin Carga'] ||
+    player2Status === playerStatuses.Detenido ||
+    player2Status === playerStatuses['Sin Carga']
   ) {
     loadPlayers(play)
   }
@@ -3563,7 +3666,7 @@ async function onPlaylistRowPressStart(song, event) {
   }
 
   isPlaylistPressPreviewActive = false
-  playlistPreviewPressTimer = setTimeout(async() => {
+  playlistPreviewPressTimer = setTimeout(async () => {
     await startPreview(song, { playlistEntryId: song.entryId })
     isPlaylistPressPreviewActive = true
     playlistPreviewPressTimer = null
@@ -3601,7 +3704,9 @@ function updatePlaylistSearch() {
     .map((song, index) => ({
       entryId: song.entryId,
       index,
-      haystack: removeAccents(`${song.name} ${song.Artists.map((i) => i.name).join(' ')}`).toLowerCase()
+      haystack: removeAccents(
+        `${song.name} ${song.Artists.map((i) => i.name).join(' ')}`
+      ).toLowerCase()
     }))
     .filter((item) => item.haystack.includes(query))
 
@@ -3615,7 +3720,8 @@ function updatePlaylistSearch() {
 function focusPlaylistResult(targetIndex) {
   if (playlistSearchResults.value.length === 0) return
 
-  const normalizedIndex = (targetIndex + playlistSearchResults.value.length) % playlistSearchResults.value.length
+  const normalizedIndex =
+    (targetIndex + playlistSearchResults.value.length) % playlistSearchResults.value.length
   playlistSearchIndex.value = normalizedIndex
 
   const result = playlistSearchResults.value[normalizedIndex]
@@ -3715,8 +3821,12 @@ async function refreshSongInLibrary(id) {
       artistsJoined: updatedSong.Artists.map((artist) => artist.name).join(', '),
       composersJoined: updatedSong.Composers.map((composer) => composer.name).join(', '),
       nameNorm: removeAccents((updatedSong.name || '').toLowerCase()),
-      artistsNorm: removeAccents((updatedSong.Artists || []).map((artist) => artist.name).join(' ')
-        .toLowerCase())
+      artistsNorm: removeAccents(
+        (updatedSong.Artists || [])
+          .map((artist) => artist.name)
+          .join(' ')
+          .toLowerCase()
+      )
     }
 
     const index = songs.value.findIndex((song) => song.id === id)
@@ -3733,7 +3843,8 @@ async function refreshSongInLibrary(id) {
 }
 
 function refreshEditedSongInLoadedPlayer(playerRef, updatedSong) {
-  if (!playerRef?.songFull?.id || !updatedSong?.id || playerRef.songFull.id !== updatedSong.id) return
+  if (!playerRef?.songFull?.id || !updatedSong?.id || playerRef.songFull.id !== updatedSong.id)
+    return
   if (typeof playerRef.updateSongMetadata !== 'function') return
 
   playerRef.updateSongMetadata(updatedSong)
@@ -3746,7 +3857,8 @@ function refreshEditedSongInLoadedPlayers(updatedSong) {
 
 function reloadEditedSongInInactivePlayer(playerRef, songId, markers) {
   if (!playerRef?.songFull?.id || playerRef.songFull.id !== songId) return
-  if (playerRef.status !== playerStatuses.Listo && playerRef.status !== playerStatuses.Pausado) return
+  if (playerRef.status !== playerStatuses.Listo && playerRef.status !== playerStatuses.Pausado)
+    return
 
   playerRef.setSong({
     ...playerRef.songFull,
@@ -3765,13 +3877,13 @@ function waveUpdated(markers) {
 
   axios
     .post('http://localhost:3000/songs/update-markers/' + editedSongId, markers)
-    .then(function() {
+    .then(function () {
       reloadEditedSongInInactivePlayers(editedSongId, markers)
     })
-    .catch(function(error) {
+    .catch(function (error) {
       console.log(error)
     })
-    .finally(function() {
+    .finally(function () {
       selectedSongs.value = []
       setOption(options.library)
     })
@@ -3794,7 +3906,7 @@ function saveSpeed(p) {
       id: id,
       speed: speed
     })
-    .then(function(response) {})
+    .then(function (response) {})
 }
 
 function next() {
@@ -3827,8 +3939,16 @@ function getMediaTargetPlayer() {
     return player2.value
   }
 
-  if (player1.value.status === playerStatuses.Pausado || player1.value.status === playerStatuses.Listo) return player1.value
-  if (player2.value.status === playerStatuses.Pausado || player2.value.status === playerStatuses.Listo) return player2.value
+  if (
+    player1.value.status === playerStatuses.Pausado ||
+    player1.value.status === playerStatuses.Listo
+  )
+    return player1.value
+  if (
+    player2.value.status === playerStatuses.Pausado ||
+    player2.value.status === playerStatuses.Listo
+  )
+    return player2.value
 
   return null
 }
@@ -3856,7 +3976,11 @@ const centerVisualizerDeckClass = computed(() => {
 const centerVisualizerAnimating = computed(() => {
   const status = centerVisualizerPlayer.value?.status
 
-  return status === playerStatuses.Reproduciendo || status === playerStatuses.Cambiando || status === playerStatuses.Nivelando
+  return (
+    status === playerStatuses.Reproduciendo ||
+    status === playerStatuses.Cambiando ||
+    status === playerStatuses.Nivelando
+  )
 })
 
 function formatVisualizerTime(totalSeconds) {
@@ -4007,7 +4131,12 @@ async function ensureCenterVisualizerAnalysis() {
     } catch (error) {}
   }
 
-  const stream = typeof media.captureStream === 'function' ? media.captureStream() : (typeof media.mozCaptureStream === 'function' ? media.mozCaptureStream() : null)
+  const stream =
+    typeof media.captureStream === 'function'
+      ? media.captureStream()
+      : typeof media.mozCaptureStream === 'function'
+        ? media.mozCaptureStream()
+        : null
   if (!stream) {
     scheduleCenterVisualizerRetry(media)
 
@@ -4031,15 +4160,19 @@ async function ensureCenterVisualizerAnalysis() {
   centerVisualizerFrameId = requestAnimationFrame(updateCenterVisualizerBars)
 }
 
-watch(() => [
-  centerVisualizerEnabled.value,
-  centerVisualizerPlayer.value?.position,
-  centerVisualizerPlayer.value?.songFull?.id,
-  centerVisualizerPlayer.value?.status,
-  centerVisualizerPlayer.value?.left
-], () => {
-  ensureCenterVisualizerAnalysis()
-}, { immediate: true })
+watch(
+  () => [
+    centerVisualizerEnabled.value,
+    centerVisualizerPlayer.value?.position,
+    centerVisualizerPlayer.value?.songFull?.id,
+    centerVisualizerPlayer.value?.status,
+    centerVisualizerPlayer.value?.left
+  ],
+  () => {
+    ensureCenterVisualizerAnalysis()
+  },
+  { immediate: true }
+)
 
 function previousTrack() {
   const targetPlayer = getMediaTargetPlayer()
@@ -4074,7 +4207,9 @@ function clearMediaSessionHandlers() {
 function updateMediaSessionState() {
   if (!('mediaSession' in navigator)) return
 
-  const playing = player1.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Reproduciendo
+  const playing =
+    player1.value?.status === playerStatuses.Reproduciendo ||
+    player2.value?.status === playerStatuses.Reproduciendo
   const hasLoadedSong = Boolean(player1.value?.songFull?.id || player2.value?.songFull?.id)
 
   if (playing) {
@@ -4098,7 +4233,9 @@ function updateMediaSessionMetadata() {
     return
   }
 
-  const artistNames = Array.isArray(song.Artists) ? song.Artists.map((artist) => artist.name).join(', ') : ''
+  const artistNames = Array.isArray(song.Artists)
+    ? song.Artists.map((artist) => artist.name).join(', ')
+    : ''
   navigator.mediaSession.metadata = new MediaMetadata({
     title: song.name || 'Sin canción',
     artist: artistNames || 'Sin artista',
@@ -4112,7 +4249,10 @@ function onHardwareMediaKey(event) {
     event.preventDefault()
 
     if (event.code === 'MediaPlayPause') {
-      if (player1.value?.status === playerStatuses.Reproduciendo || player2.value?.status === playerStatuses.Reproduciendo) {
+      if (
+        player1.value?.status === playerStatuses.Reproduciendo ||
+        player2.value?.status === playerStatuses.Reproduciendo
+      ) {
         pause()
       } else {
         play()
@@ -4189,7 +4329,11 @@ function resetActivePlayerSpeed() {
 function isPlayerActivelyPlaying(playerRef) {
   if (!playerRef) return false
 
-  return playerRef.status === playerStatuses.Reproduciendo || playerRef.status === playerStatuses.Cambiando || playerRef.status === playerStatuses.Nivelando
+  return (
+    playerRef.status === playerStatuses.Reproduciendo ||
+    playerRef.status === playerStatuses.Cambiando ||
+    playerRef.status === playerStatuses.Nivelando
+  )
 }
 
 function capturePlaybackStateBeforePowerInterruption() {
@@ -4243,7 +4387,12 @@ function onKeyboardSeekKey(event) {
   const normalizedKey = event.key.toLowerCase()
   const normalizedCode = event.code || ''
 
-  if (normalizedCode === 'KeyZ' && isLeftMetaPressed.value && isLeftAltPressed.value && isLeftShiftPressed.value) {
+  if (
+    normalizedCode === 'KeyZ' &&
+    isLeftMetaPressed.value &&
+    isLeftAltPressed.value &&
+    isLeftShiftPressed.value
+  ) {
     if (resetActivePlayerSpeed()) {
       event.preventDefault()
       event.stopPropagation()
@@ -4393,7 +4542,8 @@ function handleLibraryEscapeShortcut(event) {
   if (currentSelectedOption.value !== options.library) return false
 
   const now = Date.now()
-  const isDoubleEscape = lastEscapePressAt > 0 && (now - lastEscapePressAt) < ESC_DOUBLE_PRESS_WINDOW_MS
+  const isDoubleEscape =
+    lastEscapePressAt > 0 && now - lastEscapePressAt < ESC_DOUBLE_PRESS_WINDOW_MS
   lastEscapePressAt = now
   event.preventDefault()
   filterQuery.value = ''
@@ -4450,7 +4600,7 @@ function selectNoneArtists() {
 function selectAllTags(evt) {
   const ignoreExclusions = evt?.altKey
   const allowed = tags.value
-    .filter((t) => ignoreExclusions ? true : !excludedTags.value.includes(t.id))
+    .filter((t) => (ignoreExclusions ? true : !excludedTags.value.includes(t.id)))
     .map((t) => t.id)
   selectedTags.value = allowed
   if (tagMultiSelect.value?.setSelected) {
@@ -4494,7 +4644,9 @@ async function openLibraryForSong(songData) {
   }
   if (targetIndex === -1 && songName) {
     const normalized = removeAccents(songName.toLowerCase())
-    targetIndex = filteredSongs2.value.findIndex((item) => removeAccents((item.name || '').toLowerCase()) === normalized)
+    targetIndex = filteredSongs2.value.findIndex(
+      (item) => removeAccents((item.name || '').toLowerCase()) === normalized
+    )
   }
 
   if (targetIndex !== -1) {
@@ -4621,7 +4773,11 @@ table tr td.ant-table-cell {
   padding: 32px;
   background:
     radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 30%),
-    radial-gradient(circle at bottom, color-mix(in srgb, var(--vm-player-wave-b) 24%, transparent), transparent 32%),
+    radial-gradient(
+      circle at bottom,
+      color-mix(in srgb, var(--vm-player-wave-b) 24%, transparent),
+      transparent 32%
+    ),
     linear-gradient(180deg, #020202, #090909 55%, #000000);
 }
 
@@ -4843,7 +4999,6 @@ table tr td.ant-table-cell {
   }
 }
 
-
 #app .vmusic-app .vm-logo stop:first-of-type {
   stop-color: var(--vm-player-wave-b) !important;
 }
@@ -5001,5 +5156,4 @@ table tr td.ant-table-cell {
   padding-top: 1px !important;
   padding-bottom: 1px !important;
 }
-
 </style>
