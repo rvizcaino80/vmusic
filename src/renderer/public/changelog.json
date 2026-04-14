@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.4.7",
+      "date": "2026-04-14",
+      "changes": {
+        "new": [
+          "Ordenar playlist aleatorio por reproducciones ascendentes"
+        ]
+      }
+    },
+    {
       "version": "1.4.6",
       "date": "2026-04-14",
       "changes": {
