@@ -3804,6 +3804,12 @@ function addSongsToPlaylist(songIds, action, play = false, options = {}) {
         temp.push(response.data.filter((s) => s.id === item)[0])
       })
 
+      // Para modo aleatorio (action === 3), ordenar por playCount ascendente
+      // después de hacer shuffle, para que las canciones con menos reproducciones suenen primero
+      if (action === 3) {
+        temp.sort((a, b) => (a.playCount || 0) - (b.playCount || 0))
+      }
+
       const entries = temp.map((item) => createPlaylistEntry(item, { ignoreMarks }))
 
       if (action === 0) {
