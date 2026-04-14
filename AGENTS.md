@@ -30,16 +30,48 @@ tipo: descripcion
 
 ## Etiqueta [user-facing]
 
-Usa `[user-facing]` para commits que incluyan cambios visibles para el usuario final (nuevas funcionalidades, mejoras significativas, correcciones importantes).
+Usa `[user-facing]` **SOLO** para commits que incluyan cambios que el usuario final puede ver, tocar o percibir directamente en la interfaz o comportamiento de la aplicación.
 
-### Ejemplos:
+### Criterios estrictos para usar [user-facing]:
+
+| ✅ SÍ usar `[user-facing]`                                          | ❌ NO usar `[user-facing]`                                       |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Nuevas funcionalidades visibles (botones, paneles, columnas, menús) | Cambios internos de código (refactors, optimizaciones)           |
+| Correcciones de bugs que el usuario experimentaba                   | Fixes de bugs técnicos que no afectan la experiencia del usuario |
+| Mejoras de UI/UX (nuevos diseños, animaciones, layouts)             | Cambios en scripts de build o CI/CD                              |
+| Nuevas opciones de configuración                                    | Actualización de dependencias o librerías                        |
+| Cambios en comportamiento de la app                                 | Cambios en documentación interna                                 |
+| Correcciones de errores visibles                                    | Cambios en tests o cobertura                                     |
+
+### Ejemplos correctos:
 
 ```bash
+# ✅ Nuevas funcionalidades visibles
 git commit -m "feat: [user-facing] agregar contador de reproducciones a canciones"
+git commit -m "feat: [user-facing] agregar panel de estadísticas de uso"
+git commit -m "feat: [user-facing] nuevo modo de visualización para el público"
+
+# ✅ Correcciones de bugs que el usuario veía
 git commit -m "fix: [user-facing] corregir error al reproducir archivos MP3"
-git commit -m "feat: agregar refactor interno del reproductor"  # Sin user-facing
-git commit -m "chore: actualizar dependencias de desarrollo"      # Sin user-facing
+git commit -m "fix: [user-facing] reparar cierre inesperado al cargar playlist"
 ```
+
+### Ejemplos incorrectos (NO usar `[user-facing]`):
+
+```bash
+# ❌ Cambios internos - sin user-facing
+git commit -m "feat: actualizar script release para usar etiqueta user-facing"
+git commit -m "feat: refactor interno del reproductor"
+git commit -m "refactor: simplificar lógica de filtrado"
+git commit -m "chore: actualizar dependencias de desarrollo"
+git commit -m "test: agregar tests para el player"
+git commit -m "build: optimizar configuración de vite"
+git commit -m "docs: actualizar comentarios en el código"
+```
+
+### Regla de oro:
+
+> **Si el usuario no puede verlo, tocarlo o notarlo al usar la app, NO lleva `[user-facing]`**
 
 ## Ejemplos
 
