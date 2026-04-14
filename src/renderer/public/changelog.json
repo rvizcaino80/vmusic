@@ -1,17 +1,37 @@
 {
   "versions": [
     {
+      "version": "1.2.0",
+      "date": "2026-04-14",
+      "changes": {
+        "new": [
+          "agregar flag user-facing para commits visibles en changelog"
+        ],
+        "fix": [
+          "agregar importación de MP3 locales al changelog",
+          "limpiar changelog para mostrar solo cambios visibles al usuario"
+        ],
+        "perf": [],
+        "refactor": [],
+        "other": []
+      }
+    },
+    {
       "version": "1.1.32",
       "date": "2026-04-14",
       "changes": {
-        "new": ["agregar flag user-facing para commits visibles en changelog"]
+        "new": [
+          "agregar flag user-facing para commits visibles en changelog"
+        ]
       }
     },
     {
       "version": "1.1.31",
       "date": "2026-04-13",
       "changes": {
-        "new": ["Sistema de changelog con automatización de release"]
+        "new": [
+          "Sistema de changelog con automatización de release"
+        ]
       }
     },
     {
@@ -28,8 +48,12 @@
       "version": "1.1.24",
       "date": "2026-04-13",
       "changes": {
-        "new": ["Sistema de actualización integrado"],
-        "fix": ["Corrección de errores menores"]
+        "new": [
+          "Sistema de actualización integrado"
+        ],
+        "fix": [
+          "Corrección de errores menores"
+        ]
       }
     }
   ]
