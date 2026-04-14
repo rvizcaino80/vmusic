@@ -235,6 +235,7 @@ let mediaElement = null
 let isRebuildingWaveform = false
 let pendingRestoreState = null
 let forcedFadeEndAt = null
+let playCountIncremented = false
 const regionColor = ref('rgba(255, 255, 255, 0.28)')
 const fadeRegionColor = ref('rgba(255, 255, 255, 0.28)')
 const waveformDuration = ref(0)
@@ -495,8 +496,9 @@ function init() {
   player.on('play', () => {
     player.toggleInteraction(true)
     status.value = props.statuses.Reproduciendo
-    // Incrementar contador de reproducción cuando la canción empieza a sonar
-    if (songFull.value?.id) {
+    // Incrementar contador de reproducción solo una vez por canción
+    if (songFull.value?.id && !playCountIncremented) {
+      playCountIncremented = true
       import('axios').then((axiosModule) => {
         const axios = axiosModule.default || axiosModule
         axios
@@ -1081,6 +1083,7 @@ async function setSong(s) {
     hasCoverUrl: Boolean(s?.coverUrl || s?.songImage || s?.cover || s?.image || s?.artwork)
   })
   songFull.value = s
+  playCountIncremented = false
   status.value = props.statuses.Cargando
   hasManualEndMarker.value = hasExplicitEndMarker(s)
   fadeProfileRequestSerial += 1

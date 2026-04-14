@@ -1893,7 +1893,7 @@ const columns = computed(() => {
       }
     },
     {
-      title: 'Reproducciones',
+      title: 'Rep',
       dataIndex: 'playCount',
       width: 120,
       align: 'center',
