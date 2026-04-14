@@ -8,76 +8,68 @@ tipo: descripcion
 
 ## Tipos permitidos
 
-| Tipo     | Categoria en Changelog | Uso                                         |
-| -------- | ---------------------- | ------------------------------------------- |
-| feat     | Nuevas funciones       | Nueva funcionalidad                         |
-| fix      | Correcciones           | Bug fixes                                   |
-| perf     | Mejoras de rendimiento | Optimizaciones                              |
-| refactor | Refactorizacion        | Cambios de codigo sin cambiar funcionalidad |
-| docs     | -                      | Documentacion (ignorado)                    |
-| chore    | -                      | Tareas de mantenimiento (ignorado)          |
-| test     | -                      | Tests (ignorado)                            |
-| style    | -                      | Cambios de estilo (ignorado)                |
-| build    | -                      | Cambios de build (ignorado)                 |
+| Tipo     | Uso                                        |
+| -------- | ------------------------------------------ |
+| feat     | Nueva funcionalidad                        |
+| fix      | Corrección de bug                          |
+| perf     | Mejora de rendimiento                      |
+| refactor | Cambio de código sin cambiar funcionalidad |
+| docs     | Documentación                              |
+| chore    | Tareas de mantenimiento                    |
+| test     | Tests                                      |
+| style    | Cambios de estilo                          |
+| build    | Cambios de build                           |
 
 ## Reglas
 
-1. **Idioma**: Escribe TODO en español
-2. **Formato**: `tipo: descripcion` (sin mayuscula inicial)
-3. **Longitud**: Maximo 70 caracteres en la descripcion
-4. **Sin punto final**: No uses punto al final
+1. **Idioma**: Escribe en español
+2. **Formato**: `tipo: descripcion`
+3. **Longitud**: Máximo 70 caracteres
+4. **Sin punto final**
 
-## Ejemplos correctos
+## Ejemplos
 
 ```bash
 git commit -m "feat: agregar filtro por artista"
 git commit -m "fix: corregir error al cargar archivos MP3"
-git commit -m "perf: optimizar carga de la biblioteca"
 git commit -m "refactor: simplificar logica del reproductor"
 ```
 
-## Ejemplos incorrectos
+## Changelog
 
-```bash
-# Incorrecto - en ingles
-git commit -m "feat: add new feature"
+El changelog se edita **MANUALMENTE** antes de cada release.
 
-# Incorrecto - mayuscula inicial
-git commit -m "feat: Agregar funcion"
+Cuando ejecutes `npm run release`, el script te pedirá que edites `src/renderer/public/changelog.json` y agregues una descripción en lenguaje para usuarios, no técnico.
 
-# Incorrecto - punto final
-git commit -m "feat: agregar funcion."
+### Ejemplos de descripciones para usuarios:
 
-# Incorrecto - sin tipo
-git commit -m "agregar funcion"
-```
+| ✅ Correcto (usuario)                          | ❌ Incorrecto (técnico)            |
+| ---------------------------------------------- | ---------------------------------- |
+| "Panel para importar archivos MP3 manualmente" | "Agregar componente AddMp3.vue"    |
+| "Nuevo panel para ver registro de cambios"     | "Implementar sistema de changelog" |
+| "Corrección de error al reproducir"            | "Fix bug en player.js"             |
 
-## Configurar plantilla de commit
+### Proceso de release:
 
-```bash
-git config commit.template .commit-msg-template
-```
+1. Hacer commits con el formato correcto
+2. Ejecutar `npm run release [patch|minor|major]`
+3. Editar `changelog.json` manualmente con descripciones para usuarios
+4. Presionar ENTER para continuar
+5. El script hará build y publish automáticamente
 
-## Instalar validacion de commits (opcional)
+### Estructura del changelog.json:
 
-```bash
-cp scripts/verify-commit-msg.js .git/hooks/commit-msg
-chmod +x .git/hooks/commit-msg
-```
-
-## Commits visibles al usuario
-
-Para que un commit aparezca en el changelog que ven los usuarios, debe incluir la flag `[user-facing]`.
-
-### Ejemplos
-
-```bash
-# Va al changelog (visible al usuario)
-git commit -m "feat: [user-facing] agregar modo oscuro"
-git commit -m "fix: [user-facing] corregir error al guardar playlist"
-
-# No va al changelog (tecnico/interno)
-git commit -m "refactor: simplificar logica del reproductor"
-git commit -m "chore: actualizar dependencias"
-git commit -m "fix: corregir ruta del script de release"
+```json
+{
+  "versions": [
+    {
+      "version": "1.2.0",
+      "date": "2026-04-14",
+      "changes": {
+        "new": ["Descripción para el usuario"],
+        "fix": ["Descripción de corrección"]
+      }
+    }
+  ]
+}
 ```

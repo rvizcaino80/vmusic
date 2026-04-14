@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "agregar flag user-facing": "Mejoras en el sistema de registro de cambios",
+    "limpiar changelog": "Actualización del panel de novedades",
+    "importar changelog.json": "Corrección en la visualización del registro de cambios",
+    "importar archivos MP3": "Panel para importar archivos MP3 manualmente",
+    "add_mp3 icon": "Mejoras en la navegación de la aplicación",
+    "sistema de changelog": "Panel de registro de cambios para ver novedades",
+    "sistema de actualización": "Sistema de actualización automática de la aplicación",
+    "agregar guia de commits": "Mejoras en la documentación interna"
+  },
+  "keywords": {
+    "panel": "Panel",
+    "importar": "Importación",
+    "MP3": "archivos MP3",
+    "biblioteca": "biblioteca de música",
+    "changelog": "registro de cambios",
+    "actualización": "actualización",
+    "visualización": "visualización",
+    "navegación": "navegación"
+  }
+}

@@ -40,42 +40,67 @@ try {
   lastTag = execSync(`git rev-list --max-parents=0 HEAD`).toString().trim()
 }
 
-console.log(`📝 Commits since ${lastTag}:`)
-
+console.log(`\n📝 Commits desde ${lastTag}:`)
 const commitLog = execSync(`git log ${lastTag}..HEAD --pretty=format:"%s"`).toString()
 const commits = commitLog.split('\n').filter(Boolean)
 
 if (commits.length === 0) {
-  console.log('  No commits since last tag')
+  console.log('  Ningún commit nuevo')
 } else {
   commits.forEach((c) => console.log(`  - ${c}`))
+}
+
+// Cargar mapeos
+const mappingsPath = path.join(__dirname, 'changelog-mapping.json')
+let mappings = { mappings: {}, keywords: {} }
+if (fs.existsSync(mappingsPath)) {
+  mappings = JSON.parse(fs.readFileSync(mappingsPath))
+}
+
+// Función para traducir commit a descripción de usuario
+const translateToUserFacing = (commit) => {
+  const text = commit
+    .replace(/^[^:]+:\s*/, '')
+    .trim()
+    .toLowerCase()
+
+  // Buscar mapeo exacto primero
+  for (const [key, value] of Object.entries(mappings.mappings)) {
+    if (text.includes(key.toLowerCase())) {
+      return value
+    }
+  }
+
+  // Si no hay mapeo, aplicar reglas de keywords
+  let result = text
+
+  // Reemplazar keywords
+  for (const [key, value] of Object.entries(mappings.keywords)) {
+    const regex = new RegExp(`\\b${key}\\b`, 'gi')
+    result = result.replace(regex, value)
+  }
+
+  // Capitalizar primera letra
+  result = result.charAt(0).toUpperCase() + result.slice(1)
+
+  // Si no se tradujo nada, devolver mensaje genérico
+  if (result === text) {
+    return null // Ignorar commits sin traducción
+  }
+
+  return result
 }
 
 const changes = { new: [], fix: [], perf: [], refactor: [], other: [] }
 
 commits.forEach((commit) => {
-  // Solo procesar commits con flag [user-facing]
-  if (!commit.includes('[user-facing]')) {
-    return // Ignorar commits sin el flag
-  }
+  const text = translateToUserFacing(commit)
+  if (!text) return // Ignorar commits que no se pueden traducir
 
-  // Extraer el tipo (feat, fix, perf, refactor, etc.)
-  const typeMatch = commit.match(/^([a-z]+):/)
-  if (!typeMatch) return
-
-  const type = typeMatch[1]
-
-  // Extraer el texto después de [user-facing]
-  const userFacingMatch = commit.match(/\[user-facing\]\s*(.+)/)
-  if (!userFacingMatch) return
-
-  const text = userFacingMatch[1].trim()
-
-  // Clasificar según el tipo
-  if (type === 'feat') changes.new.push(text)
-  else if (type === 'fix') changes.fix.push(text)
-  else if (type === 'perf') changes.perf.push(text)
-  else if (type === 'refactor') changes.refactor.push(text)
+  if (commit.startsWith('feat')) changes.new.push(text)
+  else if (commit.startsWith('fix')) changes.fix.push(text)
+  else if (commit.startsWith('perf')) changes.perf.push(text)
+  else if (commit.startsWith('refactor')) changes.refactor.push(text)
   else changes.other.push(text)
 })
 
@@ -87,19 +112,30 @@ if (fs.existsSync(changelogPath)) {
   changelog = JSON.parse(fs.readFileSync(changelogPath))
 }
 
+// Agregar nueva versión
 changelog.versions.unshift({
   version: newVersion,
   date,
-  changes
+  changes: Object.fromEntries(Object.entries(changes).filter(([, v]) => v.length > 0))
 })
 
 fs.writeFileSync(changelogPath, JSON.stringify(changelog, null, 2) + '\n')
-console.log('✅ Changelog updated')
+console.log('✅ Changelog actualizado automáticamente')
 
+// Mostrar cambios generados
+console.log('\n📋 Cambios generados:')
+Object.entries(changes).forEach(([type, items]) => {
+  if (items.length > 0) {
+    console.log(`  ${type}: ${items.join(', ')}`)
+  }
+})
+
+// Actualizar versión
 pkg.version = newVersion
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n')
-console.log('✅ package.json updated')
+console.log('✅ package.json actualizado')
 
+// Commit y tag
 console.log('\n📝 Committing version bump...')
 execSync(`git add package.json src/renderer/public/changelog.json`)
 execSync(`git commit -m "v${newVersion}"`)
@@ -107,6 +143,7 @@ execSync(`git commit -m "v${newVersion}"`)
 console.log('🏷️  Creating tag...')
 execSync(`git tag v${newVersion}`)
 
+// Build y publish
 console.log('\n🔨 Building...')
 execSync('npm run build', { stdio: 'inherit' })
 
