@@ -141,6 +141,10 @@ Song.init(
     start: Sequelize.DataTypes.INTEGER,
     end: Sequelize.DataTypes.INTEGER,
     duration_original: Sequelize.DataTypes.STRING,
+    playCount: {
+      type: Sequelize.DataTypes.INTEGER,
+      defaultValue: 0
+    },
     timestamp: {
       type: Sequelize.DataTypes.VIRTUAL,
       get() {
@@ -1368,6 +1372,25 @@ app.post('/songs/save-speed', async (req, res, next) => {
   )
 
   res.send('ok')
+})
+
+app.post('/songs/increment-playcount/:id', async (req, res, next) => {
+  try {
+    const song = await Song.findByPk(req.params.id)
+    if (!song) {
+      return res.status(404).send({
+        message: 'Canción no encontrada'
+      })
+    }
+
+    await Song.increment('playCount', {
+      where: { id: req.params.id }
+    })
+
+    res.send({ ok: true })
+  } catch (error) {
+    next(error)
+  }
 })
 
 app.get('/songs/speed-version/:id', async (req, res, next) => {

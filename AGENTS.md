@@ -26,6 +26,20 @@ tipo: descripcion
 2. **Formato**: `tipo: descripcion`
 3. **Longitud**: Máximo 70 caracteres
 4. **Sin punto final**
+5. **User-facing**: Agrega `[user-facing]` al inicio de la descripción si el cambio debe aparecer en el changelog para los usuarios
+
+## Etiqueta [user-facing]
+
+Usa `[user-facing]` para commits que incluyan cambios visibles para el usuario final (nuevas funcionalidades, mejoras significativas, correcciones importantes).
+
+### Ejemplos:
+
+```bash
+git commit -m "feat: [user-facing] agregar contador de reproducciones a canciones"
+git commit -m "fix: [user-facing] corregir error al reproducir archivos MP3"
+git commit -m "feat: agregar refactor interno del reproductor"  # Sin user-facing
+git commit -m "chore: actualizar dependencias de desarrollo"      # Sin user-facing
+```
 
 ## Ejemplos
 
