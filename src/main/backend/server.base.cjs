@@ -141,6 +141,10 @@ Song.init(
     start: Sequelize.DataTypes.INTEGER,
     end: Sequelize.DataTypes.INTEGER,
     duration_original: Sequelize.DataTypes.STRING,
+    playCount: {
+      type: Sequelize.DataTypes.INTEGER,
+      defaultValue: 0
+    },
     timestamp: {
       type: Sequelize.DataTypes.VIRTUAL,
       get() {
@@ -2006,6 +2010,104 @@ app.post('/songs/save', async (req, res, next) => {
       }
     })()
   })
+})
+
+app.post('/songs/import', async (req, res, next) => {
+  const sourcePath = req.body?.filePath
+  const songName = req.body?.name
+  const artistIds = req.body?.artists || []
+  const tagIds = req.body?.tags || []
+
+  if (!sourcePath) {
+    return res.status(400).send({ message: 'Falta el archivo MP3' })
+  }
+
+  if (!songName?.trim()) {
+    return res.status(400).send({ message: 'Falta el nombre de la canción' })
+  }
+
+  if (!fs.existsSync(sourcePath)) {
+    return res.status(400).send({ message: 'El archivo no existe' })
+  }
+
+  const folder = 'm' + Math.floor(Math.random() * 100)
+  const dir = path.join(MUSIC_LIBRARY_DIR, folder)
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
+
+  const ytid = Date.now().toString() + Math.random().toString(36).slice(2)
+  let newPath = path.join(dir, ytid + '.mp3')
+
+  const FFMPEG_BIN = resolveBinaryFromCandidates('ffmpeg', process.env.VMUSIC_FFMPEG_BIN)
+  if (FFMPEG_BIN) {
+    const args = ['-i', sourcePath, '-b:a', '192k', newPath]
+    const ls = spawn(FFMPEG_BIN, args)
+    let ffmpegStderr = ''
+
+    ls.stderr.on('data', (data) => {
+      ffmpegStderr += data.toString()
+    })
+
+    await new Promise((resolve, reject) => {
+      ls.on('error', reject)
+      ls.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(ffmpegStderr.slice(-600)))
+        } else {
+          resolve()
+        }
+      })
+    })
+  } else {
+    fs.copyFileSync(sourcePath, newPath)
+  }
+
+  try {
+    const durationSeconds = await getAudioDurationInSeconds(newPath)
+    if (!durationSeconds) {
+      return res.status(500).send({ message: 'No se pudo leer la duración del mp3' })
+    }
+
+    const s = await Song.create({
+      folder: folder,
+      ytid: ytid,
+      name: songName.trim(),
+      duration: durationSeconds,
+      duration_original: convertTime(durationSeconds)
+    })
+
+    if (artistIds.length > 0) {
+      await s.addArtists(artistIds)
+    }
+
+    if (tagIds.length > 0) {
+      await s.addTags(tagIds)
+    }
+
+    if (typeof tagSongFileById === 'function') {
+      try {
+        await tagSongFileById({
+          db: dbContext,
+          baseDir: __dirname,
+          songId: s.id,
+          filePath: newPath
+        })
+      } catch (tagError) {
+        console.warn('[vmusic] No se pudo etiquetar ID3', tagError?.message || tagError)
+      }
+    }
+
+    res.send(s)
+  } catch (saveError) {
+    console.error(saveError)
+    return res.status(500).send({
+      message: 'No se pudo importar la canción',
+      error: saveError.message,
+      details: saveError?.stack || saveError?.message || null
+    })
+  }
 })
 
 /*ARTISTS*/

@@ -1,5 +1,5 @@
 <template>
-  <div class="player player-shell p-6 min-w-0">
+  <div class="player player-shell min-w-0">
     <div class="player-vinyl-column">
       <div
         :class="{
@@ -8,7 +8,7 @@
           'player-deck-a': props.position === 'top'
         }"
         class="player-vinyl-frame"
-        :style="{ backgroundImage: `url(${vinylBgUrl})` }"
+        :style="{ backgroundImage: `url(${cdBgUrl})` }"
       >
         <img
           v-if="songImage"
@@ -23,11 +23,14 @@
             'player-deck-a': props.position === 'top'
           }"
           class="player-vinyl-fallback player-text text-bold text-center"
-        >
-          <span v-if="props.position === 'top'" class="select-none">A</span>
-          <span v-if="props.position === 'bottom'" class="select-none">B</span>
-        </div>
-        <div class="player-vinyl-hole" />
+        />
+        <img
+          :src="cdCenterUrl"
+          :class="{ 'player-vinyl-center-no-cover': !songImage }"
+          class="player-vinyl-center select-none"
+          alt=""
+          draggable="false"
+        />
       </div>
     </div>
 
@@ -164,7 +167,11 @@ import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Icon } from '@iconify/vue'
 import axios from 'axios'
-import vinylBgUrl from '../assets/vinyl-bg.png'
+import { buildSpotifySearchUrl } from '../lib/spotify-cover'
+
+defineOptions({
+  name: 'MusicPlayer'
+})
 
 const emit = defineEmits([
   'fading',
@@ -175,11 +182,15 @@ const emit = defineEmits([
   'song-click',
   'preview-start',
   'preview-stop',
-  'finished'
+  'finished',
+  'cover-updated'
 ])
 
 const props = defineProps({
-  position: String,
+  position: {
+    type: String,
+    default: ''
+  },
   statuses: {
     type: Object,
     required: true
@@ -192,6 +203,8 @@ const props = defineProps({
 })
 
 let player = null
+const cdBgUrl = new URL('./cd-bg.png', window.location.href).href
+const cdCenterUrl = new URL('./cd-center.png', window.location.href).href
 const duration = ref(0.0)
 const songFull = ref({})
 const songId = ref(null)
@@ -254,6 +267,8 @@ let volumeAnimationToken = 0
 const previewDuckMultiplier = ref(1)
 const isPreprocessingSpeed = ref(false)
 const isInitialSpeedPreprocessPending = ref(false)
+const coverCacheRequests = new Map()
+const spotifyCoverRequests = new Map()
 const isUsingProcessedSpeedFile = computed(() => {
   if (ratesMatch(speed.value, 1)) return false
 
@@ -276,6 +291,10 @@ const visibleStatusLabel = computed(() => {
   return getStatusName(status.value)
 })
 
+function isReadyStatus() {
+  return status.value === props.statuses.Listo || status.value === props.statuses.Pausado
+}
+
 function debugAudio(event, payload = null) {
   if (!AUDIO_DEBUG) return
   const deck = props.position === 'top' ? 'A' : 'B'
@@ -288,6 +307,7 @@ function debugAudio(event, payload = null) {
 }
 
 function safePlay() {
+  if (!isReadyStatus()) return
   if (!player || typeof player.play !== 'function') return
   try {
     const maybePromise = player.play()
@@ -431,6 +451,9 @@ function init() {
     applyPreservePitch()
     setSinkId(props.outputSinkId)
     songImage.value = getStoredCoverForSong(songFull.value)
+    if (songImage.value) {
+      cacheCoverInBackground(songFull.value, songImage.value)
+    }
 
     player.setOptions(originalOptions)
     player.toggleInteraction(false)
@@ -1051,6 +1074,12 @@ async function setSong(s) {
    *  Create your own media element
    * Get this value from db
    */
+  console.log('[vmusic][auto-cover] setSong entry', {
+    id: s?.id || null,
+    ytid: s?.ytid || null,
+    name: s?.name || '',
+    hasCoverUrl: Boolean(s?.coverUrl || s?.songImage || s?.cover || s?.image || s?.artwork)
+  })
   songFull.value = s
   status.value = props.statuses.Cargando
   hasManualEndMarker.value = hasExplicitEndMarker(s)
@@ -1110,12 +1139,14 @@ function stop() {
 }
 
 function restart() {
+  if (!isReadyStatus()) return
   if (!player) return
   const restartAt = Number.isFinite(start.value) ? Math.max(0, toPlaybackTime(start.value)) : 0
   player.setTime(restartAt)
 }
 
 function seekBy(deltaSeconds) {
+  if (!isReadyStatus()) return
   if (!player || !songFull.value?.id || typeof player.getCurrentTime !== 'function') return
 
   const now = player.getCurrentTime()
@@ -1254,6 +1285,15 @@ function setSinkId(sinkId) {
 function getStoredCoverForSong(song) {
   if (!song) return ''
 
+  try {
+    const stored = localStorage.getItem('vmusic_cover_map')
+    if (stored && song.ytid) {
+      const parsed = JSON.parse(stored)
+      const mappedCover = parsed[song.ytid] || ''
+      if (mappedCover) return mappedCover
+    }
+  } catch (error) {}
+
   const directCover =
     song.songImage || song.coverUrl || song.cover || song.image || song.artwork || ''
   if (directCover) return directCover
@@ -1269,6 +1309,186 @@ function getStoredCoverForSong(song) {
   }
 }
 
+function isRemoteCoverUrl(value) {
+  try {
+    const parsed = new URL(String(value || '').trim())
+
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+async function cacheCoverInBackground(song, coverUrl) {
+  const cacheKey = String(song?.ytid || '').trim()
+  if (!cacheKey || !coverUrl || !isRemoteCoverUrl(coverUrl) || !window.electron2?.cacheCoverImage)
+    return
+  if (coverCacheRequests.has(cacheKey)) return
+
+  console.debug('Descargando portada', { ytid: cacheKey, url: coverUrl })
+  const request = window.electron2
+    .cacheCoverImage({ cacheKey, url: coverUrl })
+    .then((localUrl) => {
+      if (!localUrl) return
+
+      try {
+        const stored = localStorage.getItem('vmusic_cover_map')
+        const parsed = stored ? JSON.parse(stored) : {}
+        parsed[cacheKey] = localUrl
+        localStorage.setItem('vmusic_cover_map', JSON.stringify(parsed))
+      } catch (error) {}
+
+      if (songFull.value?.ytid === cacheKey) {
+        songImage.value = localUrl
+      }
+    })
+    .catch((error) => {
+      console.warn('[vmusic][cover-cache] no se pudo cachear portada', error)
+    })
+    .finally(() => {
+      coverCacheRequests.delete(cacheKey)
+    })
+
+  coverCacheRequests.set(cacheKey, request)
+}
+
+function isAutoUpdateCoversEnabled() {
+  try {
+    const settings = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
+
+    return Boolean(settings.autoUpdateCovers)
+  } catch {
+    return false
+  }
+}
+
+function persistCoverUrl(songData, coverUrl) {
+  const cacheKey = String(songData?.ytid || '').trim()
+  if (!cacheKey || !coverUrl) return
+
+  try {
+    const stored = localStorage.getItem('vmusic_cover_map')
+    const parsed = stored ? JSON.parse(stored) : {}
+    parsed[cacheKey] = coverUrl
+    localStorage.setItem('vmusic_cover_map', JSON.stringify(parsed))
+  } catch (error) {}
+
+  if (songFull.value?.ytid === cacheKey) {
+    songImage.value = coverUrl
+  }
+}
+
+async function resolveCoverFromSpotifySearch(songData) {
+  if (!songData?.id || !songData?.ytid) return null
+  if (!isAutoUpdateCoversEnabled()) {
+    console.log('[vmusic][auto-cover] disabled', { songId: songData.id, ytid: songData.ytid })
+
+    return null
+  }
+
+  const currentCover = getStoredCoverForSong(songData)
+  if (currentCover) {
+    console.log('[vmusic][auto-cover] already have cover', {
+      songId: songData.id,
+      ytid: songData.ytid,
+      cover: currentCover
+    })
+
+    return currentCover
+  }
+
+  const artistNames = Array.isArray(songData.Artists)
+    ? songData.Artists.map((artist) => artist?.name).filter(Boolean)
+    : []
+  const searchUrl = buildSpotifySearchUrl(songData.name, artistNames)
+  if (!searchUrl) {
+    console.log('[vmusic][auto-cover] empty search url', {
+      songId: songData.id,
+      ytid: songData.ytid,
+      name: songData.name
+    })
+
+    return null
+  }
+
+  const requestKey = `${songData.ytid}:${searchUrl}`
+  if (spotifyCoverRequests.has(requestKey)) {
+    console.log('[vmusic][auto-cover] request deduped', { requestKey })
+
+    return spotifyCoverRequests.get(requestKey)
+  }
+
+  const request = (async () => {
+    if (!window.electron2?.resolveSpotifyCover) {
+      console.log('[vmusic][auto-cover] ipc unavailable', { requestKey })
+
+      return null
+    }
+
+    try {
+      console.log('[vmusic][auto-cover] resolving via spotify', {
+        songId: songData.id,
+        ytid: songData.ytid,
+        searchUrl
+      })
+      const spotifyResult = await window.electron2.resolveSpotifyCover({ searchUrl })
+      const resolvedCoverUrl =
+        typeof spotifyResult === 'string'
+          ? spotifyResult
+          : String(
+              spotifyResult?.coverUrl ||
+                spotifyResult?.imageUrl ||
+                spotifyResult?.resolvedCoverUrl ||
+                ''
+            )
+      console.log('[vmusic][auto-cover] spotify result', {
+        requestKey,
+        resolvedCoverUrl,
+        spotifyResult
+      })
+      if (!resolvedCoverUrl) return null
+
+      let finalCoverUrl = resolvedCoverUrl
+      if (isRemoteCoverUrl(resolvedCoverUrl) && window.electron2?.cacheCoverImage) {
+        try {
+          const cachedCoverUrl = await window.electron2.cacheCoverImage({
+            cacheKey: songData.ytid,
+            url: resolvedCoverUrl,
+            forceRefresh: true
+          })
+          if (cachedCoverUrl) {
+            finalCoverUrl = cachedCoverUrl
+          }
+        } catch (error) {
+          console.warn('[vmusic][auto-cover] no se pudo cachear la portada de Spotify', error)
+        }
+      }
+
+      persistCoverUrl(songData, finalCoverUrl)
+      console.log('[vmusic][auto-cover] cover persisted', { requestKey, finalCoverUrl })
+      if (songFull.value?.id === songData.id) {
+        emit('cover-updated', {
+          id: songData.id,
+          ytid: songData.ytid,
+          coverUrl: finalCoverUrl
+        })
+      }
+
+      return finalCoverUrl
+    } catch (error) {
+      console.warn('[vmusic][auto-cover] no se pudo resolver la portada de Spotify', error)
+
+      return null
+    }
+  })().finally(() => {
+    spotifyCoverRequests.delete(requestKey)
+  })
+
+  spotifyCoverRequests.set(requestKey, request)
+
+  return request
+}
+
 function applySongMetadata(songData) {
   if (!songData) return
 
@@ -1276,6 +1496,15 @@ function applySongMetadata(songData) {
     ...songFull.value,
     ...songData
   }
+  const coverProbe = {
+    ytid: songFull.value?.ytid || null,
+    songImage: songFull.value?.songImage || '',
+    coverUrl: songFull.value?.coverUrl || '',
+    cover: songFull.value?.cover || '',
+    image: songFull.value?.image || '',
+    artwork: songFull.value?.artwork || ''
+  }
+  console.log('[vmusic][auto-cover] apply metadata', coverProbe)
   song.value = songFull.value.name || ''
   artistsList.value = songFull.value.Artists || []
   artist.value = artistsList.value.map((i) => i.name).join(', ')
@@ -1283,9 +1512,19 @@ function applySongMetadata(songData) {
   composer.value = (songFull.value.Composers || []).map((i) => i.name).join(', ')
 
   const nextCover = getStoredCoverForSong(songFull.value)
+  console.log('[vmusic][auto-cover] resolved current cover', {
+    songId: songFull.value?.id,
+    ytid: songFull.value?.ytid || null,
+    nextCover: nextCover || ''
+  })
+  songImage.value = nextCover || ''
   if (nextCover) {
-    songImage.value = nextCover
+    cacheCoverInBackground(songFull.value, nextCover)
+
+    return
   }
+
+  void resolveCoverFromSpotifySearch(songFull.value)
 }
 
 function getThemeColor(varName, fallback) {
@@ -1531,6 +1770,7 @@ defineExpose({
   setSpeed,
   setSong,
   updateSongMetadata: applySongMetadata,
+  resolveMissingCover: () => resolveCoverFromSpotifySearch(songFull.value),
   next,
   speed_added,
   baseSpeed,
@@ -1560,6 +1800,7 @@ defineExpose({
 }
 
 .player-shell {
+  flex: none;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -1609,8 +1850,9 @@ defineExpose({
   background-color: #000;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: cover;
+  background-size: contain;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
 }
 
 .player-vinyl-playing {
@@ -1619,15 +1861,19 @@ defineExpose({
 
 .player-vinyl-cover,
 .player-vinyl-fallback {
-  width: 38%;
-  height: 38%;
+  position: absolute;
+  top: 3%;
+  left: 3%;
+  width: 94%;
+  height: 94%;
   border-radius: 999px;
-  flex: none;
+  z-index: 1;
 }
 
 .player-vinyl-cover {
+  display: block;
   object-fit: cover;
-  opacity: 0.92;
+  opacity: 0.9;
 }
 
 .player-vinyl-fallback {
@@ -1635,18 +1881,32 @@ defineExpose({
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: clamp(2rem, 3vw, 2.8rem);
+  font-size: clamp(2.2rem, 3.2vw, 3rem);
   line-height: 1;
   text-transform: uppercase;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.player-vinyl-hole {
+.player-vinyl-fallback.player-deck-a {
+  background-color: color-mix(in srgb, var(--vm-player-wave-a) 70%, transparent);
+}
+
+.player-vinyl-fallback.player-deck-b {
+  background-color: color-mix(in srgb, var(--vm-player-wave-b) 70%, transparent);
+}
+
+.player-vinyl-center {
   position: absolute;
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  background: #0b0b0b;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+  width: 28%;
+  height: 28%;
+  object-fit: contain;
+  opacity: 0.3;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.player-vinyl-center-no-cover {
+  opacity: 0.75;
 }
 
 .player-layout-reverse .player-header {

@@ -3,6 +3,8 @@ productName: 'Salsamania'
 directories:
   buildResources: build
 files:
+  - 'out/**/*'
+  - 'resources/**/*'
   - '!**/.vscode/*'
   - '!src/*'
   - '!_music{,/**/*}'
