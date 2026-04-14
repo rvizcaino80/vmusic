@@ -51,9 +51,11 @@ git commit -m "refactor: simplificar logica del reproductor"
 
 ## Changelog
 
-El changelog se edita **MANUALMENTE** antes de cada release.
+El changelog se actualiza **automáticamente** desde los commits al ejecutar `npm run release`.
 
-Cuando ejecutes `npm run release`, el script te pedirá que edites `src/renderer/public/changelog.json` y agregues una descripción en lenguaje para usuarios, no técnico.
+**Solo se incluyen commits con `[user-facing]`** en el changelog.
+
+Cuando ejecutes `npm run release`, el script automáticamente genera el changelog a partir de los commits marcados con `[user-facing]`.
 
 ### Ejemplos de descripciones para usuarios:
 
@@ -67,7 +69,7 @@ Cuando ejecutes `npm run release`, el script te pedirá que edites `src/renderer
 
 1. Hacer commits con el formato correcto
 2. Ejecutar `npm run release [patch|minor|major]`
-3. Editar `changelog.json` manualmente con descripciones para usuarios
+3. El script genera el changelog automáticamente desde los commits `[user-facing]`
 4. Presionar ENTER para continuar
 5. El script hará build y publish automáticamente
 

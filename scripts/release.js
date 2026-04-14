@@ -50,52 +50,25 @@ if (commits.length === 0) {
   commits.forEach((c) => console.log(`  - ${c}`))
 }
 
-// Cargar mapeos
-const mappingsPath = path.join(__dirname, 'changelog-mapping.json')
-let mappings = { mappings: {}, keywords: {} }
-if (fs.existsSync(mappingsPath)) {
-  mappings = JSON.parse(fs.readFileSync(mappingsPath))
-}
-
-// Función para traducir commit a descripción de usuario
-const translateToUserFacing = (commit) => {
-  const text = commit
-    .replace(/^[^:]+:\s*/, '')
-    .trim()
-    .toLowerCase()
-
-  // Buscar mapeo exacto primero
-  for (const [key, value] of Object.entries(mappings.mappings)) {
-    if (text.includes(key.toLowerCase())) {
-      return value
-    }
-  }
-
-  // Si no hay mapeo, aplicar reglas de keywords
-  let result = text
-
-  // Reemplazar keywords
-  for (const [key, value] of Object.entries(mappings.keywords)) {
-    const regex = new RegExp(`\\b${key}\\b`, 'gi')
-    result = result.replace(regex, value)
-  }
-
+// Función para extraer la descripción del commit (después de tipo: y [user-facing])
+const extractDescription = (commit) => {
+  // Remover el prefijo del tipo (feat:, fix:, etc.)
+  let text = commit.replace(/^[^:]+:\s*/, '').trim()
+  // Remover la etiqueta [user-facing]
+  text = text.replace(/\[user-facing\]\s*/, '').trim()
   // Capitalizar primera letra
-  result = result.charAt(0).toUpperCase() + result.slice(1)
-
-  // Si no se tradujo nada, devolver mensaje genérico
-  if (result === text) {
-    return null // Ignorar commits sin traducción
-  }
-
-  return result
+  text = text.charAt(0).toUpperCase() + text.slice(1)
+  return text
 }
 
 const changes = { new: [], fix: [], perf: [], refactor: [], other: [] }
 
 commits.forEach((commit) => {
-  const text = translateToUserFacing(commit)
-  if (!text) return // Ignorar commits que no se pueden traducir
+  // Solo procesar commits marcados como [user-facing]
+  if (!commit.includes('[user-facing]')) return
+
+  const text = extractDescription(commit)
+  if (!text) return
 
   if (commit.startsWith('feat')) changes.new.push(text)
   else if (commit.startsWith('fix')) changes.fix.push(text)
