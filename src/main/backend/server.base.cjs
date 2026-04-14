@@ -2177,9 +2177,31 @@ app.post('/artists/delete/:id', async (req, res, next) => {
   res.send(artists)
 })
 
+async function runMigrations() {
+  try {
+    // Verificar si la columna playCount existe
+    const tableInfo = await sequelize.getQueryInterface().describeTable('Songs')
+    if (!tableInfo.playCount) {
+      console.log('[vmusic] Migrando: agregando columna playCount a Songs')
+      await sequelize.getQueryInterface().addColumn('Songs', 'playCount', {
+        type: Sequelize.DataTypes.INTEGER,
+        defaultValue: 0,
+        allowNull: false
+      })
+      // Inicializar playCount en 0 para canciones existentes
+      await sequelize.query('UPDATE Songs SET playCount = 0 WHERE playCount IS NULL')
+      console.log('[vmusic] Migración completada: columna playCount agregada')
+    }
+  } catch (error) {
+    console.error('[vmusic] Error en migración:', error)
+    // No es crítico, continuar de todos modos
+  }
+}
+
 async function startServer() {
   try {
     await sequelize.authenticate()
+    await runMigrations()
     await sequelize.sync()
     cleanupSpeedCache().catch(() => {})
     setInterval(() => {
