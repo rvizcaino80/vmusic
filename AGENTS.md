@@ -45,16 +45,32 @@ Usa `[user-facing]` **SOLO** para commits que incluyan cambios que el usuario fi
 
 ### Ejemplos correctos:
 
+Los mensajes deben describir **qué cambia para el usuario**, no la implementación técnica:
+
 ```bash
-# ✅ Nuevas funcionalidades visibles
-git commit -m "feat: [user-facing] agregar contador de reproducciones a canciones"
+# ✅ Nuevas funcionalidades visibles (descripción orientada al usuario)
+git commit -m "feat: [user-facing] ver contador de reproducciones de cada canción en la biblioteca"
+git commit -m "feat: [user-facing] las canciones con menos reproducciones suenan primero en modo aleatorio"
+git commit -m "feat: [user-facing] nueva columna para ver cuántas veces se ha reproducido cada canción"
 git commit -m "feat: [user-facing] agregar panel de estadísticas de uso"
 git commit -m "feat: [user-facing] nuevo modo de visualización para el público"
 
 # ✅ Correcciones de bugs que el usuario veía
-git commit -m "fix: [user-facing] corregir error al reproducir archivos MP3"
+git commit -m "fix: [user-facing] corregir error que impedía reproducir archivos MP3"
 git commit -m "fix: [user-facing] reparar cierre inesperado al cargar playlist"
+git commit -m "fix: [user-facing] el CD ahora gira en la dirección correcta (como un disco real)"
 ```
+
+### Regla para mensajes user-facing:
+
+| ✅ Correcto (orientado al usuario)                | ❌ Incorrecto (orientado al técnico)           |
+| ------------------------------------------------- | ---------------------------------------------- |
+| "Ver contador de reproducciones en la biblioteca" | "Agregar campo playCount al modelo Song"       |
+| "Las canciones menos reproducidas suenan primero" | "Ordenar playlist aleatorio por playCount ASC" |
+| "Corregir dirección de rotación del CD"           | "Cambiar rotate(360deg) a rotate(-360deg)"     |
+| "Nuevo botón para importar MP3"                   | "Crear componente AddMp3.vue"                  |
+
+> **Regla:** El mensaje debe responder a "¿Qué nuevo puede hacer el usuario ahora?" o "¿Qué problema se solucionó para el usuario?"
 
 ### Ejemplos incorrectos (NO usar `[user-facing]`):
 
@@ -104,6 +120,15 @@ Cuando ejecutes `npm run release`, el script automáticamente genera el changelo
 3. El script genera el changelog automáticamente desde los commits `[user-facing]`
 4. Presionar ENTER para continuar
 5. El script hará build y publish automáticamente
+
+## Push y Release
+
+**NO** hagas push ni release automáticamente. Solo ejecuta estos comandos cuando el usuario lo indique explícitamente.
+
+### Regla:
+
+- ✅ Esperar instrucción explícita: "haz push", "haz release", "publica", etc.
+- ❌ NO hacer push/release automático después de commits
 
 ### Estructura del changelog.json:
 
