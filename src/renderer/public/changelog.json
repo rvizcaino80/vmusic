@@ -1,21 +1,12 @@
 {
   "versions": [
     {
-      "version": "1.4.3",
+      "version": "1.4.4",
       "date": "2026-04-14",
       "changes": {
-        "fix": [
-          "Recuperar contador de reproducciones y rotación de CD"
-        ],
-        "other": [
-          "Revertir rollback que volvió a versión antigua"
-        ]
+        "fix": ["Recuperar contador de reproducciones y rotación de CD"],
+        "other": ["Revertir rollback que volvió a versión antigua"]
       }
-    },
-    {
-      "version": "1.4.3",
-      "date": "2026-04-14",
-      "changes": {}
     },
     {
       "version": "1.4.2",
@@ -36,12 +27,8 @@
       "version": "1.1.24",
       "date": "2026-04-13",
       "changes": {
-        "new": [
-          "Sistema de actualización integrado"
-        ],
-        "fix": [
-          "Corrección de errores menores"
-        ]
+        "new": ["Sistema de actualización integrado"],
+        "fix": ["Corrección de errores menores"]
       }
     }
   ]
