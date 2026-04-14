@@ -1,35 +1,9 @@
 {
   "versions": [
     {
-      "version": "1.4.1",
+      "version": "1.4.2",
       "date": "2026-04-14",
-      "changes": {
-        "new": [
-          "Actualizar script release para usar etiqueta user-facing",
-          "Agregar contador de reproducciones a canciones"
-        ],
-        "fix": [
-          "Corregir dirección de rotación del CD hacia la izquierda"
-        ]
-      }
-    },
-    {
-      "version": "1.4.0",
-      "date": "2026-04-14",
-      "changes": {
-        "new": [
-          "Agregar contador de reproducciones a canciones"
-        ]
-      }
-    },
-    {
-      "version": "1.3.0",
-      "date": "2026-04-14",
-      "changes": {
-        "new": [
-          "Agregar sistema de mapeo automático de commits a descripciones de usuario"
-        ]
-      }
+      "changes": {}
     },
     {
       "version": "1.2.0",
