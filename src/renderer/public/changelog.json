@@ -1,46 +1,21 @@
 {
   "versions": [
     {
+      "version": "1.3.0",
+      "date": "2026-04-14",
+      "changes": {
+        "new": [
+          "Agregar sistema de mapeo automático de commits a descripciones de usuario"
+        ]
+      }
+    },
+    {
       "version": "1.2.0",
       "date": "2026-04-14",
       "changes": {
         "new": [
-          "agregar flag user-facing para commits visibles en changelog"
-        ],
-        "fix": [
-          "agregar importación de MP3 locales al changelog",
-          "limpiar changelog para mostrar solo cambios visibles al usuario"
-        ],
-        "perf": [],
-        "refactor": [],
-        "other": []
-      }
-    },
-    {
-      "version": "1.1.32",
-      "date": "2026-04-14",
-      "changes": {
-        "new": [
-          "agregar flag user-facing para commits visibles en changelog"
-        ]
-      }
-    },
-    {
-      "version": "1.1.31",
-      "date": "2026-04-13",
-      "changes": {
-        "new": [
-          "Sistema de changelog con automatización de release"
-        ]
-      }
-    },
-    {
-      "version": "1.1.26",
-      "date": "2026-04-13",
-      "changes": {
-        "new": [
-          "Sistema de changelog con automatización de release",
-          "Agregar funcionalidad para importar archivos MP3 locales a la biblioteca"
+          "Panel para importar archivos MP3 manualmente a la biblioteca",
+          "Panel de registro de cambios para ver las novedades de cada actualización"
         ]
       }
     },
