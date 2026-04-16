@@ -179,6 +179,28 @@ SongTag.init(
 class Tag extends Model {}
 Tag.init({ name: Sequelize.DataTypes.STRING }, { sequelize, modelName: 'Tag' })
 
+class Playlist extends Model {}
+Playlist.init(
+  {
+    name: {
+      type: Sequelize.DataTypes.STRING,
+      allowNull: false,
+      unique: true
+    }
+  },
+  { sequelize, modelName: 'Playlist' }
+)
+
+class PlaylistSong extends Model {}
+PlaylistSong.init(
+  {
+    playlistId: Sequelize.DataTypes.INTEGER,
+    songId: Sequelize.DataTypes.INTEGER,
+    order: Sequelize.DataTypes.INTEGER
+  },
+  { sequelize, modelName: 'PlaylistSong' }
+)
+
 const db = {
   Artist,
   ArtistSong,
@@ -187,6 +209,8 @@ const db = {
   Song,
   SongTag,
   Tag,
+  Playlist,
+  PlaylistSong,
   sequelize,
   Sequelize
 }
@@ -198,6 +222,11 @@ Artist.belongsToMany(Song, { through: ArtistSong })
 Song.belongsToMany(Artist, { through: ArtistSong })
 Composer.belongsToMany(Song, { through: ComposerSong })
 Song.belongsToMany(Composer, { through: ComposerSong })
+
+Playlist.hasMany(PlaylistSong, { foreignKey: 'playlistId', onDelete: 'CASCADE' })
+PlaylistSong.belongsTo(Playlist, { foreignKey: 'playlistId' })
+PlaylistSong.belongsTo(Song, { foreignKey: 'songId' })
+Song.hasMany(PlaylistSong, { foreignKey: 'songId' })
 
 async function getAudioDurationInSeconds(filePath) {
   const mm = await import('music-metadata')
@@ -2177,6 +2206,158 @@ app.post('/artists/delete/:id', async (req, res, next) => {
   res.send(artists)
 })
 
+// Endpoints para Playlists
+
+// Listar playlists con cantidad de canciones
+app.get('/playlists', async (req, res, next) => {
+  try {
+    const playlists = await Playlist.findAll({
+      attributes: [
+        'id',
+        'name',
+        'createdAt',
+        'updatedAt',
+        [Sequelize.fn('COUNT', Sequelize.col('PlaylistSongs.id')), 'songCount']
+      ],
+      include: [{ model: PlaylistSong, attributes: [], required: false }],
+      group: ['Playlist.id'],
+      order: [['name', 'ASC']]
+    })
+    res.json(playlists)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Crear o actualizar playlist (sobrescribe si nombre existe)
+app.post('/playlists', async (req, res, next) => {
+  try {
+    const { name, songIds } = req.body
+    const normalizedName = name.trim().toLowerCase()
+
+    // Buscar existente (case insensitive)
+    const existing = await Playlist.findOne({
+      where: Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('name')), normalizedName)
+    })
+
+    let playlist
+    if (existing) {
+      // Actualizar existente: eliminar canciones actuales
+      playlist = existing
+      await PlaylistSong.destroy({ where: { playlistId: playlist.id } })
+    } else {
+      // Crear nueva
+      playlist = await Playlist.create({ name: name.trim() })
+    }
+
+    // Insertar canciones en orden
+    if (songIds && songIds.length > 0) {
+      const playlistSongs = songIds.map((songId, index) => ({
+        playlistId: playlist.id,
+        songId,
+        order: index
+      }))
+      await PlaylistSong.bulkCreate(playlistSongs)
+    }
+
+    // Retornar playlist actualizada con canciones
+    const result = await Playlist.findByPk(playlist.id, {
+      include: [
+        {
+          model: PlaylistSong,
+          include: [{ model: Song, include: [Artist] }],
+          order: [['order', 'ASC']]
+        }
+      ]
+    })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Obtener playlist con canciones ordenadas
+app.get('/playlists/:id', async (req, res, next) => {
+  try {
+    const playlist = await Playlist.findByPk(req.params.id, {
+      include: [
+        {
+          model: PlaylistSong,
+          include: [{ model: Song, include: [Artist] }],
+          order: [['order', 'ASC']]
+        }
+      ]
+    })
+    if (!playlist) return res.status(404).json({ error: 'Playlist no encontrada' })
+    res.json(playlist)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Renombrar playlist
+app.put('/playlists/:id', async (req, res, next) => {
+  try {
+    const { name } = req.body
+    const playlist = await Playlist.findByPk(req.params.id)
+    if (!playlist) return res.status(404).json({ error: 'Playlist no encontrada' })
+
+    // Verificar si nombre existe (case insensitive, excluyendo actual)
+    const normalizedName = name.trim().toLowerCase()
+    const existing = await Playlist.findOne({
+      where: {
+        id: { [Sequelize.Op.ne]: req.params.id },
+        name: Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('name')), normalizedName)
+      }
+    })
+
+    if (existing) {
+      return res.status(409).json({ error: 'Ya existe una playlist con ese nombre' })
+    }
+
+    await playlist.update({ name: name.trim() })
+    res.json(playlist)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Eliminar playlist
+app.delete('/playlists/:id', async (req, res, next) => {
+  try {
+    const playlist = await Playlist.findByPk(req.params.id)
+    if (!playlist) return res.status(404).json({ error: 'Playlist no encontrada' })
+    await playlist.destroy()
+    res.json({ success: true })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Agregar canciones específicas a playlist
+app.post('/playlists/:id/add-songs', async (req, res, next) => {
+  try {
+    const { songIds } = req.body
+    const playlist = await Playlist.findByPk(req.params.id)
+    if (!playlist) return res.status(404).json({ error: 'Playlist no encontrada' })
+
+    // Obtener orden máximo actual
+    const maxOrder = (await PlaylistSong.max('order', { where: { playlistId: playlist.id } })) || -1
+
+    // Insertar nuevas canciones al final
+    const playlistSongs = songIds.map((songId, index) => ({
+      playlistId: playlist.id,
+      songId,
+      order: maxOrder + 1 + index
+    }))
+    await PlaylistSong.bulkCreate(playlistSongs)
+
+    res.json({ success: true, added: songIds.length })
+  } catch (error) {
+    next(error)
+  }
+})
+
 async function runMigrations() {
   try {
     // Verificar si la columna playCount existe
@@ -2191,6 +2372,83 @@ async function runMigrations() {
       // Inicializar playCount en 0 para canciones existentes
       await sequelize.query('UPDATE Songs SET playCount = 0 WHERE playCount IS NULL')
       console.log('[vmusic] Migración completada: columna playCount agregada')
+    }
+
+    // Verificar si existen las tablas de playlists
+    const tableNames = await sequelize.getQueryInterface().showAllTables()
+    if (!tableNames.includes('Playlists')) {
+      console.log('[vmusic] Migrando: creando tabla Playlists')
+      await sequelize.getQueryInterface().createTable('Playlists', {
+        id: {
+          allowNull: false,
+          autoIncrement: true,
+          primaryKey: true,
+          type: Sequelize.DataTypes.INTEGER
+        },
+        name: {
+          type: Sequelize.DataTypes.STRING,
+          allowNull: false,
+          unique: true
+        },
+        createdAt: {
+          allowNull: false,
+          type: Sequelize.DataTypes.DATE
+        },
+        updatedAt: {
+          allowNull: false,
+          type: Sequelize.DataTypes.DATE
+        }
+      })
+      console.log('[vmusic] Migración completada: tabla Playlists creada')
+    }
+
+    if (!tableNames.includes('PlaylistSongs')) {
+      console.log('[vmusic] Migrando: creando tabla PlaylistSongs')
+      await sequelize.getQueryInterface().createTable('PlaylistSongs', {
+        id: {
+          allowNull: false,
+          autoIncrement: true,
+          primaryKey: true,
+          type: Sequelize.DataTypes.INTEGER
+        },
+        playlistId: {
+          type: Sequelize.DataTypes.INTEGER,
+          allowNull: false,
+          references: {
+            model: 'Playlists',
+            key: 'id'
+          },
+          onUpdate: 'cascade',
+          onDelete: 'cascade'
+        },
+        songId: {
+          type: Sequelize.DataTypes.INTEGER,
+          allowNull: false,
+          references: {
+            model: 'Songs',
+            key: 'id'
+          },
+          onUpdate: 'cascade',
+          onDelete: 'cascade'
+        },
+        order: {
+          type: Sequelize.DataTypes.INTEGER,
+          allowNull: false
+        },
+        createdAt: {
+          allowNull: false,
+          type: Sequelize.DataTypes.DATE
+        },
+        updatedAt: {
+          allowNull: false,
+          type: Sequelize.DataTypes.DATE
+        }
+      })
+      // Crear índice
+      await sequelize.query(
+        'CREATE INDEX IF NOT EXISTS playlist_song_order_index ON PlaylistSongs (playlistId, order)'
+      )
+      console.log('[vmusic] Migración completada: tabla PlaylistSongs creada')
     }
   } catch (error) {
     console.error('[vmusic] Error en migración:', error)

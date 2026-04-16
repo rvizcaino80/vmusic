@@ -8,6 +8,45 @@
       @click.right="closeContextMenu"
     />
 
+    <!-- Context menu for adding songs to playlists -->
+    <div
+      v-if="songContextMenu.visible"
+      class="absolute bg-gray-900 z-[100] rounded shadow-lg border border-gray-700 min-w-[200px]"
+      :style="{ top: songContextMenu.y + 'px', left: songContextMenu.x + 'px' }"
+    >
+      <div class="text-sm text-gray-400 px-3 py-2 border-b border-gray-700 truncate">
+        Agregar a playlist
+      </div>
+      <div
+        v-for="playlist in savedPlaylists"
+        :key="playlist.id"
+        class="px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-800 cursor-pointer text-sm"
+        @click="addSongToPlaylist(playlist.id)"
+      >
+        {{ playlist.name }} ({{ playlist.songCount }})
+      </div>
+      <div class="border-t border-gray-700 mt-1">
+        <div
+          class="px-3 py-2 text-lime-400 hover:text-lime-300 hover:bg-gray-800 cursor-pointer text-sm"
+          @click="createNewPlaylistWithSong"
+        >
+          + Crear nueva playlist...
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal crear playlist rápida -->
+    <a-modal
+      v-model:open="quickCreatePlaylistModalVisible"
+      title="Crear nueva playlist"
+      :ok-text="'Crear'"
+      :cancel-text="'Cancelar'"
+      @ok="confirmQuickCreatePlaylist"
+      @cancel="quickCreatePlaylistModalVisible = false"
+    >
+      <a-input v-model:value="quickPlaylistName" placeholder="Nombre de la playlist" />
+    </a-modal>
+
     <div v-if="currentSelectedOption" class="backdrop z-50 fixed w-full h-full" @click="hideMenu">
       <div
         :class="{
@@ -445,7 +484,10 @@
                   </div>
                 </template>
                 <template v-else-if="column.dataIndex === 'name'">
-                  <div class="flex items-center space-x-2">
+                  <div
+                    class="flex items-center space-x-2 cursor-pointer"
+                    @contextmenu.prevent="openSongContextMenu($event, record)"
+                  >
                     <span>{{ text }}</span>
                     <a-tooltip v-if="getSongNote(record)" placement="top">
                       <template #title>
@@ -644,6 +686,11 @@
           </div>
         </div>
       </div>
+
+      <Playlists
+        v-if="currentSelectedOption && currentSelectedOption === options.playlists"
+        @load-playlist="onLoadPlaylist"
+      />
     </div>
 
     <div v-if="customUpdaterBlocking" class="vm-update-screen">
@@ -1112,6 +1159,18 @@
               :disabled="playlistDetails.length <= 0"
               size="small"
               class="playlist-quick-action"
+              @click="openSavePlaylistModal"
+            >
+              <template #icon>
+                <i-mdi-content-save class="w-4 h-4" />
+              </template>
+              Guardar
+            </a-button>
+
+            <a-button
+              :disabled="playlistDetails.length <= 0"
+              size="small"
+              class="playlist-quick-action"
               @click="removeAll(playlistDetails)"
             >
               <template #icon>
@@ -1173,6 +1232,16 @@
           >
             <div>
               <i-mdi-clock-outline class="w-7 h-7" />
+            </div>
+          </div>
+
+          <div
+            :class="{ 'vm-item-selected': currentSelectedOption === options.playlists }"
+            class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
+            @click="setOption(options.playlists)"
+          >
+            <div>
+              <i-mdi-playlist-music class="w-7 h-7" />
             </div>
           </div>
         </div>
@@ -1267,6 +1336,19 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal guardar playlist -->
+    <a-modal
+      v-model:open="savePlaylistModalVisible"
+      title="Guardar playlist"
+      :ok-text="'Guardar'"
+      :cancel-text="'Cancelar'"
+      @ok="savePlaylist"
+      @cancel="savePlaylistModalVisible = false"
+    >
+      <a-input v-model:value="playlistNameToSave" placeholder="Nombre de la playlist" />
+      <p v-if="savePlaylistError" class="text-red-500 text-sm mt-2">{{ savePlaylistError }}</p>
+    </a-modal>
   </a-config-provider>
 </template>
 
@@ -1275,6 +1357,7 @@ import axios from 'axios'
 import { onMounted, onUnmounted, computed, ref, watch, reactive, nextTick } from 'vue'
 import { useVirtualList } from '@vueuse/core'
 import dayjs from 'dayjs'
+import { message } from 'ant-design-vue'
 import logoSvgMarkup from './assets/logo.svg?raw'
 import appIconUrl from '../../../resources/icon.png?asset'
 
@@ -1289,12 +1372,14 @@ import AddMp3 from './components/AddMp3.vue'
 import Wave from './components/Wave.vue'
 import Multiselect from './components/Multiselect.vue'
 import Changelog from './components/Changelog.vue'
+import Playlists from './components/Playlists.vue'
 
 let options = {
   library: 10,
   download: 20,
   history: 22,
-  downloadDetails: 25,
+  playlists: 25,
+  downloadDetails: 28,
   tags: 30,
   settings: 40,
   artists: 50,
@@ -3436,6 +3521,72 @@ const showMenu = ref(false)
 
 const closeContextMenu = () => {
   showMenu.value = false
+  songContextMenu.value.visible = false
+}
+
+// Context menu for playlists
+const songContextMenu = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  song: null
+})
+const savedPlaylists = ref([])
+const quickCreatePlaylistModalVisible = ref(false)
+const quickPlaylistName = ref('')
+
+async function fetchSavedPlaylists() {
+  try {
+    const { data } = await axios.get('http://localhost:3000/playlists')
+    savedPlaylists.value = data
+  } catch (error) {
+    console.error('Error al cargar playlists:', error)
+  }
+}
+
+function openSongContextMenu(event, song) {
+  songContextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    song
+  }
+  fetchSavedPlaylists()
+}
+
+async function addSongToPlaylist(playlistId) {
+  if (!songContextMenu.value.song) return
+  try {
+    await axios.post(`http://localhost:3000/playlists/${playlistId}/add-songs`, {
+      songIds: [songContextMenu.value.song.id]
+    })
+    message.success('Canción agregada a la playlist')
+  } catch (error) {
+    console.error('Error al agregar canción:', error)
+    message.error('Error al agregar canción')
+  }
+  songContextMenu.value.visible = false
+}
+
+function createNewPlaylistWithSong() {
+  quickPlaylistName.value = `Playlist ${dayjs().format('YYYY-MM-DD HH:mm')}`
+  quickCreatePlaylistModalVisible.value = true
+  songContextMenu.value.visible = false
+}
+
+async function confirmQuickCreatePlaylist() {
+  try {
+    const songIds = songContextMenu.value.song ? [songContextMenu.value.song.id] : []
+    await axios.post('http://localhost:3000/playlists', {
+      name: quickPlaylistName.value,
+      songIds
+    })
+    message.success('Playlist creada')
+    quickCreatePlaylistModalVisible.value = false
+  } catch (error) {
+    console.error('Error al crear playlist:', error)
+    message.error('Error al crear playlist')
+  }
 }
 
 function deleteSong() {
@@ -3500,6 +3651,68 @@ function shufflePlaylist(event) {
     )
     selectedRows.value = stillPresent
   }
+}
+
+// Playlist save/load functionality
+const savePlaylistModalVisible = ref(false)
+const playlistNameToSave = ref('')
+const savePlaylistError = ref('')
+const defaultPlaylistName = computed(() => {
+  return `Playlist ${dayjs().format('YYYY-MM-DD HH:mm')}`
+})
+
+function openSavePlaylistModal() {
+  playlistNameToSave.value = defaultPlaylistName.value
+  savePlaylistError.value = ''
+  savePlaylistModalVisible.value = true
+}
+
+async function savePlaylist() {
+  try {
+    savePlaylistError.value = ''
+    const songIds = playlistDetails.value.map((item) => item.id)
+    await axios.post('http://localhost:3000/playlists', {
+      name: playlistNameToSave.value,
+      songIds
+    })
+    savePlaylistModalVisible.value = false
+    message.success('Playlist guardada')
+  } catch (error) {
+    console.error('Error al guardar playlist:', error)
+    savePlaylistError.value = 'Error al guardar la playlist'
+  }
+}
+
+function onLoadPlaylist({ songs: playlistSongs, mode, name }) {
+  // Convertir PlaylistSongs a entries compatibles
+  const entries = []
+
+  for (const ps of playlistSongs) {
+    // ps.Song contiene los datos de la canción desde el backend
+    const songData = ps.Song
+    if (!songData) continue // Omitir silenciosamente si no existe
+
+    const entry = {
+      ...songData,
+      Artists: songData.Artists || [],
+      Composers: songData.Composers || [],
+      Tags: songData.Tags || [],
+      entryId: generateEntryId(),
+      played: false
+    }
+    entries.push(entry)
+  }
+
+  if (mode === 'replace') {
+    playlistDetails.value = entries
+  } else {
+    // Agregar al final
+    playlistDetails.value.push(...entries)
+  }
+
+  syncPlaylistStateFromDetails()
+  selectedRows.value = []
+  message.success(`Playlist "${name}" cargada (${entries.length} canciones)`)
 }
 
 function openM3UPicker() {
