@@ -1924,6 +1924,13 @@ app.whenReady().then(() => {
 
     return { ok: true }
   })
+  ipcMain.handle('db:backup', async() => {
+    if (typeof backendService.backupDb === 'function') {
+      backendService.backupDb()
+      return { ok: true }
+    }
+    return { ok: false, error: 'backupDb no disponible' }
+  })
 
   createWindow()
   keepAppAwake()
@@ -1961,6 +1968,9 @@ app.on('before-quit', () => {
   if (customUpdateCheckTimer) {
     clearInterval(customUpdateCheckTimer)
     customUpdateCheckTimer = null
+  }
+  if (typeof backendService.backupDb === 'function') {
+    backendService.backupDb()
   }
   if (process.platform === 'darwin' && customUpdateContext.shouldInstallOnQuit) {
     launchCustomMacInstallHelper()

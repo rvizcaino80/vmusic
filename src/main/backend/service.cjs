@@ -138,6 +138,42 @@ const MUSIC_ROOT = resolveMusicRoot()
 fs.mkdirSync(MUSIC_ROOT, { recursive: true })
 resolveDbPath()
 
+const BACKUP_DIR = path.join(resolveUserDataDir(), 'db-backups')
+const BACKUP_KEEP = 10
+const BACKUP_INTERVAL_MS = 30 * 60 * 1000
+
+function backupDb() {
+  const dbPath = process.env.VMUSIC_DB_PATH
+  if (!dbPath || !fs.existsSync(dbPath)) return
+
+  try {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true })
+    const now = new Date()
+    const ts = now.getFullYear() +
+      '-' + String(now.getMonth() + 1).padStart(2, '0') +
+      '-' + String(now.getDate()).padStart(2, '0') +
+      'T' + String(now.getHours()).padStart(2, '0') +
+      '-' + String(now.getMinutes()).padStart(2, '0') +
+      '-' + String(now.getSeconds()).padStart(2, '0')
+    const backupPath = path.join(BACKUP_DIR, `vmusic-${ts}.sqlite`)
+    fs.copyFileSync(dbPath, backupPath)
+    console.log(`[vmusic][backup] respaldo creado: ${backupPath}`)
+
+    const backups = fs.readdirSync(BACKUP_DIR)
+      .filter((f) => f.startsWith('vmusic-') && f.endsWith('.sqlite'))
+      .sort()
+      .reverse()
+    if (backups.length > BACKUP_KEEP) {
+      backups.slice(BACKUP_KEEP).forEach((f) => {
+        try { fs.unlinkSync(path.join(BACKUP_DIR, f)) } catch {}
+      })
+      console.log(`[vmusic][backup] rotación: eliminados ${backups.length - BACKUP_KEEP} antiguos`)
+    }
+  } catch (err) {
+    console.warn('[vmusic][backup] error al respaldar:', err.message)
+  }
+}
+
 resolveBundledBinary('yt-dlp')
 resolveBundledBinary('aacgain')
 const gamdlBin = resolveBundledBinary('gamdl')
@@ -145,6 +181,15 @@ resolveBundledBinary('ffmpeg')
 if (gamdlBin) {
   process.env.GAMDL = gamdlBin
 }
+
+backupDb()
+
+let backupInterval = null
+function startPeriodicBackup() {
+  if (backupInterval) return
+  backupInterval = setInterval(backupDb, BACKUP_INTERVAL_MS)
+}
+startPeriodicBackup()
 
 try {
   require('./server.base.cjs')
@@ -428,5 +473,6 @@ module.exports = {
   getMediaPath,
   getMediaUrl,
   getLocalStaticUrl,
-  routes
+  routes,
+  backupDb
 }
