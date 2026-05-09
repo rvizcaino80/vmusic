@@ -216,12 +216,12 @@ const db = {
 }
 const dbContext = db
 
-Song.belongsToMany(Tag, { through: SongTag })
-Tag.belongsToMany(Song, { through: SongTag })
-Artist.belongsToMany(Song, { through: ArtistSong })
-Song.belongsToMany(Artist, { through: ArtistSong })
-Composer.belongsToMany(Song, { through: ComposerSong })
-Song.belongsToMany(Composer, { through: ComposerSong })
+Song.belongsToMany(Tag, { through: SongTag, foreignKey: 'songId', otherKey: 'tagId' })
+Tag.belongsToMany(Song, { through: SongTag, foreignKey: 'tagId', otherKey: 'songId' })
+Artist.belongsToMany(Song, { through: ArtistSong, foreignKey: 'artistId', otherKey: 'songId' })
+Song.belongsToMany(Artist, { through: ArtistSong, foreignKey: 'songId', otherKey: 'artistId' })
+Composer.belongsToMany(Song, { through: ComposerSong, foreignKey: 'composerId', otherKey: 'songId' })
+Song.belongsToMany(Composer, { through: ComposerSong, foreignKey: 'songId', otherKey: 'composerId' })
 
 Playlist.hasMany(PlaylistSong, { foreignKey: 'playlistId', onDelete: 'CASCADE' })
 PlaylistSong.belongsTo(Playlist, { foreignKey: 'playlistId' })
@@ -2446,7 +2446,7 @@ async function runMigrations() {
       })
       // Crear índice
       await sequelize.query(
-        'CREATE INDEX IF NOT EXISTS playlist_song_order_index ON PlaylistSongs (playlistId, order)'
+        'CREATE INDEX IF NOT EXISTS playlist_song_order_index ON PlaylistSongs (playlistId, `order`)'
       )
       console.log('[vmusic] Migración completada: tabla PlaylistSongs creada')
     }
