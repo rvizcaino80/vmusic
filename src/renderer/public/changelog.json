@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.4.9",
+      "date": "2026-05-09",
+      "changes": {
+        "new": [
+          "Nuevo sistema de playlists para crear, guardar y cargar listas de reproducción"
+        ]
+      }
+    },
+    {
       "version": "1.4.8",
       "date": "2026-04-14",
       "changes": {}
