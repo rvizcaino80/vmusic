@@ -25,10 +25,6 @@ extraResources:
     to: bin
     filter:
       - '**/*'
-  - from: .
-    to: .
-    filter:
-      - cookies.txt
 afterSign: scripts/clear-mac-bundle-icon-flags.cjs
 win:
   executableName: salsamania

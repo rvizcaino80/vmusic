@@ -1867,15 +1867,14 @@ app.post('/download', async (req, res, next) => {
 
     const cookiesPath = (() => {
       try {
-        const bundledPath = process.resourcesPath
-          ? path.join(process.resourcesPath, 'cookies.txt')
+        const userData = process.env.VMUSIC_DB_PATH
+          ? path.dirname(process.env.VMUSIC_DB_PATH)
           : ''
-        if (bundledPath && fs.existsSync(bundledPath)) return bundledPath
+        const userDataCookies = userData ? path.join(userData, 'cookies.txt') : ''
+        if (userDataCookies && fs.existsSync(userDataCookies)) return userDataCookies
       } catch {}
       const devPath = path.resolve(process.cwd(), 'cookies.txt')
       if (fs.existsSync(devPath)) return devPath
-      const devPath2 = path.resolve(__dirname, '../../../cookies.txt')
-      if (fs.existsSync(devPath2)) return devPath2
       return null
     })()
 
