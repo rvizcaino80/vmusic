@@ -1865,6 +1865,20 @@ app.post('/download', async (req, res, next) => {
       })
     }
 
+    const cookiesPath = (() => {
+      try {
+        const bundledPath = process.resourcesPath
+          ? path.join(process.resourcesPath, 'cookies.txt')
+          : ''
+        if (bundledPath && fs.existsSync(bundledPath)) return bundledPath
+      } catch {}
+      const devPath = path.resolve(process.cwd(), 'cookies.txt')
+      if (fs.existsSync(devPath)) return devPath
+      const devPath2 = path.resolve(__dirname, '../../../cookies.txt')
+      if (fs.existsSync(devPath2)) return devPath2
+      return null
+    })()
+
     args = [
       '--no-synced-lyrics',
       '--overwrite',
@@ -1876,8 +1890,15 @@ app.post('/download', async (req, res, next) => {
       '',
       '-o',
       MUSIC_LIBRARY_DIR,
-      requestUrl
     ]
+    if (cookiesPath) {
+      args.push('--cookies-path', cookiesPath)
+    }
+    args.push(requestUrl)
+
+    console.log('[vmusic][gamdl] command:', command)
+    console.log('[vmusic][gamdl] cookiesPath:', cookiesPath)
+    console.log('[vmusic][gamdl] args:', args.join(' '))
 
     const gamdl = spawn(command, args)
 
