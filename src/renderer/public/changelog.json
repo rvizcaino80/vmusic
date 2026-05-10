@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.5.3",
+      "date": "2026-05-10",
+      "changes": {
+        "fix": [
+          "Corregir descarga de Apple Music - buscar archivo en subdirectorios para gamdl 2.9.1"
+        ]
+      }
+    },
+    {
       "version": "1.5.2",
       "date": "2026-05-10",
       "changes": {
