@@ -1034,6 +1034,35 @@ function getDownloadedFilePath(id) {
     } catch (error) {}
   }
 
+  try {
+    const entries = fs.readdirSync(MUSIC_LIBRARY_DIR, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      for (const extension of DOWNLOADABLE_EXTENSIONS) {
+        const filePath = path.join(MUSIC_LIBRARY_DIR, entry.name, `${normalizedId}${extension}`)
+        try {
+          const stat = fs.statSync(filePath)
+          if (stat.isFile() && stat.size > 0) {
+            return filePath
+          }
+        } catch {}
+        try {
+          const subEntries = fs.readdirSync(path.join(MUSIC_LIBRARY_DIR, entry.name), { withFileTypes: true })
+          for (const subEntry of subEntries) {
+            if (!subEntry.isDirectory()) continue
+            const subFilePath = path.join(MUSIC_LIBRARY_DIR, entry.name, subEntry.name, `${normalizedId}${extension}`)
+            try {
+              const stat = fs.statSync(subFilePath)
+              if (stat.isFile() && stat.size > 0) {
+                return subFilePath
+              }
+            } catch {}
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+
   return null
 }
 
