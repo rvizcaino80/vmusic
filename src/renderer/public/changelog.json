@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.5.2",
+      "date": "2026-05-10",
+      "changes": {
+        "fix": [
+          "Corregir descarga de Apple Music por incompatible de argumentos de gamdl"
+        ]
+      }
+    },
+    {
       "version": "1.5.1",
       "date": "2026-05-09",
       "changes": {}
