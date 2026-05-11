@@ -1,6 +1,16 @@
 {
   "versions": [
     {
+      "version": "1.5.6",
+      "date": "2026-05-11",
+      "changes": {
+        "new": [
+          "Letras sincronizadas en el centro del reproductor via LRCLIB",
+          "Indicador visual de estado de Apple Music en el panel de descarga"
+        ]
+      }
+    },
+    {
       "version": "1.5.5",
       "date": "2026-05-10",
       "changes": {}
