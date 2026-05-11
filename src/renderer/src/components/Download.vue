@@ -73,6 +73,29 @@
           placeholder="URL"
           @change="onURLChange"
         />
+        <div
+          v-if="isAppleLink"
+          class="mt-1 text-sm"
+        >
+          <span
+            v-if="appleMusicStatus === 'ready'"
+            class="text-green-600"
+          >
+            ✅ Apple Music: Listo
+          </span>
+          <span
+            v-else-if="appleMusicStatus === 'checking'"
+            class="text-gray-400"
+          >
+            ⏳ Apple Music: Verificando...
+          </span>
+          <span
+            v-else
+            class="text-red-600"
+          >
+            ❌ Apple Music: Necesita configuración
+          </span>
+        </div>
       </a-form-item>
 
       <a-form-item
@@ -198,7 +221,7 @@
         html-type="submit"
         size="large"
         class="flex items-center space-x-1"
-        :disabled="selectedTags.length === 0"
+        :disabled="selectedTags.length === 0 || (isAppleLink && appleMusicStatus !== 'ready')"
       >
         <Icon
           v-if="!isSaving"
@@ -231,6 +254,7 @@ const selectedComposers = ref([])
 const metadataUrl = ref('')
 const coverUrl = ref('')
 const isAppleLink = ref(false)
+const appleMusicStatus = ref('unknown')
 const isError = ref(false)
 const errorMessage = ref('')
 const noteText = ref('')
@@ -258,6 +282,16 @@ function isSupportedSourceUrl(value) {
     .toLowerCase()
 
   return lower.includes('music.apple') || lower.includes('youtube.com') || lower.includes('youtu.be') || lower.includes('deezer.com') || lower.includes('deezer.page.link')
+}
+
+async function checkAppleMusicStatus() {
+  appleMusicStatus.value = 'checking'
+  try {
+    const res = await axios.get('http://localhost:3000/apple-music/check')
+    appleMusicStatus.value = res.data?.status || 'missing'
+  } catch {
+    appleMusicStatus.value = 'missing'
+  }
 }
 
 function normalizeArtistName(value) {
@@ -759,6 +793,9 @@ async function onURLChange(e) {
   metadataUrl.value = ''
   coverUrl.value = ''
   isAppleLink.value = e.target.value.includes('music.apple')
+  if (isAppleLink.value) {
+    checkAppleMusicStatus()
+  }
 
   const isValidSource = isSupportedSourceUrl(e.target.value)
   if (!isValidSource) {
@@ -968,6 +1005,7 @@ onMounted(() => {
   }
   cleanupTimedOutTasks()
   downloadTasksWatchdog = setInterval(cleanupTimedOutTasks, 5000)
+  checkAppleMusicStatus()
 })
 
 onUnmounted(() => {

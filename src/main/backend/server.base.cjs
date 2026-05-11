@@ -61,6 +61,30 @@ if (YT_DLP_BIN) {
   process.env.VMUSIC_YT_DLP_BIN = YT_DLP_BIN
 }
 const GAMDL_BIN = process.env.VMUSIC_GAMDL_BIN || process.env.GAMDL
+
+function resolveCookiesPath() {
+  try {
+    const userData = process.env.VMUSIC_DB_PATH
+      ? path.dirname(process.env.VMUSIC_DB_PATH)
+      : ''
+    const userDataCookies = userData ? path.join(userData, 'cookies.txt') : ''
+    if (userDataCookies && fs.existsSync(userDataCookies)) return userDataCookies
+  } catch {}
+  const devPath = path.resolve(process.cwd(), 'cookies.txt')
+  if (fs.existsSync(devPath)) return devPath
+  return null
+}
+
+function validateCookiesFile(filePath) {
+  if (!filePath) return false
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8')
+    if (!content.trim()) return false
+    return content.includes('media-user-token')
+  } catch {
+    return false
+  }
+}
 const MUSIC_LIBRARY_DIR = path.resolve(
   process.env.VMUSIC_MUSIC_DIR || path.join(os.homedir(), 'Music', 'SalsamaniaLibrary')
 )
@@ -1765,6 +1789,17 @@ app.post('/songs/delete', async (req, res, next) => {
   res.send([song.id])
 })
 
+app.get('/apple-music/check', async (req, res, next) => {
+  const cookiesPath = resolveCookiesPath()
+  if (!cookiesPath) {
+    return res.send({ status: 'missing', message: 'No se encontró el archivo de cookies de Apple Music' })
+  }
+  if (!validateCookiesFile(cookiesPath)) {
+    return res.send({ status: 'invalid', message: 'Las cookies de Apple Music no son válidas o están expiradas' })
+  }
+  res.send({ status: 'ready', message: 'Apple Music configurado correctamente' })
+})
+
 app.post('/download', async (req, res, next) => {
   const rawRequestUrl = typeof req.body.url === 'string' ? req.body.url.trim() : ''
   const requestUrl = sanitizeYoutubeDownloadUrl(rawRequestUrl)
@@ -1865,18 +1900,7 @@ app.post('/download', async (req, res, next) => {
       })
     }
 
-    const cookiesPath = (() => {
-      try {
-        const userData = process.env.VMUSIC_DB_PATH
-          ? path.dirname(process.env.VMUSIC_DB_PATH)
-          : ''
-        const userDataCookies = userData ? path.join(userData, 'cookies.txt') : ''
-        if (userDataCookies && fs.existsSync(userDataCookies)) return userDataCookies
-      } catch {}
-      const devPath = path.resolve(process.cwd(), 'cookies.txt')
-      if (fs.existsSync(devPath)) return devPath
-      return null
-    })()
+    const cookiesPath = resolveCookiesPath()
 
     args = [
       '--no-synced-lyrics',
