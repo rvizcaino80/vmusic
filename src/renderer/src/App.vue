@@ -5450,8 +5450,18 @@ let lyricsActiveDeck = null
 let activeLyricsPlayer = null
 const lyricsFetchedSongs = new Set()
 
+function clearLyrics() {
+  lyricsLines.value = []
+  lyricsSynced.value = false
+  currentLyricIndex.value = -1
+  lyricsActiveDeck = null
+}
+
 function handlePlayerLoaded(playerRef) {
-  fetchLyricsForPlayer(playerRef)
+  const active = getMediaTargetPlayer()
+  if (active && active.position === playerRef.position) {
+    clearLyrics()
+  }
 }
 
 function handleLyricsTimeupdate(deck, currentTime) {
@@ -5535,16 +5545,24 @@ const prevLyricsLine = computed(() => {
 
 watch(
   () => {
-    const active = getMediaTargetPlayer()
-    return active?.position || null
+    const p1 = player1.value?.status || 0
+    const p2 = player2.value?.status || 0
+    return `${p1}:${p2}`
   },
-  (newPos) => {
-    if (newPos) {
-      lyricsActiveDeck = newPos
-      const active = getMediaTargetPlayer()
-      if (active?.songFull?.id && !lyricsFetchedSongs.has(active.songFull.id)) {
-        fetchLyricsForPlayer(active)
-      }
+  () => {
+    const active = getMediaTargetPlayer()
+    const position = active?.position || null
+    if (!position) {
+      clearLyrics()
+      return
+    }
+    lyricsActiveDeck = position
+    if (
+      active.status === playerStatuses.Reproduciendo &&
+      active?.songFull?.id &&
+      !lyricsFetchedSongs.has(active.songFull.id)
+    ) {
+      fetchLyricsForPlayer(active)
     }
   }
 )
