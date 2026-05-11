@@ -716,23 +716,6 @@
             Vista previa dev
           </div>
         </div>
-        <div class="vm-update-brand">
-          <div
-            class="vm-update-mark"
-            :class="{
-              'vm-update-mark-error': customUpdaterDisplayState.status === 'error',
-              'vm-update-mark-ready': customUpdaterDisplayState.status === 'downloaded'
-            }"
-          >
-            <img
-              :src="appIconUrl"
-              alt="Salsamania"
-              class="vm-update-mark-image"
-              draggable="false"
-            />
-          </div>
-          <div class="vm-update-name">Salsamania</div>
-        </div>
         <div
           v-if="
             customUpdaterDisplayState.status !== 'downloaded' &&
@@ -816,13 +799,12 @@
           @song-click="openInfoForSong"
           @preview-start="previewStartFromPlayer"
           @preview-stop="stopPreview"
-          @loaded="handlePlayerLoaded(player1); checkPlayers(player1)"
+          @loaded="checkPlayers(player1)"
           @stopped="checkPlayers(player1)"
           @finished="onSongFinished"
           @fading="songFading(player1)"
           @speed="saveSpeed(player1)"
           @cover-updated="coverUpdated"
-          @timeupdate="handleLyricsTimeupdate"
         />
         <div class="vm-center-stage flex-1">
           <div
@@ -896,13 +878,12 @@
           @song-click="openInfoForSong"
           @preview-start="previewStartFromPlayer"
           @preview-stop="stopPreview"
-          @loaded="handlePlayerLoaded(player2); checkPlayers(player2)"
+          @loaded="checkPlayers(player2)"
           @stopped="checkPlayers(player2)"
           @finished="onSongFinished"
           @fading="songFading(player2)"
           @speed="saveSpeed(player2)"
           @cover-updated="coverUpdated"
-          @timeupdate="handleLyricsTimeupdate"
         />
       </div>
 
@@ -1383,7 +1364,6 @@ import { useVirtualList } from '@vueuse/core'
 import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import logoSvgMarkup from './assets/logo.svg?raw'
-import appIconUrl from '../../../resources/icon.png?asset'
 
 /* Components */
 import Artists from './components/Artists.vue'
