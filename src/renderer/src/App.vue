@@ -863,8 +863,8 @@
             </div>
             <template v-else-if="activeLyricsLine">
               <div
-                class="vm-lyrics-viewport relative overflow-hidden"
-                style="width: 340px; height: 8rem; mask: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); -webkit-mask: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%)"
+                class="vm-lyrics-viewport relative overflow-hidden w-full"
+                style="height: 8rem; mask: linear-gradient(90deg, transparent 5%, #000 15%, #000 85%, transparent 95%); -webkit-mask: linear-gradient(90deg, transparent 5%, #000 15%, #000 85%, transparent 95%)"
               >
                 <div
                   class="vm-lyrics-track flex whitespace-nowrap transition-transform duration-200 ease-out"
