@@ -1834,6 +1834,102 @@ app.get('/apple-music/check', async (req, res, next) => {
   res.send({ status: 'ready', message: 'Apple Music configurado correctamente' })
 })
 
+const LYRICS_CACHE_PATH = path.resolve(
+  process.env.VMUSIC_DB_PATH
+    ? path.join(path.dirname(process.env.VMUSIC_DB_PATH), '.lyrics_cache.json')
+    : path.join(__dirname, '.lyrics_cache.json')
+)
+
+function loadLyricsCache() {
+  try {
+    const raw = fs.readFileSync(LYRICS_CACHE_PATH, 'utf-8')
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object') return parsed
+  } catch {}
+  return {}
+}
+
+function saveLyricsCache(data) {
+  try {
+    fs.mkdirSync(path.dirname(LYRICS_CACHE_PATH), { recursive: true })
+    fs.writeFileSync(LYRICS_CACHE_PATH, JSON.stringify(data), 'utf-8')
+  } catch (err) {
+    console.warn('[vmusic][lyrics] no se pudo guardar cache:', err.message)
+  }
+}
+
+function parseLrc(lrcText) {
+  const lines = []
+  const regex = /\[(\d{2}):(\d{2})[.:](\d{2,3})\](.*)/
+  for (const line of (lrcText || '').split('\n')) {
+    const match = line.match(regex)
+    if (match) {
+      const min = parseInt(match[1], 10)
+      const sec = parseInt(match[2], 10)
+      const ms = parseInt(match[3], 10)
+      const time = min * 60 + sec + ms / (match[3].length === 2 ? 100 : 1000)
+      const text = match[4].trim()
+      if (text) {
+        lines.push({ time, text })
+      }
+    }
+  }
+  return lines.sort((a, b) => a.time - b.time)
+}
+
+app.get('/lyrics', async (req, res, next) => {
+  const artist = (req.query.artist || '').trim()
+  const title = (req.query.title || '').trim()
+  if (!artist || !title) {
+    return res.status(400).send({ error: 'artist y title son requeridos' })
+  }
+
+  const cacheKey = `${artist.toLowerCase()}|${title.toLowerCase()}`
+  const cache = loadLyricsCache()
+
+  if (cache[cacheKey]) {
+    const cached = cache[cacheKey]
+    return res.send({
+      source: 'cache',
+      synced: cached.synced,
+      lines: cached.lines
+    })
+  }
+
+  try {
+    const response = await fetch(
+      `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`,
+      {
+        headers: { 'User-Agent': 'Salsamania/1.0 (https://github.com/rvizcaino80/vmusic)' }
+      }
+    )
+    if (response.status === 404) {
+      cache[cacheKey] = { synced: false, lines: [] }
+      saveLyricsCache(cache)
+      return res.send({ source: 'api', synced: false, lines: [] })
+    }
+    if (!response.ok) {
+      return res.status(502).send({ error: 'Error al consultar LRCLIB' })
+    }
+
+    const data = await response.json()
+    const lrcText = data.syncedLyrics || data.plainLyrics || ''
+    const lines = parseLrc(lrcText)
+
+    cache[cacheKey] = { synced: !!data.syncedLyrics, lines }
+    saveLyricsCache(cache)
+
+    res.send({
+      source: 'api',
+      synced: !!data.syncedLyrics,
+      lines
+    })
+  } catch (err) {
+    console.warn('[vmusic][lyrics] error:', err.message)
+    res.status(502).send({ error: 'No se pudo obtener la letra' })
+  }
+})
+
 app.post('/download', async (req, res, next) => {
   const rawRequestUrl = typeof req.body.url === 'string' ? req.body.url.trim() : ''
   const requestUrl = sanitizeYoutubeDownloadUrl(rawRequestUrl)

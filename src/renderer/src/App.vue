@@ -816,12 +816,13 @@
           @song-click="openInfoForSong"
           @preview-start="previewStartFromPlayer"
           @preview-stop="stopPreview"
-          @loaded="checkPlayers(player1)"
+          @loaded="handlePlayerLoaded(player1); checkPlayers(player1)"
           @stopped="checkPlayers(player1)"
           @finished="onSongFinished"
           @fading="songFading(player1)"
           @speed="saveSpeed(player1)"
           @cover-updated="coverUpdated"
+          @timeupdate="handleLyricsTimeupdate"
         />
         <div class="vm-center-stage flex-1">
           <div
@@ -850,6 +851,28 @@
               </div>
             </div>
           </div>
+          <div
+            v-else-if="shouldShowLyrics"
+            class="vm-lyrics-panel flex flex-col items-center justify-center px-8 py-4 select-none"
+          >
+            <div
+              v-if="lyricsLoading"
+              class="text-gray-400 text-lg"
+            >
+              Cargando letra...
+            </div>
+            <template v-else>
+              <div class="vm-lyrics-line prev text-gray-500 text-lg text-center leading-relaxed">
+                {{ prevLyricsLine }}
+              </div>
+              <div class="vm-lyrics-line current text-white text-3xl font-bold text-center leading-relaxed my-3 px-4">
+                {{ activeLyricsLine }}
+              </div>
+              <div class="vm-lyrics-line next text-gray-500 text-lg text-center leading-relaxed">
+                {{ nextLyricsLine }}
+              </div>
+            </template>
+          </div>
           <div v-else class="vm-center-logo-wrap relative">
             <div
               id="logo"
@@ -873,12 +896,13 @@
           @song-click="openInfoForSong"
           @preview-start="previewStartFromPlayer"
           @preview-stop="stopPreview"
-          @loaded="checkPlayers(player2)"
+          @loaded="handlePlayerLoaded(player2); checkPlayers(player2)"
           @stopped="checkPlayers(player2)"
           @finished="onSongFinished"
           @fading="songFading(player2)"
           @speed="saveSpeed(player2)"
           @cover-updated="coverUpdated"
+          @timeupdate="handleLyricsTimeupdate"
         />
       </div>
 
@@ -5417,6 +5441,86 @@ function onM3uSourceSelect({ key }) {
   libraryState.value.page = 1
   saveLibraryView()
 }
+
+const lyricsLines = ref([])
+const lyricsSynced = ref(false)
+const lyricsLoading = ref(false)
+const currentLyricIndex = ref(-1)
+let lyricsActiveDeck = null
+let activeLyricsPlayer = null
+
+function handleLyricsTimeupdate(currentTime) {
+  const lines = lyricsLines.value
+  if (!lines.length) return
+  let idx = -1
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (currentTime >= lines[i].time) {
+      idx = i
+      break
+    }
+  }
+  currentLyricIndex.value = idx
+}
+
+async function fetchLyricsForPlayer(playerRef) {
+  if (!playerRef?.songFull) {
+    lyricsLines.value = []
+    lyricsSynced.value = false
+    currentLyricIndex.value = -1
+    return
+  }
+  const song = playerRef.songFull
+  const artist = Array.isArray(song.Artists) && song.Artists.length > 0
+    ? song.Artists[0].name
+    : ''
+  const title = song.name || ''
+  if (!artist || !title) {
+    lyricsLines.value = []
+    lyricsSynced.value = false
+    return
+  }
+  lyricsLoading.value = true
+  lyricsLines.value = []
+  lyricsSynced.value = false
+  currentLyricIndex.value = -1
+  try {
+    const res = await fetch(
+      `http://localhost:3000/lyrics?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`
+    )
+    const data = await res.json()
+    if (data.lines && data.lines.length > 0) {
+      lyricsLines.value = data.lines
+      lyricsSynced.value = data.synced
+      lyricsActiveDeck = playerRef.position
+    }
+  } catch {
+    // silently fail
+  } finally {
+    lyricsLoading.value = false
+  }
+}
+
+const shouldShowLyrics = computed(() => {
+  return lyricsLines.value.length > 0 && lyricsSynced.value
+})
+
+const activeLyricsLine = computed(() => {
+  const idx = currentLyricIndex.value
+  if (idx < 0 || idx >= lyricsLines.value.length) return ''
+  return lyricsLines.value[idx].text
+})
+
+const nextLyricsLine = computed(() => {
+  const idx = currentLyricIndex.value + 1
+  if (idx < 0 || idx >= lyricsLines.value.length) return ''
+  return lyricsLines.value[idx].text
+})
+
+const prevLyricsLine = computed(() => {
+  const idx = currentLyricIndex.value - 1
+  if (idx < 0 || idx >= lyricsLines.value.length) return ''
+  return lyricsLines.value[idx].text
+})
 </script>
 
 <style>

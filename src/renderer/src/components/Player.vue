@@ -183,7 +183,8 @@ const emit = defineEmits([
   'preview-start',
   'preview-stop',
   'finished',
-  'cover-updated'
+  'cover-updated',
+  'timeupdate'
 ])
 
 const props = defineProps({
@@ -543,16 +544,23 @@ function init() {
     emit('stopped')
   })
 
-  player.on('timeupdate', (currentTime) => {
-    if (
-      status.value === props.statuses.Reproduciendo ||
-      status.value === props.statuses.Cambiando ||
-      status.value === props.statuses.Placa ||
-      status.value === props.statuses.Nivelando
-    ) {
-      calculateVolume(currentTime)
+let lastLyricsEmit = 0
+
+player.on('timeupdate', (currentTime) => {
+  if (
+    status.value === props.statuses.Reproduciendo ||
+    status.value === props.statuses.Cambiando ||
+    status.value === props.statuses.Placa ||
+    status.value === props.statuses.Nivelando
+  ) {
+    calculateVolume(currentTime)
+    const now = Date.now()
+    if (now - lastLyricsEmit > 200) {
+      lastLyricsEmit = now
+      emit('timeupdate', currentTime)
     }
-  })
+  }
+})
 }
 
 function next() {
