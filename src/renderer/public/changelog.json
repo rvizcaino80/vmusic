@@ -5,7 +5,6 @@
       "date": "2026-05-11",
       "changes": {
         "new": [
-          "Letras sincronizadas en el centro del reproductor via LRCLIB",
           "Indicador visual de estado de Apple Music en el panel de descarga"
         ]
       }
