@@ -65,6 +65,27 @@
       :disabled="formDisabled"
       @submit.prevent="saveSong"
     >
+      <div class="mb-3 flex items-center gap-2 text-sm">
+        <span class="font-medium text-gray-600">Apple Music:</span>
+        <span
+          v-if="appleMusicStatus === 'ready'"
+          class="text-green-600 font-medium"
+        >
+          ✅ Listo
+        </span>
+        <span
+          v-else-if="appleMusicStatus === 'checking'"
+          class="text-gray-400"
+        >
+          ⏳ Verificando...
+        </span>
+        <span
+          v-else
+          class="text-red-600 font-medium"
+        >
+          ❌ Necesita configuración
+        </span>
+      </div>
       <a-form-item label="URL de Apple Music / Youtube / Deezer">
         <a-input
           v-model:value="url"
@@ -73,29 +94,6 @@
           placeholder="URL"
           @change="onURLChange"
         />
-        <div
-          v-if="isAppleLink"
-          class="mt-1 text-sm"
-        >
-          <span
-            v-if="appleMusicStatus === 'ready'"
-            class="text-green-600"
-          >
-            ✅ Apple Music: Listo
-          </span>
-          <span
-            v-else-if="appleMusicStatus === 'checking'"
-            class="text-gray-400"
-          >
-            ⏳ Apple Music: Verificando...
-          </span>
-          <span
-            v-else
-            class="text-red-600"
-          >
-            ❌ Apple Music: Necesita configuración
-          </span>
-        </div>
       </a-form-item>
 
       <a-form-item
