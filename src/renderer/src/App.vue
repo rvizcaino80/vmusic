@@ -863,27 +863,28 @@
             </div>
             <template v-else-if="activeLyricsLine">
               <div
-                v-if="currentLyricsWord"
-                class="vm-lyrics-word text-white font-bold text-center leading-none transition-all duration-300"
-                style="font-size: clamp(2.5rem, 6vw, 5rem)"
+                class="vm-lyrics-viewport relative overflow-hidden"
+                style="width: 260px; height: 4.5rem; mask: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); -webkit-mask: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%)"
               >
-                {{ currentLyricsWord }}
+                <div
+                  class="vm-lyrics-track flex whitespace-nowrap transition-transform duration-200 ease-out"
+                  :style="{ transform: `translateX(calc(50% - ${lyricTrackOffset}px))` }"
+                >
+                  <span
+                    v-for="(word, i) in currentLineWords"
+                    :key="i"
+                    class="vm-lyrics-word transition-all duration-150 select-none"
+                    :class="i === currentWordIndex ? 'text-white font-bold' : 'text-gray-600'"
+                    :style="{
+                      fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+                      padding: '0 0.15em',
+                      lineHeight: 1.2
+                    }"
+                  >{{ word }}</span>
+                </div>
               </div>
               <div
-                v-if="currentLyricsWord"
-                class="vm-lyrics-fullline text-gray-500 text-base text-center leading-relaxed mt-4 max-w-lg"
-              >
-                {{ activeLyricsLine }}
-              </div>
-              <div
-                v-else
-                class="vm-lyrics-fullline text-white text-2xl font-bold text-center leading-relaxed px-4"
-              >
-                {{ activeLyricsLine }}
-              </div>
-              <div
-                v-if="nextLyricsLine"
-                class="vm-lyrics-nextline text-gray-600 text-sm text-center leading-relaxed mt-2 max-w-lg opacity-60"
+                class="vm-lyrics-nextline text-gray-600 text-sm text-center leading-relaxed mt-1 max-w-lg opacity-50"
               >
                 {{ nextLyricsLine }}
               </div>
@@ -5567,22 +5568,28 @@ const activeLyricsLine = computed(() => {
   return lyricsLines.value[idx].text
 })
 
-const currentLyricsWord = computed(() => {
-  const idx = currentLyricIndex.value
-  const wordIdx = currentWordIndex.value
-  if (idx < 0 || idx >= lyricsLines.value.length || wordIdx < 0) return ''
-  const words = lyricsLines.value[idx].text.split(/\s+/).filter(Boolean)
-  return words[wordIdx] || ''
+const currentLineWords = computed(() => {
+  const line = activeLyricsLine.value
+  if (!line) return []
+  return line.split(/\s+/).filter(Boolean)
+})
+
+const lyricTrackOffset = computed(() => {
+  const words = currentLineWords.value
+  const idx = currentWordIndex.value
+  if (idx < 0 || words.length <= 1) return 0
+  const CHAR_W = 28
+  const GAP = 12
+  let offset = 0
+  for (let i = 0; i < idx; i++) {
+    offset += words[i].length * CHAR_W + GAP
+  }
+  offset += (words[idx].length * CHAR_W) / 2
+  return offset
 })
 
 const nextLyricsLine = computed(() => {
   const idx = currentLyricIndex.value + 1
-  if (idx < 0 || idx >= lyricsLines.value.length) return ''
-  return lyricsLines.value[idx].text
-})
-
-const prevLyricsLine = computed(() => {
-  const idx = currentLyricIndex.value - 1
   if (idx < 0 || idx >= lyricsLines.value.length) return ''
   return lyricsLines.value[idx].text
 })
