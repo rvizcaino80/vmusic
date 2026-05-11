@@ -822,7 +822,7 @@
           @fading="songFading(player1)"
           @speed="saveSpeed(player1)"
           @cover-updated="coverUpdated"
-          @timeupdate="handleLyricsTimeupdate"
+          @timeupdate="(t) => handleLyricsTimeupdate('top', t)"
         />
         <div class="vm-center-stage flex-1">
           <div
@@ -902,7 +902,7 @@
           @fading="songFading(player2)"
           @speed="saveSpeed(player2)"
           @cover-updated="coverUpdated"
-          @timeupdate="handleLyricsTimeupdate"
+          @timeupdate="(t) => handleLyricsTimeupdate('bottom', t)"
         />
       </div>
 
@@ -5448,12 +5448,14 @@ const lyricsLoading = ref(false)
 const currentLyricIndex = ref(-1)
 let lyricsActiveDeck = null
 let activeLyricsPlayer = null
+const lyricsFetchedSongs = new Set()
 
 function handlePlayerLoaded(playerRef) {
   fetchLyricsForPlayer(playerRef)
 }
 
-function handleLyricsTimeupdate(currentTime) {
+function handleLyricsTimeupdate(deck, currentTime) {
+  if (deck !== lyricsActiveDeck) return
   const lines = lyricsLines.value
   if (!lines.length) return
   let idx = -1
@@ -5500,6 +5502,7 @@ async function fetchLyricsForPlayer(playerRef) {
       lyricsLines.value = data.lines
       lyricsSynced.value = data.synced
       lyricsActiveDeck = playerRef.position
+      if (song.id) lyricsFetchedSongs.add(song.id)
     }
   } catch {
     // silently fail
@@ -5529,6 +5532,22 @@ const prevLyricsLine = computed(() => {
   if (idx < 0 || idx >= lyricsLines.value.length) return ''
   return lyricsLines.value[idx].text
 })
+
+watch(
+  () => {
+    const active = getMediaTargetPlayer()
+    return active?.position || null
+  },
+  (newPos) => {
+    if (newPos) {
+      lyricsActiveDeck = newPos
+      const active = getMediaTargetPlayer()
+      if (active?.songFull?.id && !lyricsFetchedSongs.has(active.songFull.id)) {
+        fetchLyricsForPlayer(active)
+      }
+    }
+  }
+)
 </script>
 
 <style>
