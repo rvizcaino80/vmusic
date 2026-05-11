@@ -822,7 +822,7 @@
           @fading="songFading(player1)"
           @speed="saveSpeed(player1)"
           @cover-updated="coverUpdated"
-          @timeupdate="(t) => handleLyricsTimeupdate('top', t)"
+          @timeupdate="handleLyricsTimeupdate"
         />
         <div class="vm-center-stage flex-1">
           <div
@@ -853,7 +853,7 @@
           </div>
           <div
             v-else-if="shouldShowLyrics"
-            class="vm-lyrics-panel flex flex-col items-center justify-center px-8 py-4 select-none overflow-hidden"
+            class="vm-lyrics-panel flex flex-col items-center justify-center px-8 py-4 select-none"
           >
             <div
               v-if="lyricsLoading"
@@ -861,31 +861,14 @@
             >
               Cargando letra...
             </div>
-            <template v-else-if="activeLyricsLine">
-              <div
-                class="vm-lyrics-viewport relative overflow-hidden w-full"
-                style="height: 8rem; mask: linear-gradient(90deg, transparent 5%, #000 15%, #000 85%, transparent 95%); -webkit-mask: linear-gradient(90deg, transparent 5%, #000 15%, #000 85%, transparent 95%)"
-              >
-                <div
-                  class="vm-lyrics-track flex whitespace-nowrap transition-transform duration-200 ease-out"
-                  :style="{ transform: `translateX(calc(50% - ${lyricTrackOffset}px))` }"
-                >
-                  <span
-                    v-for="(word, i) in currentLineWords"
-                    :key="i"
-                    class="vm-lyrics-word transition-all duration-150 select-none"
-                    :class="i === currentWordIndex ? 'text-white font-bold' : 'text-gray-600'"
-                    :style="{
-                      fontSize: 'clamp(4rem, 10vw, 7rem)',
-                      padding: '0 0.12em',
-                      lineHeight: 1.2
-                    }"
-                  >{{ word }}</span>
-                </div>
+            <template v-else>
+              <div class="vm-lyrics-line prev text-gray-500 text-lg text-center leading-relaxed">
+                {{ prevLyricsLine }}
               </div>
-              <div
-                class="vm-lyrics-nextline text-gray-600 text-sm text-center leading-relaxed mt-1 max-w-lg opacity-50"
-              >
+              <div class="vm-lyrics-line current text-white text-3xl font-bold text-center leading-relaxed my-3 px-4">
+                {{ activeLyricsLine }}
+              </div>
+              <div class="vm-lyrics-line next text-gray-500 text-lg text-center leading-relaxed">
                 {{ nextLyricsLine }}
               </div>
             </template>
@@ -919,7 +902,7 @@
           @fading="songFading(player2)"
           @speed="saveSpeed(player2)"
           @cover-updated="coverUpdated"
-          @timeupdate="(t) => handleLyricsTimeupdate('bottom', t)"
+          @timeupdate="handleLyricsTimeupdate"
         />
       </div>
 
@@ -5463,28 +5446,10 @@ const lyricsLines = ref([])
 const lyricsSynced = ref(false)
 const lyricsLoading = ref(false)
 const currentLyricIndex = ref(-1)
-const currentWordIndex = ref(-1)
 let lyricsActiveDeck = null
 let activeLyricsPlayer = null
-const lyricsFetchedSongs = new Set()
 
-function clearLyrics() {
-  lyricsLines.value = []
-  lyricsSynced.value = false
-  currentLyricIndex.value = -1
-  currentWordIndex.value = -1
-  lyricsActiveDeck = null
-}
-
-function handlePlayerLoaded(playerRef) {
-  const active = getMediaTargetPlayer()
-  if (active && active.position === playerRef.position) {
-    clearLyrics()
-  }
-}
-
-function handleLyricsTimeupdate(deck, currentTime) {
-  if (deck !== lyricsActiveDeck) return
+function handleLyricsTimeupdate(currentTime) {
   const lines = lyricsLines.value
   if (!lines.length) return
   let idx = -1
@@ -5494,25 +5459,7 @@ function handleLyricsTimeupdate(deck, currentTime) {
       break
     }
   }
-  if (idx !== currentLyricIndex.value) {
-    currentLyricIndex.value = idx
-    currentWordIndex.value = -1
-  }
-  if (idx < 0) return
-  const line = lines[idx]
-  const words = line.text.split(/\s+/).filter(Boolean)
-  if (words.length <= 1) {
-    currentWordIndex.value = -1
-    return
-  }
-  const nextTime = idx + 1 < lines.length ? lines[idx + 1].time : currentTime + 10
-  const lineDuration = nextTime - line.time
-  const wordDuration = lineDuration / words.length
-  const wordIdx = Math.min(
-    Math.floor((currentTime - line.time) / wordDuration),
-    words.length - 1
-  )
-  currentWordIndex.value = wordIdx
+  currentLyricIndex.value = idx
 }
 
 async function fetchLyricsForPlayer(playerRef) {
@@ -5537,19 +5484,14 @@ async function fetchLyricsForPlayer(playerRef) {
   lyricsSynced.value = false
   currentLyricIndex.value = -1
   try {
-    const params = new URLSearchParams({
-      artist,
-      title
-    })
-    if (song.folder) params.set('folder', song.folder)
-    if (song.ytid) params.set('ytid', song.ytid)
-    const res = await fetch(`http://localhost:3000/lyrics?${params.toString()}`)
+    const res = await fetch(
+      `http://localhost:3000/lyrics?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`
+    )
     const data = await res.json()
     if (data.lines && data.lines.length > 0) {
       lyricsLines.value = data.lines
       lyricsSynced.value = data.synced
       lyricsActiveDeck = playerRef.position
-      if (song.id) lyricsFetchedSongs.add(song.id)
     }
   } catch {
     // silently fail
@@ -5568,55 +5510,17 @@ const activeLyricsLine = computed(() => {
   return lyricsLines.value[idx].text
 })
 
-const currentLineWords = computed(() => {
-  const line = activeLyricsLine.value
-  if (!line) return []
-  return line.split(/\s+/).filter(Boolean)
-})
-
-const lyricTrackOffset = computed(() => {
-  const words = currentLineWords.value
-  const idx = currentWordIndex.value
-  if (idx < 0 || words.length <= 1) return 0
-  const CHAR_W = 54
-  const GAP = 12
-  let offset = 0
-  for (let i = 0; i < idx; i++) {
-    offset += words[i].length * CHAR_W + GAP
-  }
-  offset += (words[idx].length * CHAR_W) / 2
-  return offset
-})
-
 const nextLyricsLine = computed(() => {
   const idx = currentLyricIndex.value + 1
   if (idx < 0 || idx >= lyricsLines.value.length) return ''
   return lyricsLines.value[idx].text
 })
 
-watch(
-  () => {
-    const p1 = player1.value?.status || 0
-    const p2 = player2.value?.status || 0
-    return `${p1}:${p2}`
-  },
-  () => {
-    const active = getMediaTargetPlayer()
-    const position = active?.position || null
-    if (!position) {
-      clearLyrics()
-      return
-    }
-    lyricsActiveDeck = position
-    if (
-      active.status === playerStatuses.Reproduciendo &&
-      active?.songFull?.id &&
-      !lyricsFetchedSongs.has(active.songFull.id)
-    ) {
-      fetchLyricsForPlayer(active)
-    }
-  }
-)
+const prevLyricsLine = computed(() => {
+  const idx = currentLyricIndex.value - 1
+  if (idx < 0 || idx >= lyricsLines.value.length) return ''
+  return lyricsLines.value[idx].text
+})
 </script>
 
 <style>
