@@ -65,25 +65,28 @@
       :disabled="formDisabled"
       @submit.prevent="saveSong"
     >
-      <div class="mb-3 flex items-center gap-2 text-sm">
-        <span class="font-medium text-gray-600">Apple Music:</span>
+      <div class="mb-3 flex items-center justify-end gap-1 text-sm">
+        <span class="text-gray-500">Apple Music:</span>
         <span
           v-if="appleMusicStatus === 'ready'"
-          class="text-green-600 font-medium"
+          class="flex items-center gap-0.5 text-green-600 font-medium"
         >
-          ✅ Listo
+          <Icon icon="mdi:check-circle" class="w-4 h-4" />
+          Listo
         </span>
         <span
           v-else-if="appleMusicStatus === 'checking'"
-          class="text-gray-400"
+          class="flex items-center gap-0.5 text-gray-400"
         >
-          ⏳ Verificando...
+          <Icon icon="mdi:loading" class="w-4 h-4 animate-spin" />
+          Verificando...
         </span>
         <span
           v-else
-          class="text-red-600 font-medium"
+          class="flex items-center gap-0.5 text-red-600 font-medium"
         >
-          ❌ Necesita configuración
+          <Icon icon="mdi:alert-circle" class="w-4 h-4" />
+          Necesita configuración
         </span>
       </div>
       <a-form-item label="URL de Apple Music / Youtube / Deezer">
