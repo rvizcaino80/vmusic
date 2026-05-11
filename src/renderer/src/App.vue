@@ -5449,6 +5449,10 @@ const currentLyricIndex = ref(-1)
 let lyricsActiveDeck = null
 let activeLyricsPlayer = null
 
+function handlePlayerLoaded(playerRef) {
+  fetchLyricsForPlayer(playerRef)
+}
+
 function handleLyricsTimeupdate(currentTime) {
   const lines = lyricsLines.value
   if (!lines.length) return
