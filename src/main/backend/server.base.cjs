@@ -70,8 +70,6 @@ function resolveCookiesPath() {
     const userDataCookies = userData ? path.join(userData, 'cookies.txt') : ''
     if (userDataCookies && fs.existsSync(userDataCookies)) return userDataCookies
   } catch {}
-  const devPath = path.resolve(process.cwd(), 'cookies.txt')
-  if (fs.existsSync(devPath)) return devPath
   return null
 }
 

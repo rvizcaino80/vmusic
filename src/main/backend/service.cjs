@@ -139,20 +139,6 @@ fs.mkdirSync(MUSIC_ROOT, { recursive: true })
 resolveDbPath()
 
 const userDataDir = resolveUserDataDir()
-const cookiesTargetPath = path.join(userDataDir, 'cookies.txt')
-const cookiesCandidates = [
-  path.resolve(process.cwd(), 'cookies.txt'),
-  path.resolve(__dirname, '../../../cookies.txt'),
-]
-const cookiesSource = cookiesCandidates.find((c) => fs.existsSync(c))
-if (cookiesSource && (!fs.existsSync(cookiesTargetPath) || fs.statSync(cookiesSource).mtimeMs > fs.statSync(cookiesTargetPath).mtimeMs)) {
-  try {
-    fs.copyFileSync(cookiesSource, cookiesTargetPath)
-    console.log('[vmusic][cookies] copiadas a', cookiesTargetPath)
-  } catch (err) {
-    console.warn('[vmusic][cookies] no se pudieron copiar:', err.message)
-  }
-}
 
 const BACKUP_DIR = path.join(resolveUserDataDir(), 'db-backups')
 const BACKUP_KEEP = 10
