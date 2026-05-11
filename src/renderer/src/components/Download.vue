@@ -82,6 +82,13 @@
           Verificando...
         </span>
         <span
+          v-else-if="appleMusicStatus === 'unknown'"
+          class="flex items-center gap-0.5 text-amber-600 font-medium"
+        >
+          <Icon icon="mdi:help-circle" class="w-4 h-4" />
+          No se pudo verificar
+        </span>
+        <span
           v-else
           class="flex items-center gap-0.5 text-red-600 font-medium"
         >
@@ -222,7 +229,7 @@
         html-type="submit"
         size="large"
         class="flex items-center space-x-1"
-        :disabled="selectedTags.length === 0 || (isAppleLink && appleMusicStatus !== 'ready')"
+        :disabled="selectedTags.length === 0 || (isAppleLink && (appleMusicStatus === 'missing' || appleMusicStatus === 'invalid'))"
       >
         <Icon
           v-if="!isSaving"

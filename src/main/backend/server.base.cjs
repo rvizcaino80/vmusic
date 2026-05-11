@@ -83,6 +83,35 @@ function validateCookiesFile(filePath) {
     return false
   }
 }
+
+async function testAppleMusicCookies(cookiesPath) {
+  try {
+    const raw = fs.readFileSync(cookiesPath, 'utf-8')
+    const cookieLines = raw.split('\n')
+      .filter((line) => line && !line.startsWith('#'))
+      .map((line) => line.trim())
+    const cookieHeader = cookieLines
+      .map((line) => {
+        const parts = line.split('\t')
+        return parts.length >= 7 ? `${parts[5]}=${parts[6]}` : null
+      })
+      .filter(Boolean)
+      .join('; ')
+
+    const testUrl = 'https://music.apple.com/co/browse'
+    const response = await fetch(testUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Cookie: cookieHeader
+      }
+    })
+    if (!response.ok) return false
+    const text = await response.text()
+    return text.length > 1000 && !text.includes('sign-in') && !text.includes('signin')
+  } catch {
+    return null
+  }
+}
 const MUSIC_LIBRARY_DIR = path.resolve(
   process.env.VMUSIC_MUSIC_DIR || path.join(os.homedir(), 'Music', 'SalsamaniaLibrary')
 )
@@ -1793,7 +1822,14 @@ app.get('/apple-music/check', async (req, res, next) => {
     return res.send({ status: 'missing', message: 'No se encontró el archivo de cookies de Apple Music' })
   }
   if (!validateCookiesFile(cookiesPath)) {
-    return res.send({ status: 'invalid', message: 'Las cookies de Apple Music no son válidas o están expiradas' })
+    return res.send({ status: 'invalid', message: 'El archivo de cookies no contiene un token válido de Apple Music' })
+  }
+  const valid = await testAppleMusicCookies(cookiesPath)
+  if (valid === false) {
+    return res.send({ status: 'invalid', message: 'Las cookies de Apple Music están expiradas' })
+  }
+  if (valid === null) {
+    return res.send({ status: 'unknown', message: 'No se pudo verificar las cookies (error de red)' })
   }
   res.send({ status: 'ready', message: 'Apple Music configurado correctamente' })
 })
