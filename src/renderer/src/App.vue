@@ -864,7 +864,7 @@
             <template v-else-if="activeLyricsLine">
               <div
                 class="vm-lyrics-viewport relative overflow-hidden"
-                style="width: 260px; height: 4.5rem; mask: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); -webkit-mask: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%)"
+                style="width: 340px; height: 8rem; mask: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); -webkit-mask: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%)"
               >
                 <div
                   class="vm-lyrics-track flex whitespace-nowrap transition-transform duration-200 ease-out"
@@ -876,8 +876,8 @@
                     class="vm-lyrics-word transition-all duration-150 select-none"
                     :class="i === currentWordIndex ? 'text-white font-bold' : 'text-gray-600'"
                     :style="{
-                      fontSize: 'clamp(2rem, 5vw, 3.5rem)',
-                      padding: '0 0.15em',
+                      fontSize: 'clamp(4rem, 10vw, 7rem)',
+                      padding: '0 0.12em',
                       lineHeight: 1.2
                     }"
                   >{{ word }}</span>
@@ -5578,7 +5578,7 @@ const lyricTrackOffset = computed(() => {
   const words = currentLineWords.value
   const idx = currentWordIndex.value
   if (idx < 0 || words.length <= 1) return 0
-  const CHAR_W = 28
+  const CHAR_W = 54
   const GAP = 12
   let offset = 0
   for (let i = 0; i < idx; i++) {
