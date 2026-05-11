@@ -853,7 +853,7 @@
           </div>
           <div
             v-else-if="shouldShowLyrics"
-            class="vm-lyrics-panel flex flex-col items-center justify-center px-8 py-4 select-none"
+            class="vm-lyrics-panel flex flex-col items-center justify-center px-8 py-4 select-none overflow-hidden"
           >
             <div
               v-if="lyricsLoading"
@@ -861,14 +861,30 @@
             >
               Cargando letra...
             </div>
-            <template v-else>
-              <div class="vm-lyrics-line prev text-gray-500 text-lg text-center leading-relaxed">
-                {{ prevLyricsLine }}
+            <template v-else-if="activeLyricsLine">
+              <div
+                v-if="currentLyricsWord"
+                class="vm-lyrics-word text-white font-bold text-center leading-none transition-all duration-300"
+                style="font-size: clamp(2.5rem, 6vw, 5rem)"
+              >
+                {{ currentLyricsWord }}
               </div>
-              <div class="vm-lyrics-line current text-white text-3xl font-bold text-center leading-relaxed my-3 px-4">
+              <div
+                v-if="currentLyricsWord"
+                class="vm-lyrics-fullline text-gray-500 text-base text-center leading-relaxed mt-4 max-w-lg"
+              >
                 {{ activeLyricsLine }}
               </div>
-              <div class="vm-lyrics-line next text-gray-500 text-lg text-center leading-relaxed">
+              <div
+                v-else
+                class="vm-lyrics-fullline text-white text-2xl font-bold text-center leading-relaxed px-4"
+              >
+                {{ activeLyricsLine }}
+              </div>
+              <div
+                v-if="nextLyricsLine"
+                class="vm-lyrics-nextline text-gray-600 text-sm text-center leading-relaxed mt-2 max-w-lg opacity-60"
+              >
                 {{ nextLyricsLine }}
               </div>
             </template>
@@ -5446,6 +5462,7 @@ const lyricsLines = ref([])
 const lyricsSynced = ref(false)
 const lyricsLoading = ref(false)
 const currentLyricIndex = ref(-1)
+const currentWordIndex = ref(-1)
 let lyricsActiveDeck = null
 let activeLyricsPlayer = null
 const lyricsFetchedSongs = new Set()
@@ -5454,6 +5471,7 @@ function clearLyrics() {
   lyricsLines.value = []
   lyricsSynced.value = false
   currentLyricIndex.value = -1
+  currentWordIndex.value = -1
   lyricsActiveDeck = null
 }
 
@@ -5475,7 +5493,25 @@ function handleLyricsTimeupdate(deck, currentTime) {
       break
     }
   }
-  currentLyricIndex.value = idx
+  if (idx !== currentLyricIndex.value) {
+    currentLyricIndex.value = idx
+    currentWordIndex.value = -1
+  }
+  if (idx < 0) return
+  const line = lines[idx]
+  const words = line.text.split(/\s+/).filter(Boolean)
+  if (words.length <= 1) {
+    currentWordIndex.value = -1
+    return
+  }
+  const nextTime = idx + 1 < lines.length ? lines[idx + 1].time : currentTime + 10
+  const lineDuration = nextTime - line.time
+  const wordDuration = lineDuration / words.length
+  const wordIdx = Math.min(
+    Math.floor((currentTime - line.time) / wordDuration),
+    words.length - 1
+  )
+  currentWordIndex.value = wordIdx
 }
 
 async function fetchLyricsForPlayer(playerRef) {
@@ -5529,6 +5565,14 @@ const activeLyricsLine = computed(() => {
   const idx = currentLyricIndex.value
   if (idx < 0 || idx >= lyricsLines.value.length) return ''
   return lyricsLines.value[idx].text
+})
+
+const currentLyricsWord = computed(() => {
+  const idx = currentLyricIndex.value
+  const wordIdx = currentWordIndex.value
+  if (idx < 0 || idx >= lyricsLines.value.length || wordIdx < 0) return ''
+  const words = lyricsLines.value[idx].text.split(/\s+/).filter(Boolean)
+  return words[wordIdx] || ''
 })
 
 const nextLyricsLine = computed(() => {
