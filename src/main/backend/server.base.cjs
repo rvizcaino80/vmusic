@@ -1880,20 +1880,23 @@ function parseLrc(lrcText) {
 app.get('/lyrics', async (req, res, next) => {
   const artist = (req.query.artist || '').trim()
   const title = (req.query.title || '').trim()
+  const folder = (req.query.folder || '').trim()
+  const ytid = (req.query.ytid || '').trim()
+
   if (!artist || !title) {
     return res.status(400).send({ error: 'artist y title son requeridos' })
   }
 
-  const cacheKey = `${artist.toLowerCase()}|${title.toLowerCase()}`
-  const cache = loadLyricsCache()
-
-  if (cache[cacheKey]) {
-    const cached = cache[cacheKey]
-    return res.send({
-      source: 'cache',
-      synced: cached.synced,
-      lines: cached.lines
-    })
+  if (folder && ytid) {
+    const lrcPath = path.join(MUSIC_LIBRARY_DIR, folder, `${ytid}.lrc`)
+    if (fs.existsSync(lrcPath)) {
+      try {
+        const lrcContent = fs.readFileSync(lrcPath, 'utf-8')
+        const lines = parseLrc(lrcContent)
+        const synced = lines.length > 0 && lrcContent.includes('[')
+        return res.send({ source: 'file', synced, lines })
+      } catch {}
+    }
   }
 
   try {
@@ -1903,9 +1906,8 @@ app.get('/lyrics', async (req, res, next) => {
         headers: { 'User-Agent': 'Salsamania/1.0 (https://github.com/rvizcaino80/vmusic)' }
       }
     )
+
     if (response.status === 404) {
-      cache[cacheKey] = { synced: false, lines: [] }
-      saveLyricsCache(cache)
       return res.send({ source: 'api', synced: false, lines: [] })
     }
     if (!response.ok) {
@@ -1915,15 +1917,19 @@ app.get('/lyrics', async (req, res, next) => {
     const data = await response.json()
     const lrcText = data.syncedLyrics || data.plainLyrics || ''
     const lines = parseLrc(lrcText)
+    const synced = !!data.syncedLyrics
 
-    cache[cacheKey] = { synced: !!data.syncedLyrics, lines }
-    saveLyricsCache(cache)
+    if (folder && ytid && lrcText) {
+      try {
+        const dir = path.join(MUSIC_LIBRARY_DIR, folder)
+        fs.mkdirSync(dir, { recursive: true })
+        fs.writeFileSync(path.join(dir, `${ytid}.lrc`), lrcText, 'utf-8')
+      } catch (err) {
+        console.warn('[vmusic][lyrics] no se pudo guardar archivo lrc:', err.message)
+      }
+    }
 
-    res.send({
-      source: 'api',
-      synced: !!data.syncedLyrics,
-      lines
-    })
+    res.send({ source: 'api', synced, lines })
   } catch (err) {
     console.warn('[vmusic][lyrics] error:', err.message)
     res.status(502).send({ error: 'No se pudo obtener la letra' })

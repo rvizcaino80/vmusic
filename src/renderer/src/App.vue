@@ -5484,9 +5484,13 @@ async function fetchLyricsForPlayer(playerRef) {
   lyricsSynced.value = false
   currentLyricIndex.value = -1
   try {
-    const res = await fetch(
-      `http://localhost:3000/lyrics?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`
-    )
+    const params = new URLSearchParams({
+      artist,
+      title
+    })
+    if (song.folder) params.set('folder', song.folder)
+    if (song.ytid) params.set('ytid', song.ytid)
+    const res = await fetch(`http://localhost:3000/lyrics?${params.toString()}`)
     const data = await res.json()
     if (data.lines && data.lines.length > 0) {
       lyricsLines.value = data.lines
