@@ -705,6 +705,7 @@ function saveSong() {
       .then(function() {
         emit('downloaded', artistIds)
         setTaskStatus(task, 'done', 'Completada')
+        showNotification('Descarga completada', trimmedSong)
         if (payload.ytid && payload.coverUrl) {
           try {
             const stored = localStorage.getItem(COVER_MAP_STORAGE_KEY)
@@ -725,12 +726,20 @@ function saveSong() {
         syncTasksToStorage()
         isError.value = true
         errorMessage.value = backendMessage
+        showNotification('Error en descarga', `${trimmedSong}: ${backendMessage}`)
       })
       .finally(function() {
         if (task.status === 'done') {
           removeTask(task.id)
         }
       })
+  }
+}
+
+function showNotification(title, body) {
+  if (typeof Notification === 'undefined') return
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body })
   }
 }
 
@@ -1014,6 +1023,9 @@ onMounted(() => {
   cleanupTimedOutTasks()
   downloadTasksWatchdog = setInterval(cleanupTimedOutTasks, 5000)
   checkAppleMusicStatus()
+  if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
 })
 
 onUnmounted(() => {
