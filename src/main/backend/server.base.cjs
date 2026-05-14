@@ -2052,6 +2052,8 @@ app.post('/download', async (req, res, next) => {
     args = [
       '--no-synced-lyrics',
       '--overwrite',
+      '--temp-path',
+      path.join(os.tmpdir(), 'salsamania-gamdl'),
       '--multi-disc-file-template',
       '{title_id}',
       '--single-disc-file-template',
