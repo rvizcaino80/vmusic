@@ -75,6 +75,10 @@ if (YT_DLP_BIN) {
 const GAMDL_BIN = resolveBinaryFromCandidates('gamdl', undefined)
 console.log('[vmusic][gamdl] GAMDL_BIN:', GAMDL_BIN)
 
+// Always use bundled gamdl, never fall back to system-installed version
+delete process.env.GAMDL
+delete process.env.VMUSIC_GAMDL_BIN
+
 function resolveCookiesPath() {
   try {
     const userData = process.env.VMUSIC_DB_PATH
@@ -2045,33 +2049,18 @@ app.post('/download', async (req, res, next) => {
 
     const cookiesPath = resolveCookiesPath()
 
-    const gamdlOverride = process.env.VMUSIC_GAMDL_BIN || (process.env.GAMDL && process.env.GAMDL !== GAMDL_BIN ? process.env.GAMDL : null)
-    if (gamdlOverride) {
-      args = [
-        '--no-synced-lyrics',
-        '--overwrite',
-        '--template-file-multi-disc',
-        '{title_id}',
-        '--template-file-single-disc',
-        '{title_id}',
-        '--template-folder-no-album',
-        '-o',
-        MUSIC_LIBRARY_DIR,
-      ]
-    } else {
-      args = [
-        '--no-synced-lyrics',
-        '--overwrite',
-        '--multi-disc-file-template',
-        '{title_id}',
-        '--single-disc-file-template',
-        '{title_id}',
-        '--no-album-folder-template',
-        '',
-        '-o',
-        MUSIC_LIBRARY_DIR,
-      ]
-    }
+    args = [
+      '--no-synced-lyrics',
+      '--overwrite',
+      '--multi-disc-file-template',
+      '{title_id}',
+      '--single-disc-file-template',
+      '{title_id}',
+      '--no-album-folder-template',
+      '',
+      '-o',
+      MUSIC_LIBRARY_DIR,
+    ]
     if (cookiesPath) {
       args.push('--cookies-path', cookiesPath)
     }
