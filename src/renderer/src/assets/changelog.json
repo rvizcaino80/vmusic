@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.7",
+      "date": "2026-05-14",
+      "changes": {
+        "other": [
+          "Mostrar solo Listo en indicador de Apple Music, no la ruta"
+        ]
+      }
+    },
+    {
       "version": "1.6.6",
       "date": "2026-05-14",
       "changes": {
