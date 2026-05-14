@@ -11,6 +11,18 @@ const path = require('path')
 const os = require('os')
 const Sequelize = require('sequelize')
 const { Model } = Sequelize
+
+const origApplyTimezone = Sequelize.DataTypes.DATE.prototype._applyTimezone
+Sequelize.DataTypes.DATE.prototype._applyTimezone = function (date, options) {
+  if (date == null || (typeof date === 'string' && (isNaN(Date.parse(date)) || !date.trim()))) {
+    return origApplyTimezone.call(this, new Date(), options)
+  }
+  try {
+    return origApplyTimezone.call(this, date, options)
+  } catch {
+    return origApplyTimezone.call(this, new Date(), options)
+  }
+}
 const dotenv = require('dotenv')
 dotenv.config()
 const dayjs = require('dayjs')
@@ -1819,19 +1831,19 @@ app.post('/songs/delete', async (req, res, next) => {
 app.get('/apple-music/check', async (req, res, next) => {
   const cookiesPath = resolveCookiesPath()
   if (!cookiesPath) {
-    return res.send({ status: 'missing', message: 'No se encontró el archivo de cookies de Apple Music' })
+    return res.send({ status: 'missing', cookiesPath: null, message: 'No se encontró el archivo de cookies de Apple Music' })
   }
   if (!validateCookiesFile(cookiesPath)) {
-    return res.send({ status: 'invalid', message: 'El archivo de cookies no contiene un token válido de Apple Music' })
+    return res.send({ status: 'invalid', cookiesPath, message: 'El archivo de cookies no contiene un token válido de Apple Music' })
   }
   const valid = await testAppleMusicCookies(cookiesPath)
   if (valid === false) {
-    return res.send({ status: 'invalid', message: 'Las cookies de Apple Music están expiradas' })
+    return res.send({ status: 'invalid', cookiesPath, message: 'Las cookies de Apple Music están expiradas' })
   }
   if (valid === null) {
-    return res.send({ status: 'unknown', message: 'No se pudo verificar las cookies (error de red)' })
+    return res.send({ status: 'unknown', cookiesPath, message: 'No se pudo verificar las cookies (error de red)' })
   }
-  res.send({ status: 'ready', message: 'Apple Music configurado correctamente' })
+  res.send({ status: 'ready', cookiesPath, message: 'Apple Music configurado correctamente' })
 })
 
 const LYRICS_CACHE_PATH = path.resolve(

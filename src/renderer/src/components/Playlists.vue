@@ -5,44 +5,42 @@
       <span class="text-xs text-gray-500">{{ playlists.length }} playlists</span>
     </div>
 
-    <div class="flex-1 overflow-y-auto">
-      <div v-if="loading" class="text-center py-8">
-        <a-spin size="small" />
-        <p class="text-sm text-gray-500 mt-2">Cargando...</p>
-      </div>
+    <div v-if="loading" class="text-center py-8">
+      <a-spin size="small" />
+      <p class="text-sm text-gray-500 mt-2">Cargando...</p>
+    </div>
 
-      <div v-else-if="playlists.length === 0" class="text-center text-gray-500 py-8">
-        No hay playlists guardadas
-      </div>
+    <div v-else-if="playlists.length === 0" class="text-center text-gray-500 py-8">
+      No hay playlists guardadas
+    </div>
 
-      <div v-else class="space-y-2">
+    <div v-else class="space-y-2 flex-1 overflow-y-auto min-h-0">
+      <div
+        v-for="playlist in playlists"
+        :key="playlist.id"
+        class="bg-gray-200 rounded p-3 flex items-center justify-between group hover:bg-gray-300 transition-colors cursor-pointer"
+        @click="selectPlaylist(playlist)"
+      >
+        <div class="flex-1 min-w-0">
+          <div class="font-medium truncate">{{ playlist.name }}</div>
+          <div class="text-xs text-gray-600">
+            {{ playlist.songCount || 0 }} canciones • {{ formatDate(playlist.createdAt) }}
+          </div>
+        </div>
+
         <div
-          v-for="playlist in playlists"
-          :key="playlist.id"
-          class="bg-gray-200 rounded p-3 flex items-center justify-between group hover:bg-gray-300 transition-colors cursor-pointer"
-          @click="selectPlaylist(playlist)"
+          class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+          @click.stop
         >
-          <div class="flex-1 min-w-0">
-            <div class="font-medium truncate">{{ playlist.name }}</div>
-            <div class="text-xs text-gray-600">
-              {{ playlist.get('songCount') || 0 }} canciones • {{ formatDate(playlist.createdAt) }}
-            </div>
-          </div>
-
-          <div
-            class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity"
-            @click.stop
-          >
-            <a-button size="small" type="primary" @click.stop="loadPlaylist(playlist)">
-              <i-mdi-play class="w-4 h-4" />
-            </a-button>
-            <a-button size="small" @click.stop="renamePlaylist(playlist)">
-              <i-mdi-pencil class="w-4 h-4" />
-            </a-button>
-            <a-button size="small" danger @click.stop="deletePlaylist(playlist)">
-              <i-mdi-delete class="w-4 h-4" />
-            </a-button>
-          </div>
+          <a-button size="small" type="primary" @click.stop="loadPlaylist(playlist)">
+            <i-mdi-play class="w-4 h-4" />
+          </a-button>
+          <a-button size="small" @click.stop="renamePlaylist(playlist)">
+            <i-mdi-pencil class="w-4 h-4" />
+          </a-button>
+          <a-button size="small" danger @click.stop="deletePlaylist(playlist)">
+            <i-mdi-delete class="w-4 h-4" />
+          </a-button>
         </div>
       </div>
     </div>

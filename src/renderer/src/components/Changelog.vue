@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { use } from 'ant-design-vue/lib/config-provider/context'
-import changelogData from '../../public/changelog.json'
+import changelogData from '../assets/changelog.json'
 
 const versions = ref(changelogData.versions || [])
 const loading = ref(false)

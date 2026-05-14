@@ -79,7 +79,7 @@ commits.forEach((commit) => {
 
 const date = new Date().toISOString().split('T')[0]
 
-const changelogPath = 'src/renderer/public/changelog.json'
+const changelogPath = 'src/renderer/src/assets/changelog.json'
 let changelog = { versions: [] }
 if (fs.existsSync(changelogPath)) {
   changelog = JSON.parse(fs.readFileSync(changelogPath))
@@ -110,7 +110,7 @@ console.log('✅ package.json actualizado')
 
 // Commit y tag
 console.log('\n📝 Committing version bump...')
-execSync(`git add package.json src/renderer/public/changelog.json`)
+execSync(`git add package.json src/renderer/src/assets/changelog.json`)
 execSync(`git commit -m "v${newVersion}"`)
 
 console.log('🏷️  Creating tag...')

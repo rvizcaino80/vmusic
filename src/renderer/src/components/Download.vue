@@ -72,7 +72,7 @@
           class="flex items-center gap-0.5 text-green-600 font-medium"
         >
           <Icon icon="mdi:check-circle" class="w-4 h-4" />
-          Listo
+          {{ appleMusicCookiesPath }}
         </span>
         <span
           v-else-if="appleMusicStatus === 'checking'"
@@ -86,14 +86,14 @@
           class="flex items-center gap-0.5 text-amber-600 font-medium"
         >
           <Icon icon="mdi:help-circle" class="w-4 h-4" />
-          No se pudo verificar
+          {{ appleMusicCookiesPath || 'No se pudo verificar' }}
         </span>
         <span
           v-else
           class="flex items-center gap-0.5 text-red-600 font-medium"
         >
           <Icon icon="mdi:alert-circle" class="w-4 h-4" />
-          Necesita configuración
+          {{ appleMusicCookiesPath || 'Necesita configuración' }}
         </span>
       </div>
       <a-form-item label="URL de Apple Music / Youtube / Deezer">
@@ -243,7 +243,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch, defineEmits, onMounted, onUnmounted } from 'vue'
+import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
@@ -263,6 +263,7 @@ const metadataUrl = ref('')
 const coverUrl = ref('')
 const isAppleLink = ref(false)
 const appleMusicStatus = ref('unknown')
+const appleMusicCookiesPath = ref('')
 const isError = ref(false)
 const errorMessage = ref('')
 const noteText = ref('')
@@ -297,6 +298,7 @@ async function checkAppleMusicStatus() {
   try {
     const res = await axios.get('http://localhost:3000/apple-music/check')
     appleMusicStatus.value = res.data?.status || 'missing'
+    appleMusicCookiesPath.value = res.data?.cookiesPath || ''
   } catch {
     appleMusicStatus.value = 'missing'
   }

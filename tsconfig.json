@@ -1,7 +1,28 @@
 {
   "compilerOptions": {
-    "types": [
-      "unplugin-icons/types/vue",
-    ]
-  }
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "paths": {
+      "@renderer/*": ["./src/renderer/src/*"]
+    },
+    "types": ["unplugin-icons/types/vue"]
+  },
+  "include": [
+    "src/renderer/src/**/*.js",
+    "src/renderer/src/**/*.ts",
+    "src/renderer/src/**/*.vue",
+    "src/renderer/components.d.ts",
+    "src/renderer/__tests__/**/*.js",
+    "src/renderer/__tests__/**/*.ts"
+  ],
+  "exclude": ["node_modules", "out", "dist"]
 }

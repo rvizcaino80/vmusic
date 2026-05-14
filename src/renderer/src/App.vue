@@ -47,22 +47,22 @@
       <a-input v-model:value="quickPlaylistName" placeholder="Nombre de la playlist" />
     </a-modal>
 
-    <div v-if="currentSelectedOption" class="backdrop z-50 fixed w-full h-full" @click="hideMenu">
+    <div v-if="uiStore.currentSelectedOption" class="backdrop z-50 fixed w-full h-full" @click="hideMenu">
       <div
         :class="{
           'w-9/12':
-            currentSelectedOption === options.library || currentSelectedOption === options.history,
-          'w-11/12': currentSelectedOption === options.wave,
+            uiStore.currentSelectedOption === options.library || uiStore.currentSelectedOption === options.history,
+          'w-11/12': uiStore.currentSelectedOption === options.wave,
           'w-2/5':
-            currentSelectedOption !== options.wave &&
-            currentSelectedOption !== options.library &&
-            currentSelectedOption !== options.history
+            uiStore.currentSelectedOption !== options.wave &&
+            uiStore.currentSelectedOption !== options.library &&
+            uiStore.currentSelectedOption !== options.history
         }"
         class="vm-secondary-panel right-[40px] fixed flex h-full flex-col min-h-[0] bg-gray-300 p-6 text-black"
         @click="hideMenu"
       >
         <Edit
-          v-if="currentSelectedOption && currentSelectedOption === options.edit"
+          v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.edit"
           :id="selectedSongs.length > 0 ? selectedSongs[0] : 0"
           :tags="tags.filter((t) => t.id != 9998)"
           :artists="artists"
@@ -70,7 +70,7 @@
         />
 
         <Download
-          v-if="currentSelectedOption && currentSelectedOption === options.download"
+          v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.download"
           :tags="tags.filter((t) => t.id != 9998)"
           :artists="artists"
           :selected-artist="downloadSelectedArtist"
@@ -79,43 +79,43 @@
         />
 
         <div
-          v-if="currentSelectedOption && currentSelectedOption === options.settings"
+          v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.settings"
           class="flex-1 min-h-0 overflow-y-auto pr-2"
         >
           <Settings @saved="settingsSaved" />
         </div>
 
         <div
-          v-if="currentSelectedOption && currentSelectedOption === options.changelog"
+          v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.changelog"
           class="flex-1 min-h-0 overflow-y-auto pr-2"
         >
           <Changelog />
         </div>
 
-        <Artists v-if="currentSelectedOption && currentSelectedOption === options.artists" />
+        <Artists v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.artists" />
 
         <Tags
-          v-if="currentSelectedOption && currentSelectedOption === options.tags"
+          v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.tags"
           :tags="tags.filter((t) => t.id != 9998)"
           @added="getTags"
         />
 
         <AddMp3
-          v-if="currentSelectedOption && currentSelectedOption === options.add_mp3"
+          v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.add_mp3"
           :tags="tags.filter((t) => t.id != 9998)"
           :artists="artists"
           @saved="onAddMp3Saved"
         />
 
         <Wave
-          v-if="currentSelectedOption && currentSelectedOption === options.wave"
+          v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.wave"
           :id="selectedSongs.length > 0 ? selectedSongs[0] : 0"
           :preview-sink-id="previewSinkId"
           @wave-updated="waveUpdated"
           @preview-play-state="onWavePreviewPlayState"
         />
         <div
-          v-if="currentSelectedOption && currentSelectedOption === options.library"
+          v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.library"
           class="flex flex-col space-y-4 flex-1 min-h-[0]"
         >
           <div class="library-filters flex items-start h-[200px] space-x-4">
@@ -325,7 +325,7 @@
               :disabled="selectedSongs.length !== 1"
               type="button"
               class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
-              @click="currentSelectedOption = options.edit"
+              @click="uiStore.currentSelectedOption = options.edit"
             >
               <Icon
                 class="w-5 h-5"
@@ -337,7 +337,7 @@
               <a-button
                 :disabled="selectedSongs.length !== 1"
                 class="flex items-center space-x-1 pl-2.5"
-                @click="currentSelectedOption = options.edit"
+                @click="uiStore.currentSelectedOption = options.edit"
               >
                 <i-material-symbols-info-outline class="w-5 h-5" />
                 Info
@@ -347,7 +347,7 @@
               :disabled="selectedSongs.length !== 1"
               type="button"
               class="text-sm whitespace-nowrap px-2 py-2 bg-gray-800 text-white font-bold flex items-center space-x-1 disabled:bg-gray-400 disabled:text-gray-300"
-              @click="currentSelectedOption = options.wave"
+              @click="uiStore.currentSelectedOption = options.wave"
             >
               <Icon
                 class="w-5 h-5"
@@ -413,12 +413,14 @@
                 </template>
               </a-dropdown>
             </div>
-          </div>
+            </div>
 
-          <div class="flex-1 overflow-y-auto">
+          <div class="flex-1">
             <a-table
               class="ant-table-striped"
               :animate-rows="false"
+              :scroll="{ y: 600 }"
+              :virtual="true"
               :row-key="(record) => record.id"
               :row-class-name="
                 (_record, index) =>
@@ -461,11 +463,11 @@
                       class="flex items-center justify-center w-8 h-8 p-0"
                       size="small"
                       :type="
-                        previewSongId === record.id && previewStatus === 'playing'
+                        playerStore.previewSongId === record.id && playerStore.previewStatus === 'playing'
                           ? 'primary'
                           : 'default'
                       "
-                      :loading="isPreviewLoading && previewSongId === record.id"
+                      :loading="playerStore.isPreviewLoading && playerStore.previewSongId === record.id"
                       @mousedown.stop.prevent="startPreview(record)"
                       @mouseup.stop="stopPreview()"
                       @mouseleave.stop="stopPreview()"
@@ -560,7 +562,7 @@
         </div>
 
         <div
-          v-if="currentSelectedOption && currentSelectedOption === options.history"
+          v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.history"
           class="flex flex-col space-y-4 flex-1 min-h-[0]"
         >
           <div class="flex items-center justify-between space-x-3">
@@ -688,7 +690,7 @@
       </div>
 
       <Playlists
-        v-if="currentSelectedOption && currentSelectedOption === options.playlists"
+        v-if="uiStore.currentSelectedOption && uiStore.currentSelectedOption === options.playlists"
         @load-playlist="onLoadPlaylist"
       />
     </div>
@@ -887,7 +889,7 @@
         />
       </div>
 
-      <div class="flex-[5] flex flex-col p-4 space-y-2 min-w-0">
+      <div class="flex-[5] flex flex-col p-4 space-y-2 min-w-0 overflow-hidden">
         <div class="flex items-center space-x-10 justify-between">
           <div class="control-buttons flex items-center space-x-3">
             <button
@@ -1194,7 +1196,7 @@
           <div
             :class="{
               'vm-item-selected':
-                currentSelectedOption === options.library || currentSelectedOption === options.wave
+                uiStore.currentSelectedOption === options.library || uiStore.currentSelectedOption === options.wave
             }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.library)"
@@ -1205,7 +1207,7 @@
           </div>
 
           <div
-            :class="{ 'vm-item-selected': currentSelectedOption === options.download }"
+            :class="{ 'vm-item-selected': uiStore.currentSelectedOption === options.download }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.download)"
           >
@@ -1221,7 +1223,7 @@
           </div>
 
           <div
-            :class="{ 'vm-item-selected': currentSelectedOption === options.add_mp3 }"
+            :class="{ 'vm-item-selected': uiStore.currentSelectedOption === options.add_mp3 }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.add_mp3)"
           >
@@ -1231,7 +1233,7 @@
           </div>
 
           <div
-            :class="{ 'vm-item-selected': currentSelectedOption === options.history }"
+            :class="{ 'vm-item-selected': uiStore.currentSelectedOption === options.history }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.history)"
           >
@@ -1241,7 +1243,7 @@
           </div>
 
           <div
-            :class="{ 'vm-item-selected': currentSelectedOption === options.playlists }"
+            :class="{ 'vm-item-selected': uiStore.currentSelectedOption === options.playlists }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.playlists)"
           >
@@ -1253,7 +1255,7 @@
 
         <div class="flex flex-col w-full">
           <div
-            :class="{ 'vm-item-selected': currentSelectedOption === options.artists }"
+            :class="{ 'vm-item-selected': uiStore.currentSelectedOption === options.artists }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.artists)"
           >
@@ -1263,7 +1265,7 @@
           </div>
 
           <div
-            :class="{ 'vm-item-selected': currentSelectedOption === options.tags }"
+            :class="{ 'vm-item-selected': uiStore.currentSelectedOption === options.tags }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.tags)"
           >
@@ -1284,7 +1286,7 @@
           </div>
 
           <div
-            :class="{ 'vm-item-selected': currentSelectedOption === options.changelog }"
+            :class="{ 'vm-item-selected': uiStore.currentSelectedOption === options.changelog }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.changelog)"
           >
@@ -1294,7 +1296,7 @@
           </div>
 
           <div
-            :class="{ 'vm-item-selected': currentSelectedOption === options.settings }"
+            :class="{ 'vm-item-selected': uiStore.currentSelectedOption === options.settings }"
             class="group hover:cursor-pointer flex flex-col items-center justify-center px-1 pt-2 pb-2"
             @click="setOption(options.settings)"
           >
@@ -1304,7 +1306,7 @@
           </div>
 
           <!--div
-          :class="{ 'bg-gray-300': currentSelectedOption === options.settings }"
+          :class="{ 'bg-gray-300': uiStore.currentSelectedOption === options.settings }"
           class="group hover:cursor-pointer flex flex-col items-center justify-center px-3 pt-3 pb-3"
           @click="setOption(options.settings)"
         >
@@ -1377,21 +1379,94 @@ import Wave from './components/Wave.vue'
 import Multiselect from './components/Multiselect.vue'
 import Changelog from './components/Changelog.vue'
 import Playlists from './components/Playlists.vue'
+import { storeToRefs } from 'pinia'
+import { usePlayerStore } from './stores/player'
+import { useLibraryStore } from './stores/library'
+import { usePlaylistStore } from './stores/playlist'
+import { useSettingsStore } from './stores/settings'
+import { useUIStore, options } from './stores/ui'
+import { useTheme } from './composables/useTheme'
+import { useLyrics } from './composables/useLyrics'
+import { useSongNotes } from './composables/useSongNotes'
+import { useCoverArt } from './composables/useCoverArt'
+import { useM3U } from './composables/useM3U'
+import { useAudioOutput } from './composables/useAudioOutput'
+import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
+import { useSongEditing } from './composables/useSongEditing'
+import { useCustomUpdater } from './composables/useCustomUpdater'
+import api from './lib/api-client'
 
-let options = {
-  library: 10,
-  download: 20,
-  history: 22,
-  playlists: 25,
-  downloadDetails: 28,
-  tags: 30,
-  settings: 40,
-  artists: 50,
-  edit: 60,
-  add_mp3: 65,
-  wave: 70,
-  changelog: 80
-}
+// Store initialization
+const playerStore = usePlayerStore()
+const libraryStore = useLibraryStore()
+const playlistStore = usePlaylistStore()
+const settingsStore = useSettingsStore()
+const uiStore = useUIStore()
+
+// Destructure store refs for template/function access
+const {
+  playlistDetails, selectedRows, savedPlaylists, playlistSearchQuery,
+  playlistSearchResults, playlistSearchIndex, history, songHistory,
+  tagHistory, historySelectedRows, m3uInput, isImportingM3U, isExportingM3U,
+  importSongsCache, importSongsCacheLoaded, currentMode, playlist,
+  playlistSource, repeatedArtistWarningSet, songContextMenu,
+  savePlaylistModalVisible, playlistNameToSave, savePlaylistError,
+  quickCreatePlaylistModalVisible, quickPlaylistName
+} = storeToRefs(playlistStore)
+
+const {
+  tags, artists, songs, filteredSongs, selectedSongs, selectedTags, selectedArtists,
+  artistFilterQuery, tagFilterQuery, artistFilterMode, tagFilterMode,
+  filterQuery, debouncedFilterQuery, deletedSongs, isLoadingLibrary,
+  autopause, m3uExportSourceFilter, filteredSongs2, deletedSongsSet
+} = storeToRefs(libraryStore)
+
+const {
+  player1, player2, isFirstPlay, lastActiveDeckPosition,
+  previewOutputs
+} = storeToRefs(playerStore)
+
+const {
+  isWindowFullscreen, showMenu,
+  isAltPressed, isLeftAltPressed, isLeftShiftPressed, isLeftMetaPressed
+} = storeToRefs(uiStore)
+
+const {
+  rowsPerPage, rowsPerPageFs, crossfaderTime, recentlyAddedTime,
+  historyLimit, previewSinkId, deckSinkId, baseSpeed,
+  colorSchema, showAdvancedFunctions, autoUpdateCovers, excludeTags
+} = storeToRefs(settingsStore)
+
+// Composables initialization
+const { initializeTheme } = useTheme()
+const { setupKeyboardListeners, cleanupKeyboardListeners } = useKeyboardShortcuts()
+const { loadSongNotesMap, getSongNote, setSongNote, onSongNotesChanged } = useSongNotes()
+const { getSongCoverUrl, songHasCover, getStoredCoverMap } = useCoverArt()
+const { parseM3U, loadSongsForImport, importM3UContent, buildM3UContent } = useM3U()
+const audioOutput = useAudioOutput()
+const {
+  seekActivePlayer, adjustActivePlayerSpeed, resetActivePlayerSpeed,
+  isEditableKeyboardTarget
+} = useKeyboardShortcuts()
+const { refreshSongInLibrary, refreshEditedSongInLoadedPlayers, reloadEditedSongInInactivePlayers } = useSongEditing()
+const {
+  customUpdaterState, customUpdaterOverlayOpen, customUpdaterInitialStateHandled,
+  customUpdaterDevtoolsOpen, customUpdaterDevPresetKey, customUpdaterDevPresets,
+  customUpdaterDevPreset, customUpdaterPreviewActive, customUpdaterDisplayState,
+  customUpdaterVisible, customUpdaterBlocking, customUpdaterActionVisible,
+  customUpdaterDevtoolsVisible, customUpdaterStatusLabel, customUpdaterStatusDetail,
+  customUpdaterProgressValue, customUpdaterProgressVisible, customUpdaterProgressCaption,
+  customUpdaterTitle, customUpdaterMessage,
+  checkCustomUpdater, openCustomUpdaterOverlay, installCustomUpdaterNow,
+  applyCustomUpdaterPreview, clearCustomUpdaterPreview, toggleCustomUpdaterDevtools,
+  shouldAutoOpenLibraryAtStartup
+} = useCustomUpdater()
+
+const {
+  lyricsLines, lyricsSynced, lyricsLoading, currentLyricIndex,
+  shouldShowLyrics, prevLyricsLine, activeLyricsLine, nextLyricsLine,
+  handleLyricsTimeupdate, fetchLyricsForPlayer, clearLyrics
+} = useLyrics()
 
 const playerStatuses = {
   'Sin Carga': 10,
@@ -1448,143 +1523,31 @@ const antTheme = {
   }
 }
 
+const { applyColorSchema, normalizeColorSchema } = useTheme()
+
 function normalizeHistoryLimit(limit) {
   const parsed = Number(limit)
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return 15
-  }
-
+  if (!Number.isFinite(parsed) || parsed < 1) return 15
   return Math.floor(parsed)
 }
 
-function normalizeRowsPerPage(value, fallback = 24) {
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return fallback
-  }
-
-  return Math.floor(parsed)
-}
-
-function normalizeColorSchema(schema) {
-  if (schema === 'default') {
-    return 'sunset'
-  }
-  if (schema === 'graphite') {
-    return 'aurora'
-  }
-  if (!schema || !COLOR_SCHEMA_VALUES.includes(schema)) {
-    return COLOR_SCHEMA_DEFAULT
-  }
-
-  return schema
-}
-
-function applyColorSchema(schema) {
-  const normalized = normalizeColorSchema(schema)
-  const root = document.documentElement
-  root.classList.add('vm-theme-transitioning')
-
-  // Ensure the transition styles are committed before changing CSS variables.
-
-  root.offsetHeight
-  if (colorSchemaTransitionRaf) {
-    cancelAnimationFrame(colorSchemaTransitionRaf)
-  }
-  colorSchemaTransitionRaf = requestAnimationFrame(() => {
-    root.setAttribute('data-color-schema', normalized)
-    window.dispatchEvent(
-      new CustomEvent('vmusic-color-schema-changed', {
-        detail: { schema: normalized }
-      })
-    )
-    colorSchemaTransitionRaf = null
-  })
-  if (colorSchemaTransitionTimer) {
-    clearTimeout(colorSchemaTransitionTimer)
-  }
-  colorSchemaTransitionTimer = setTimeout(() => {
-    root.classList.remove('vm-theme-transitioning')
-    colorSchemaTransitionTimer = null
-  }, COLOR_SCHEMA_TRANSITION_MS + 40)
-
-  return normalized
-}
-
-let currentSelectedOption = ref(null)
-
-// Library
-const artists = ref([])
-const filteredArtists = ref([])
-const songs = ref([])
-const filteredSongs = ref([])
-const selectedTags = ref([])
-const selectedArtists = ref([])
-const artistFilterQuery = ref('')
-const tagFilterQuery = ref('')
-const artistFilterMode = ref('any')
-const tagFilterMode = ref('any')
-const selectedSongs = ref([])
-const filterQuery = ref('')
-const deletedSongs = ref([])
-const debouncedFilterQuery = ref('')
-let filterQueryDebounceTimer = null
-const isLoadingLibrary = ref(true)
-const autopause = ref(false)
-const isAltPressed = ref(false)
-const isLeftAltPressed = ref(false)
-const isLeftShiftPressed = ref(false)
-const isLeftMetaPressed = ref(false)
+const PREVIEW_DECK_DUCK_MULTIPLIER = 0.2
 const ESC_DOUBLE_PRESS_WINDOW_MS = 1000
 let lastEscapePressAt = 0
-const previewAudio = ref(null)
-const previewSongId = ref(null)
-const previewStatus = ref('idle')
-const isPreviewLoading = ref(false)
-const previewSinkId = ref(null)
-const previewOutputs = ref([])
-const previewPlaylistEntryId = ref(null)
-const deckSinkId = ref(null)
-const playbackStateBeforePowerInterruption = ref({ top: false, bottom: false })
-const waveEditorPreviewActive = ref(false)
-const PREVIEW_DECK_DUCK_MULTIPLIER = 0.2
+let filterQueryDebounceTimer = null
 const hasStoredSettings = Boolean(localStorage.getItem('vmusic_settings'))
 const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
-const normalizedHistoryLimit = normalizeHistoryLimit(savedSettingsRef.historyLimit)
-const normalizedRowsPerPage = normalizeRowsPerPage(savedSettingsRef.rowsPerPage, 24)
-const normalizedRowsPerPageFs = normalizeRowsPerPage(
-  savedSettingsRef.rowsPerPageFs,
-  normalizedRowsPerPage
-)
+const normalizedHistoryLimit = settingsStore.historyLimit
+const normalizedRowsPerPage = settingsStore.rowsPerPage
+const normalizedRowsPerPageFs = settingsStore.rowsPerPageFs
 const normalizedShowAdvancedFunctions = Boolean(savedSettingsRef.showAdvancedFunctions)
 const normalizedAutoUpdateCovers = Boolean(savedSettingsRef.autoUpdateCovers)
-previewSinkId.value = savedSettingsRef.previewSinkId || null
-deckSinkId.value = savedSettingsRef.deckSinkId || null
-const excludedTags = ref(savedSettingsRef.excludeTags || [])
-const colorSchema = ref(applyColorSchema(savedSettingsRef.colorSchema))
-const showAdvancedFunctions = ref(normalizedShowAdvancedFunctions)
-if (
-  hasStoredSettings &&
-  (savedSettingsRef.colorSchema !== colorSchema.value ||
-    savedSettingsRef.historyLimit !== normalizedHistoryLimit ||
-    savedSettingsRef.rowsPerPage !== normalizedRowsPerPage ||
-    savedSettingsRef.rowsPerPageFs !== normalizedRowsPerPageFs ||
-    savedSettingsRef.showAdvancedFunctions !== normalizedShowAdvancedFunctions ||
-    savedSettingsRef.autoUpdateCovers !== normalizedAutoUpdateCovers)
-) {
-  localStorage.setItem(
-    'vmusic_settings',
-    JSON.stringify({
-      ...savedSettingsRef,
-      colorSchema: colorSchema.value,
-      historyLimit: normalizedHistoryLimit,
-      rowsPerPage: normalizedRowsPerPage,
-      rowsPerPageFs: normalizedRowsPerPageFs,
-      showAdvancedFunctions: normalizedShowAdvancedFunctions,
-      autoUpdateCovers: normalizedAutoUpdateCovers
-    })
-  )
-}
+settingsStore.previewSinkId = savedSettingsRef.previewSinkId || ''
+settingsStore.deckSinkId = savedSettingsRef.deckSinkId || ''
+playerStore.previewSinkId = savedSettingsRef.previewSinkId || ''
+playerStore.deckSinkId = savedSettingsRef.deckSinkId || ''
+settingsStore.colorSchema = applyColorSchema(savedSettingsRef.colorSchema)
+settingsStore.persist()
 const downloadTasksCount = ref(0)
 const DOWNLOAD_TASKS_STORAGE_KEY = 'vmusic_download_tasks'
 const DOWNLOAD_TASK_TIMEOUT_MS = 5 * 60 * 1000
@@ -1592,183 +1555,18 @@ const SONG_NOTES_STORAGE_KEY = 'vmusic_song_notes'
 const isLocalRenderer =
   typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
 const isDev = import.meta.env.DEV || isLocalRenderer
-const customUpdaterState = ref({
-  status: 'idle',
-  version: '',
-  message: '',
-  downloaded: false,
-  supported: false
-})
-const songNotesMap = ref({})
-const customUpdaterOverlayOpen = ref(false)
-const customUpdaterInitialStateHandled = ref(false)
-const customUpdaterDevtoolsOpen = ref(false)
-const customUpdaterDevPresetKey = ref('')
 const isMacPlatform =
   typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || navigator.userAgent || '')
-const customUpdaterDevPresets = [
-  {
-    key: 'checking',
-    label: 'Buscando',
-    state: {
-      status: 'checking',
-      version: 'v2.4.0',
-      message: 'Estamos consultando la última versión disponible para preparar la actualización.'
-    },
-    progress: 12
-  },
-  {
-    key: 'available',
-    label: 'Disponible',
-    state: {
-      status: 'available',
-      version: 'v2.4.0',
-      message: 'La actualización ya fue encontrada y está lista para descargarse en segundo plano.'
-    },
-    progress: 28
-  },
-  {
-    key: 'downloading',
-    label: 'Descargando',
-    state: {
-      status: 'downloading',
-      version: 'v2.4.0',
-      message:
-        'Descargando el paquete seguro. La app seguirá preparando el reemplazo automáticamente.'
-    },
-    progress: 68
-  },
-  {
-    key: 'downloaded',
-    label: 'Lista',
-    state: {
-      status: 'downloaded',
-      version: 'v2.4.0',
-      message: 'Todo está listo. Solo falta cerrar y aplicar la nueva versión.'
-    },
-    progress: 100
-  },
-  {
-    key: 'installing',
-    label: 'Instalando',
-    state: {
-      status: 'installing',
-      version: 'v2.4.0',
-      message: 'Reemplazando la aplicación actual con la nueva versión. Esto toma solo un momento.'
-    },
-    progress: 100
-  },
-  {
-    key: 'error',
-    label: 'Error',
-    state: {
-      status: 'error',
-      version: 'v2.4.0',
-      message: 'No pudimos terminar la actualización. Revisa permisos o vuelve a intentarlo.'
-    },
-    progress: 100
-  }
-]
-const customUpdaterDevPreset = computed(
-  () =>
-    customUpdaterDevPresets.find((preset) => preset.key === customUpdaterDevPresetKey.value) || null
-)
-const customUpdaterPreviewActive = computed(() => isDev && Boolean(customUpdaterDevPreset.value))
-const customUpdaterDisplayState = computed(() => {
-  if (!customUpdaterPreviewActive.value) {
-    return customUpdaterState.value
-  }
+// customUpdaterDevPresets is now in the useCustomUpdater composable
+// customUpdater computed properties are now in useCustomUpdater composable
+// customUpdaterListener is now in useCustomUpdater composable
 
-  return {
-    ...customUpdaterState.value,
-    ...customUpdaterDevPreset.value.state,
-    downloaded: customUpdaterDevPreset.value.state.status === 'downloaded'
-  }
-})
-const customUpdaterListener = (_event, payload) => {
-  customUpdaterState.value = {
-    ...customUpdaterState.value,
-    ...(payload || {})
-  }
-}
-
-function loadSongNotesMap() {
-  try {
-    const stored = localStorage.getItem(SONG_NOTES_STORAGE_KEY)
-    const parsed = stored ? JSON.parse(stored) : {}
-    songNotesMap.value = parsed && typeof parsed === 'object' ? parsed : {}
-  } catch {
-    songNotesMap.value = {}
-  }
-}
-
-function getSongNote(record) {
-  const ytid = String(record?.ytid || '').trim()
-  if (!ytid) return ''
-
-  return String(songNotesMap.value[ytid] || '').trim()
-}
-
-function getStoredCoverMap() {
-  try {
-    const stored = localStorage.getItem('vmusic_cover_map')
-    const parsed = stored ? JSON.parse(stored) : {}
-
-    return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch {
-    return {}
-  }
-}
-
-function getSongCoverUrl(song, storedCoverMap = null) {
-  if (!song) return ''
-
-  const directCover =
-    song.songImage || song.coverUrl || song.cover || song.image || song.artwork || ''
-  if (directCover) return directCover
-
-  const ytid = String(song.ytid || '').trim()
-  if (!ytid) return ''
-
-  const coverMap = storedCoverMap || getStoredCoverMap()
-
-  return String(coverMap[ytid] || '')
-}
-
-function songHasCover(song, storedCoverMap = null) {
-  return Boolean(getSongCoverUrl(song, storedCoverMap))
-}
-
-function onSongNotesChanged() {
-  loadSongNotesMap()
-}
 let systemPowerResumeTimerId = null
 
-// Tags
-const tags = ref([])
-
-// Playlist
-const history = ref([])
-const tagHistory = ref([])
-const songHistory = ref([])
-const historySelectedRows = ref([])
-const playlist = ref([])
-const playlistDetails = ref([])
-const currentMode = ref(0)
-const selectedRows = ref([])
-const m3uInput = ref(null)
-const isImportingM3U = ref(false)
-const isExportingM3U = ref(false)
-const importSongsCacheLoaded = ref(false)
-const importSongsCache = ref([])
-const playlistSearchQuery = ref('')
-const playlistSearchResults = ref([])
-const playlistSearchIndex = ref(0)
 const PLAYLIST_PREVIEW_HOLD_MS = 500
 const PLAYLIST_ROW_HEIGHT = 26
 let playlistPreviewPressTimer = null
 let isPlaylistPressPreviewActive = false
-const m3uExportSourceFilter = ref('any')
 const m3uSourceLabel = computed(() => {
   switch (m3uExportSourceFilter.value) {
     case 'apple':
@@ -1779,15 +1577,8 @@ const m3uSourceLabel = computed(() => {
       return 'Cualquier fuente'
   }
 })
-
-// Players
-const player1 = ref(null)
-const player2 = ref(null)
-const isFirstPlay = ref(true)
-const lastActiveDeckPosition = ref(null)
 let initialDeckBLoadTimer = null
 let logoAnimationIntervalId = null
-const isWindowFullscreen = ref(false)
 const mediaSessionActions = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
 const mediaKeyCodes = new Set([
   'MediaPlayPause',
@@ -1818,17 +1609,13 @@ let centerVisualizerRetryAttempt = 0
 const CENTER_VISUALIZER_RETRY_DELAY_MS = 180
 const CENTER_VISUALIZER_RETRY_MAX_ATTEMPTS = 24
 
-function normalizeOutputDeviceId(deviceId) {
-  return deviceId && deviceId !== 'default' ? deviceId : 'default'
-}
-
 function shouldDuckDeckPlayersForPreview() {
   const isStandardPreviewActive =
-    previewStatus.value === 'loading' || previewStatus.value === 'playing'
+    playerStore.previewStatus === 'loading' || playerStore.previewStatus === 'playing'
   const sameOutputDevice =
-    normalizeOutputDeviceId(previewSinkId.value) === normalizeOutputDeviceId(deckSinkId.value)
+    audioOutput.normalizeOutputDeviceId(playerStore.previewSinkId) === audioOutput.normalizeOutputDeviceId(playerStore.deckSinkId)
 
-  return sameOutputDevice && (isStandardPreviewActive || waveEditorPreviewActive.value)
+  return sameOutputDevice && (isStandardPreviewActive || playerStore.waveEditorPreviewActive)
 }
 
 function syncPreviewDeckDucking() {
@@ -1843,7 +1630,7 @@ function syncPreviewDeckDucking() {
 }
 
 watch(
-  [previewStatus, previewSinkId, deckSinkId, waveEditorPreviewActive, player1, player2],
+  [() => playerStore.previewStatus, () => playerStore.previewSinkId, () => playerStore.deckSinkId, () => playerStore.waveEditorPreviewActive, player1, player2],
   () => {
     syncPreviewDeckDucking()
   },
@@ -1858,13 +1645,14 @@ watch(showAdvancedFunctions, (enabled) => {
 })
 
 function onWavePreviewPlayState(isPlaying) {
-  waveEditorPreviewActive.value = Boolean(isPlaying)
+  playerStore.waveEditorPreviewActive = Boolean(isPlaying)
 }
 
 // Multiselects
 const artistMultiSelect = ref(null)
 const tagMultiSelect = ref(null)
-const pageSizeRef = ref(24)
+const pageSizeRef = computed(() => settingsStore.getRowsPerPageByMode(uiStore.isWindowFullscreen))
+// Library state for persistence (saved to localStorage)
 const libraryState = ref({
   artists: [],
   tags: [],
@@ -1889,8 +1677,6 @@ const createPlaylistEntry = (song, options = {}) => {
   return entry
 }
 
-const playlistSource = computed(() => playlistDetails.value.slice())
-
 const {
   list: playlistVirtualRows,
   containerProps: playlistContainerProps,
@@ -1902,52 +1688,6 @@ const {
 })
 
 const playlistRows = computed(() => playlistVirtualRows.value)
-const repeatedArtistWarningSet = computed(() => {
-  const set = new Set()
-  for (let index = 1; index < playlistDetails.value.length; index++) {
-    const song = playlistDetails.value[index]
-    const prev = playlistDetails.value[index - 1]
-    if (!song || !prev || !Array.isArray(song.Artists) || !Array.isArray(prev.Artists)) continue
-    const prevIds = new Set(prev.Artists.map((artist) => artist.id))
-    if (song.Artists.some((artist) => prevIds.has(artist.id))) {
-      set.add(song.entryId)
-    }
-  }
-
-  return set
-})
-
-const filteredSongs2 = computed(() => {
-  const normalizedQuery = removeAccents((debouncedFilterQuery.value || '').toLowerCase())
-
-  let filtered = songs.value
-
-  if (m3uExportSourceFilter.value === 'apple') {
-    filtered = filtered.filter((item) => Boolean(item.isAppleMusic))
-  } else if (m3uExportSourceFilter.value === 'youtube') {
-    filtered = filtered.filter((item) => !Boolean(item.isAppleMusic))
-  }
-
-  if (!normalizedQuery) {
-    return filtered
-  }
-
-  return filtered.filter((item) => {
-    const normalizedName = item.nameNorm || removeAccents((item.name || '').toLowerCase())
-    const normalizedArtists =
-      item.artistsNorm ||
-      removeAccents(
-        (item.Artists || [])
-          .map((a) => a.name)
-          .join(' ')
-          .toLowerCase()
-      )
-
-    return normalizedName.includes(normalizedQuery) || normalizedArtists.includes(normalizedQuery)
-  })
-})
-
-const deletedSongsSet = computed(() => new Set(deletedSongs.value))
 const selectedRowsSet = computed(() => new Set(selectedRows.value))
 
 const columns = computed(() => {
@@ -2162,168 +1902,11 @@ const canManualNext = computed(() => {
   return Boolean(getActivePlayerForManualNext())
 })
 
-const customUpdaterVisible = computed(() => {
-  if (!isMacPlatform && !customUpdaterPreviewActive.value) return false
-
-  return ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(
-    customUpdaterDisplayState.value.status
-  )
-})
-
-const customUpdaterBlocking = computed(() => {
-  if (!isMacPlatform && !customUpdaterPreviewActive.value) return false
-
-  return (
-    customUpdaterOverlayOpen.value &&
-    ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(
-      customUpdaterDisplayState.value.status
-    )
-  )
-})
-
-const customUpdaterActionVisible = computed(() => {
-  if (!isMacPlatform && !customUpdaterPreviewActive.value) return false
-
-  return ['available', 'downloading', 'downloaded', 'installing'].includes(
-    customUpdaterDisplayState.value.status
-  )
-})
-
-const customUpdaterDevtoolsVisible = computed(() => isDev)
-
-const customUpdaterStatusLabel = computed(() => {
-  switch (customUpdaterDisplayState.value.status) {
-    case 'checking':
-      return 'Buscando'
-    case 'available':
-      return 'Disponible'
-    case 'downloading':
-      return 'Descargando'
-    case 'downloaded':
-      return 'Lista'
-    case 'installing':
-      return 'Instalando'
-    case 'error':
-      return 'Error'
-    default:
-      return 'Actualización'
-  }
-})
-
-const customUpdaterStatusDetail = computed(() => {
-  switch (customUpdaterDisplayState.value.status) {
-    case 'checking':
-      return 'Validando nueva versión'
-    case 'available':
-      return 'Paquete detectado'
-    case 'downloading':
-      return 'Transferencia en progreso'
-    case 'downloaded':
-      return 'Esperando confirmación'
-    case 'installing':
-      return 'Aplicando reemplazo'
-    case 'error':
-      return 'Intervención requerida'
-    default:
-      return 'Sin actividad'
-  }
-})
-
-const customUpdaterProgressValue = computed(() => {
-  if (customUpdaterPreviewActive.value) {
-    return customUpdaterDevPreset.value?.progress || 0
-  }
-
-  switch (customUpdaterDisplayState.value.status) {
-    case 'checking':
-      return 12
-    case 'available':
-      return 26
-    case 'downloading':
-      return 72
-    case 'downloaded':
-    case 'installing':
-    case 'error':
-      return 100
-    default:
-      return 0
-  }
-})
-
-const customUpdaterProgressVisible = computed(() =>
-  ['checking', 'available', 'downloading', 'downloaded', 'installing'].includes(
-    customUpdaterDisplayState.value.status
-  )
-)
-
-const customUpdaterProgressCaption = computed(() => {
-  if (customUpdaterDisplayState.value.status === 'downloaded') {
-    return 'Paquete descargado y listo para instalar'
-  }
-  if (customUpdaterDisplayState.value.status === 'installing') {
-    return 'Aplicando actualización'
-  }
-
-  return `${customUpdaterProgressValue.value}% del flujo completado`
-})
-
-const customUpdaterTitle = computed(() => {
-  switch (customUpdaterDisplayState.value.status) {
-    case 'checking':
-      return 'Buscando actualización'
-    case 'available':
-      return `Nueva versión ${customUpdaterDisplayState.value.version || ''}`.trim()
-    case 'downloading':
-      return `Descargando ${customUpdaterDisplayState.value.version || 'actualización'}`
-    case 'downloaded':
-      return `Actualización lista ${customUpdaterDisplayState.value.version || ''}`.trim()
-    case 'installing':
-      return 'Instalando actualización'
-    case 'error':
-      return 'No se pudo actualizar'
-    default:
-      return 'Actualización'
-  }
-})
-
-const customUpdaterMessage = computed(() => {
-  return customUpdaterDisplayState.value.message || 'Actualización personal para macOS.'
-})
-
-function shouldAutoOpenLibraryAtStartup(status) {
-  return !['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(
-    String(status || '')
-  )
-}
-
-async function checkCustomUpdater() {
-  if (!window.electron2?.checkCustomUpdater) return
-  const nextState = await window.electron2.checkCustomUpdater()
-  customUpdaterState.value = {
-    ...customUpdaterState.value,
-    ...(nextState || {})
-  }
-}
-
-function openCustomUpdaterOverlay() {
-  if (!customUpdaterActionVisible.value && customUpdaterDisplayState.value.status !== 'error')
-    return
-  customUpdaterOverlayOpen.value = true
-}
-
-function applyCustomUpdaterPreview(key) {
-  if (!isDev) return
-
-  customUpdaterDevPresetKey.value = key
-  customUpdaterOverlayOpen.value = true
-}
-
-function clearCustomUpdaterPreview() {
-  if (!isDev) return
-
-  customUpdaterDevPresetKey.value = ''
-  customUpdaterOverlayOpen.value = false
-}
+// shouldAutoOpenLibraryAtStartup from useCustomUpdater composable
+// checkCustomUpdater from useCustomUpdater composable
+// openCustomUpdaterOverlay from useCustomUpdater composable
+// applyCustomUpdaterPreview from useCustomUpdater composable
+// clearCustomUpdaterPreview from useCustomUpdater composable
 
 function onCustomUpdaterDevShortcut(event) {
   if (!isDev) return
@@ -2361,10 +1944,7 @@ watch(
   }
 )
 
-async function installCustomUpdaterNow() {
-  if (!window.electron2?.installCustomUpdaterNow) return
-  await window.electron2.installCustomUpdaterNow()
-}
+// installCustomUpdaterNow from useCustomUpdater composable
 
 // Define localstorage settings
 if (!localStorage.getItem('vmusic_library_state')) {
@@ -2406,7 +1986,7 @@ const onSelectAll = (selected, selectedRows, changeRows) => {
     setTimeout(() => {
       selectedSongs.value = []
     }, 0)
-    pageSizeRef.value = getRowsPerPageByMode(savedSettings)
+    // pageSizeRef is now a computed from settingsStore.rowsPerPage
   }
 }
 
@@ -2586,7 +2166,7 @@ onMounted(() => {
   } else {
     setOption(options.library)
   }
-  window.electron2?.onCustomUpdaterState?.(customUpdaterListener)
+  // Listener registration handled by useCustomUpdater composable
   setupMediaSessionHandlers()
   updateMediaSessionState()
   updateMediaSessionMetadata()
@@ -2596,7 +2176,7 @@ onMounted(() => {
       console.warn('No se pudieron inicializar los dispositivos de salida', error)
     })
   syncWindowDisplayMode().finally(() => {
-    pageSizeRef.value = getRowsPerPageByMode()
+    // pageSizeRef is now a computed from settingsStore.rowsPerPage
   })
   window.electron2?.onSystemPowerEvent?.(onSystemPowerEvent)
   window.addEventListener('keydown', onHardwareMediaKey)
@@ -2620,7 +2200,7 @@ onUnmounted(() => {
     clearInterval(logoAnimationIntervalId)
     logoAnimationIntervalId = null
   }
-  window.electron2?.offCustomUpdaterState?.(customUpdaterListener)
+  // Listener cleanup handled by useCustomUpdater composable
   window.electron2?.offSystemPowerEvent?.(onSystemPowerEvent)
   window.removeEventListener('keydown', onHardwareMediaKey)
   window.removeEventListener('keydown', onKeyboardSeekKey, true)
@@ -2859,11 +2439,11 @@ function persistResolvedOutputSettings(nextValues = {}) {
 }
 
 function applyDeckSinkToPlayers() {
-  if (player1.value?.setSinkId && deckSinkId.value) {
-    player1.value.setSinkId(deckSinkId.value)
+  if (player1.value?.setSinkId && playerStore.deckSinkId) {
+    player1.value.setSinkId(playerStore.deckSinkId)
   }
-  if (player2.value?.setSinkId && deckSinkId.value) {
-    player2.value.setSinkId(deckSinkId.value)
+  if (player2.value?.setSinkId && playerStore.deckSinkId) {
+    player2.value.setSinkId(playerStore.deckSinkId)
   }
 }
 
@@ -2876,11 +2456,11 @@ async function loadPreviewOutputs() {
 
 async function resolvePreferredOutputDevices() {
   const outputs = await loadPreviewOutputs()
-  const resolvedPreviewSinkId = pickPreferredOutputDevice(outputs, previewSinkId.value)
-  const resolvedDeckSinkId = pickPreferredOutputDevice(outputs, deckSinkId.value)
+  const resolvedPreviewSinkId = pickPreferredOutputDevice(outputs, playerStore.previewSinkId)
+  const resolvedDeckSinkId = pickPreferredOutputDevice(outputs, playerStore.deckSinkId)
 
-  previewSinkId.value = resolvedPreviewSinkId
-  deckSinkId.value = resolvedDeckSinkId
+  playerStore.previewSinkId = resolvedPreviewSinkId
+  playerStore.deckSinkId = resolvedDeckSinkId
   persistResolvedOutputSettings({
     previewSinkId: resolvedPreviewSinkId,
     deckSinkId: resolvedDeckSinkId
@@ -2897,12 +2477,12 @@ async function initializePreferredOutputDevices() {
   applyDeckSinkToPlayers()
 
   if (
-    previewAudio.value &&
-    typeof previewAudio.value.setSinkId === 'function' &&
+    playerStore.previewAudio &&
+    typeof playerStore.previewAudio.setSinkId === 'function' &&
     resolved.previewSinkId
   ) {
     try {
-      await previewAudio.value.setSinkId(resolved.previewSinkId)
+      await playerStore.previewAudio.setSinkId(resolved.previewSinkId)
     } catch (error) {
       console.warn('No se pudo aplicar la salida de preview inicial', error)
     }
@@ -2912,7 +2492,7 @@ async function initializePreferredOutputDevices() {
 }
 
 async function ensurePreviewPlayer() {
-  if (previewAudio.value) return previewAudio.value
+  if (playerStore.previewAudio) return playerStore.previewAudio
 
   const audio = new Audio()
   audio.preload = 'auto'
@@ -2920,7 +2500,7 @@ async function ensurePreviewPlayer() {
   audio.addEventListener('ended', () => resetPreviewState())
   audio.addEventListener('error', () => resetPreviewState())
 
-  previewAudio.value = audio
+  playerStore.previewAudio = audio
   await loadPreviewOutputs()
 
   return audio
@@ -2940,22 +2520,22 @@ async function onPreviewDropdown(open) {
 }
 
 async function onPreviewSinkChange(deviceId) {
-  previewSinkId.value = deviceId === 'default' ? null : deviceId
-  if (!previewAudio.value) {
+  playerStore.previewSinkId = deviceId === 'default' ? null : deviceId
+  if (!playerStore.previewAudio) {
     await ensurePreviewPlayer()
   }
 
   if (
-    previewAudio.value &&
-    typeof previewAudio.value.setSinkId === 'function' &&
-    previewSinkId.value
+    playerStore.previewAudio &&
+    typeof playerStore.previewAudio.setSinkId === 'function' &&
+    playerStore.previewSinkId
   ) {
     try {
-      await previewAudio.value.setSinkId(previewSinkId.value)
+      await playerStore.previewAudio.setSinkId(playerStore.previewSinkId)
     } catch (error) {
       console.warn('No se pudo cambiar la salida de preview', error)
       if (isMissingAudioDeviceError(error)) {
-        previewSinkId.value = null
+        playerStore.previewSinkId = null
 
         return
       }
@@ -2972,17 +2552,17 @@ function isMissingAudioDeviceError(error) {
 }
 
 function resetPreviewState() {
-  previewStatus.value = 'idle'
-  isPreviewLoading.value = false
-  previewSongId.value = null
-  previewPlaylistEntryId.value = null
+  playerStore.previewStatus = 'idle'
+  playerStore.isPreviewLoading = false
+  playerStore.previewSongId = null
+  playerStore.previewPlaylistEntryId = null
 }
 
 function stopPreview() {
-  if (!previewAudio.value) return
+  if (!playerStore.previewAudio) return
 
-  previewAudio.value.pause()
-  previewAudio.value.currentTime = 0
+  playerStore.previewAudio.pause()
+  playerStore.previewAudio.currentTime = 0
   resetPreviewState()
 }
 
@@ -2990,26 +2570,26 @@ async function startPreview(song, options = {}) {
   const { playlistEntryId = null } = options
   const audio = await ensurePreviewPlayer()
 
-  isPreviewLoading.value = true
+  playerStore.isPreviewLoading = true
   try {
-    if (previewStatus.value === 'playing') {
+    if (playerStore.previewStatus === 'playing') {
       audio.pause()
     }
 
-    if (previewSinkId.value && typeof audio.setSinkId === 'function') {
+    if (playerStore.previewSinkId && typeof audio.setSinkId === 'function') {
       try {
-        await audio.setSinkId(previewSinkId.value)
+        await audio.setSinkId(playerStore.previewSinkId)
       } catch (error) {
         console.warn('No se pudo aplicar la salida de preview seleccionada', error)
         if (isMissingAudioDeviceError(error)) {
-          previewSinkId.value = null
+          playerStore.previewSinkId = null
         }
       }
     }
 
-    previewSongId.value = song.id
-    previewPlaylistEntryId.value = playlistEntryId
-    previewStatus.value = 'loading'
+    playerStore.previewSongId = song.id
+    playerStore.previewPlaylistEntryId = playlistEntryId
+    playerStore.previewStatus = 'loading'
     const mediaUrl = await window.electron2.getMediaUrl({
       folder: song.folder,
       ytid: song.ytid
@@ -3030,7 +2610,7 @@ async function startPreview(song, options = {}) {
       }
     }
     await audio.play()
-    previewStatus.value = 'playing'
+    playerStore.previewStatus = 'playing'
   } catch (error) {
     const name = String(error?.name || '')
     const message = String(error?.message || '')
@@ -3044,12 +2624,12 @@ async function startPreview(song, options = {}) {
     resetPreviewState()
     alert('No se pudo reproducir la previsualización en los audífonos.')
   } finally {
-    isPreviewLoading.value = false
+    playerStore.isPreviewLoading = false
   }
 }
 
 function isPlaylistEntryPreviewing(song) {
-  return previewPlaylistEntryId.value === song.entryId && previewStatus.value === 'playing'
+  return playerStore.previewPlaylistEntryId === song.entryId && playerStore.previewStatus === 'playing'
 }
 
 function syncPlaylistStateFromDetails() {
@@ -3165,9 +2745,9 @@ function saveLibraryView(currentPage = null, sorter = null) {
 async function setOption(option, extraArtists = [], recent = false) {
   stopPreview()
   reset()
-  currentSelectedOption.value = option
+  uiStore.currentSelectedOption = option
 
-  if (currentSelectedOption.value === options.library) {
+  if (uiStore.currentSelectedOption === options.library) {
     isLoadingLibrary.value = true
     preparePreviewOutput()
     await syncWindowDisplayMode()
@@ -3190,15 +2770,9 @@ async function setOption(option, extraArtists = [], recent = false) {
 
     const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
 
-    await fetch('http://localhost:3000/songs/update-tags', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(savedSettings)
-    })
+    await api.updateTags()
 
-    pageSizeRef.value = getRowsPerPageByMode(savedSettings)
+    // pageSizeRef is now a computed from settingsStore.rowsPerPage
 
     if (songs.value.length <= 0 || tags.value.length <= 0 || artists.value.length <= 0) {
       // Set all tags
@@ -3212,7 +2786,7 @@ async function setOption(option, extraArtists = [], recent = false) {
         selectedTags.value = libraryState.value.tags
       } else {
         selectedTags.value = tags.value
-          .filter((item) => !excludedTags.value.includes(item.id))
+          .filter((item) => !settingsStore.excludeTags.includes(item.id))
           .map((item) => item.id)
         selectedArtists.value = artists.value.map((a) => a.id)
       }
@@ -3230,15 +2804,15 @@ async function setOption(option, extraArtists = [], recent = false) {
     }
 
     await filterSongs()
-  } else if (currentSelectedOption.value === options.download) {
+  } else if (uiStore.currentSelectedOption === options.download) {
     tags.value = await getTags()
     artists.value = await getArtists(true)
 
     // reset()
-  } else if (currentSelectedOption.value === options.history) {
+  } else if (uiStore.currentSelectedOption === options.history) {
     historySelectedRows.value = []
     loadSongHistory()
-  } else if (currentSelectedOption.value === options.tags) {
+  } else if (uiStore.currentSelectedOption === options.tags) {
     getTags()
   }
 }
@@ -3246,7 +2820,7 @@ async function setOption(option, extraArtists = [], recent = false) {
 function hideMenu(evt) {
   if (evt.target.classList.contains('backdrop')) {
     stopPreview()
-    currentSelectedOption.value = null
+    uiStore.currentSelectedOption = null
     reset()
   }
 }
@@ -3276,8 +2850,8 @@ function toArrayPayload(payload) {
 
 /* Tags*/
 async function getTags() {
-  const response = await fetch('http://localhost:3000/tags')
-  const data = await response.json()
+  const response = await api.getTags()
+  const data = response.data
   const normalized = toArrayPayload(data)
   console.log('[vmusic][getTags]', {
     status: response.status,
@@ -3292,8 +2866,8 @@ async function getTags() {
 }
 
 async function getArtists(filter = false) {
-  const response = await fetch('http://localhost:3000/artists')
-  const data = await response.json()
+  const response = await api.getArtists()
+  const data = response.data
   const normalized = toArrayPayload(data)
   console.log('[vmusic][getArtists]', {
     status: response.status,
@@ -3333,10 +2907,9 @@ async function filterSongs() {
    *body: JSON.stringify(params)
    *}
    *
-   *const response = await fetch('http://localhost:3000/songs/filter', options)
-   *const data = await response.json()
-   *
-   *let localSongs = data.sort((a, b) => a.name.localeCompare(b.name))
+    *const { data } = await api.filterSongs(params)
+    *
+    *let localSongs = data.sort((a, b) => a.name.localeCompare(b.name))
    *
    *localSongs.forEach((item) => {
    *item.key = item.id
@@ -3359,16 +2932,8 @@ async function filterSongs() {
     tags: effectiveTags
   }
 
-  const options = {
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    method: 'POST',
-    body: JSON.stringify(params)
-  }
-
-  const response = await fetch('http://localhost:3000/songs/filter', options)
-  const data = await response.json()
+  const response = await api.filterSongs(params)
+  const data = response.data
   const normalized = toArrayPayload(data)
   const storedCoverMap = getStoredCoverMap()
   console.log('[vmusic][filterSongs]', {
@@ -3405,6 +2970,8 @@ async function filterSongs() {
     ),
     playCount: item.playCount || 0
   }))
+
+  filteredSongs.value = songs.value
 
   if (libraryState.value && libraryState.value.search?.length > 0) {
     filterQuery.value = libraryState.value.search
@@ -3483,18 +3050,9 @@ function applyCombinedFilters(items) {
  *  tags: selectedTags.value
  *}
  *
- *const options = {
- *  headers: {
- *    'Content-Type': 'application/json'
- *  },
- *  method: 'POST',
- *  body: JSON.stringify(params)
- *}
- *
- *const response = await fetch('http://localhost:3000/songs/filter-by-artist', options)
- *const data = await response.json()
- *
- * // const localSongs = data.songs.sort((a, b) => a.name.localeCompare(b.name))
+  *const { data } = await api.filterSongs(params)
+  *
+  * // const localSongs = data.songs.sort((a, b) => a.name.localeCompare(b.name))
  *data.songs.forEach((item) => {
  *  item.key = item.id
  *  item.artistsJoined = item.Artists.map((artist) => artist.name).join(', ')
@@ -3521,27 +3079,14 @@ function applyCombinedFilters(items) {
  *}
  */
 
-const showMenu = ref(false)
-
 const closeContextMenu = () => {
   showMenu.value = false
   songContextMenu.value.visible = false
 }
 
-// Context menu for playlists
-const songContextMenu = ref({
-  visible: false,
-  x: 0,
-  y: 0,
-  song: null
-})
-const savedPlaylists = ref([])
-const quickCreatePlaylistModalVisible = ref(false)
-const quickPlaylistName = ref('')
-
 async function fetchSavedPlaylists() {
   try {
-    const { data } = await axios.get('http://localhost:3000/playlists')
+    const { data } = await api.getPlaylists()
     savedPlaylists.value = data
   } catch (error) {
     console.error('Error al cargar playlists:', error)
@@ -3561,9 +3106,7 @@ function openSongContextMenu(event, song) {
 async function addSongToPlaylist(playlistId) {
   if (!songContextMenu.value.song) return
   try {
-    await axios.post(`http://localhost:3000/playlists/${playlistId}/add-songs`, {
-      songIds: [songContextMenu.value.song.id]
-    })
+    await api.addSongsToPlaylist(playlistId, [songContextMenu.value.song.id])
     message.success('Canción agregada a la playlist')
   } catch (error) {
     console.error('Error al agregar canción:', error)
@@ -3581,10 +3124,7 @@ function createNewPlaylistWithSong() {
 async function confirmQuickCreatePlaylist() {
   try {
     const songIds = songContextMenu.value.song ? [songContextMenu.value.song.id] : []
-    await axios.post('http://localhost:3000/playlists', {
-      name: quickPlaylistName.value,
-      songIds
-    })
+    await api.savePlaylist(quickPlaylistName.value, songIds)
     message.success('Playlist creada')
     quickCreatePlaylistModalVisible.value = false
   } catch (error) {
@@ -3597,10 +3137,8 @@ function deleteSong() {
   if (selectedSongs.value.length === 0) return
   const songIdToDelete = selectedSongs.value[0]
 
-  axios
-    .post('http://localhost:3000/songs/delete', {
-      id: songIdToDelete
-    })
+  api
+    .deleteSong(songIdToDelete)
     .then(function (response) {
       filteredSongs.value = filteredSongs.value.filter((song) => song.id !== response.data[0])
       deletedSongs.value.push(response.data[0])
@@ -3657,10 +3195,6 @@ function shufflePlaylist(event) {
   }
 }
 
-// Playlist save/load functionality
-const savePlaylistModalVisible = ref(false)
-const playlistNameToSave = ref('')
-const savePlaylistError = ref('')
 const defaultPlaylistName = computed(() => {
   return `Playlist ${dayjs().format('YYYY-MM-DD HH:mm')}`
 })
@@ -3675,10 +3209,7 @@ async function savePlaylist() {
   try {
     savePlaylistError.value = ''
     const songIds = playlistDetails.value.map((item) => item.id)
-    await axios.post('http://localhost:3000/playlists', {
-      name: playlistNameToSave.value,
-      songIds
-    })
+    await api.savePlaylist(playlistNameToSave.value, songIds)
     savePlaylistModalVisible.value = false
     message.success('Playlist guardada')
   } catch (error) {
@@ -3748,185 +3279,15 @@ async function onM3UFileChange(event) {
   }
 }
 
-async function loadSongsForImport() {
-  if (importSongsCacheLoaded.value && importSongsCache.value.length > 0) {
-    return importSongsCache.value
-  }
+// loadSongsForImport from useM3U composable
 
-  const resolvedTags = tags.value.length > 0 ? tags.value : await getTags()
-  const resolvedArtists = artists.value.length > 0 ? artists.value : await getArtists(true)
+// parseM3U from useM3U composable
 
-  if (tags.value.length === 0) {
-    tags.value = resolvedTags
-  }
+// getSongPathInfo from useM3U composable
 
-  if (artists.value.length === 0) {
-    artists.value = resolvedArtists
-  }
+// importM3UContent from useM3U composable
 
-  const params = {
-    artists: resolvedArtists.map((artist) => artist.id),
-    tags: resolvedTags.map((tag) => tag.id)
-  }
-
-  const options = {
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    method: 'POST',
-    body: JSON.stringify(params)
-  }
-
-  const response = await fetch('http://localhost:3000/songs/filter', options)
-  const data = await response.json()
-  importSongsCache.value = data
-  importSongsCacheLoaded.value = true
-
-  return importSongsCache.value
-}
-
-function parseM3U(content) {
-  const entries = []
-
-  if (!content) {
-    return entries
-  }
-
-  const lines = content.split(/\r?\n/)
-  let lastInfo = null
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
-    if (!line) continue
-
-    if (line.startsWith('#EXTINF:')) {
-      const info = line.slice(8)
-      const [durationStr, ...rest] = info.split(',')
-      const duration = parseInt(durationStr, 10)
-      lastInfo = {
-        duration: isNaN(duration) ? null : duration,
-        title: rest.join(',').trim()
-      }
-    } else if (!line.startsWith('#')) {
-      entries.push({
-        ...lastInfo,
-        path: line
-      })
-      lastInfo = null
-    }
-  }
-
-  return entries
-}
-
-function getSongPathInfo(path) {
-  if (!path) {
-    return null
-  }
-
-  const normalized = path.replace(/\\/g, '/')
-  const parts = normalized.split('/').filter(Boolean)
-  if (parts.length < 2) {
-    return null
-  }
-
-  const filename = parts.pop()
-  const folder = parts.pop()
-
-  if (!filename || !folder) {
-    return null
-  }
-
-  const ytid = filename.replace(/\.[^/.]+$/, '')
-
-  return { folder, ytid }
-}
-
-async function importM3UContent(content) {
-  const entries = parseM3U(content)
-  if (entries.length === 0) {
-    alert('El archivo M3U no contiene canciones válidas.')
-
-    return
-  }
-
-  const allSongs = await loadSongsForImport()
-  const songMap = new Map()
-
-  allSongs.forEach((song) => {
-    songMap.set(`${song.folder}/${song.ytid}`, song)
-  })
-  const matched = []
-  const missing = []
-
-  entries.forEach((entry) => {
-    const info = getSongPathInfo(entry.path)
-    if (!info) {
-      missing.push(entry.path)
-
-      return
-    }
-
-    const found = songMap.get(`${info.folder}/${info.ytid}`)
-    if (found) {
-      matched.push(found)
-    } else {
-      missing.push(entry.path)
-    }
-  })
-
-  if (matched.length > 0) {
-    matched.forEach((song) => {
-      playlist.value.push(song.id)
-    })
-
-    const temp = matched.map((song) => createPlaylistEntry(song))
-    temp.forEach((song) => {
-      playlistDetails.value.push(song)
-    })
-
-    loadPlayers()
-  }
-
-  if (missing.length > 0) {
-    alert(`No se pudieron cargar ${missing.length} canciones del archivo M3U.`)
-  } else if (matched.length > 0) {
-    alert(`Se agregaron ${matched.length} canciones desde el archivo M3U.`)
-  }
-}
-
-function buildM3UContent(list) {
-  const lines = ['#EXTM3U']
-
-  list.forEach((song) => {
-    const duration = Math.round(song.duration || 0)
-    const artistsJoined = song.Artists?.map((a) => a.name).join(', ') || 'Desconocido'
-    const availableTags = tags.value || []
-    const genre = (song.Tags || [])
-      .map((t) => {
-        if (typeof t === 'number') {
-          return availableTags.find((tag) => tag.id === t)?.name
-        }
-
-        return t?.name
-      })
-      .map((name) => (name || '').trim())
-      .filter((name) => {
-        if (!name) return false
-        const normalized = name.toLowerCase()
-
-        return normalized !== 'reciente' && normalized !== 'agregado-reciente'
-      })
-      .join(', ')
-    const title = `${artistsJoined} - ${song.name}${genre ? ' - ' + genre : ''}`
-    const path = `/media/${song.folder}/${song.ytid}.mp3`
-
-    lines.push(`#EXTINF:${duration},${title}`)
-    lines.push(path)
-  })
-
-  return lines.join('\n')
-}
+// buildM3UContent from useM3U composable
 
 async function exportM3U() {
   if (isExportingM3U.value) {
@@ -3950,7 +3311,7 @@ async function exportM3U() {
     let detailedSongs = []
 
     try {
-      const response = await axios.post('http://localhost:3000/songs/by-id', { ids })
+      const response = await api.getSongsByIds(ids)
       detailedSongs = response.data
     } catch (err) {
       console.log(err)
@@ -3994,7 +3355,7 @@ function addSongsToPlaylist(songIds, action, play = false, options = {}) {
 
   const ids = [...songIds]
   const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
-  pageSizeRef.value = getRowsPerPageByMode(savedSettings)
+  // pageSizeRef is now a computed from settingsStore.rowsPerPage
 
   if (action === 0) {
     playlist.value = ids.concat(playlist.value)
@@ -4011,10 +3372,8 @@ function addSongsToPlaylist(songIds, action, play = false, options = {}) {
     })
   }
 
-  axios
-    .post('http://localhost:3000/songs/by-id', {
-      ids
-    })
+  api
+    .getSongsByIds(ids)
     .then(function (response) {
       let temp = []
       ids.forEach((item) => {
@@ -4204,7 +3563,7 @@ function loadLibrarySongToDeck(song, deck) {
 function openWaveEditorForSong(song) {
   if (!song?.id) return
   selectedSongs.value = [song.id]
-  currentSelectedOption.value = options.wave
+  uiStore.currentSelectedOption = options.wave
 }
 
 function getFirstUnplayedSong() {
@@ -4423,11 +3782,13 @@ async function onAddMp3Saved() {
 
 async function settingsSaved() {
   const s = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
-  previewSinkId.value = s.previewSinkId || null
-  deckSinkId.value = s.deckSinkId || null
-  excludedTags.value = s.excludeTags || []
-  colorSchema.value = applyColorSchema(s.colorSchema)
-  showAdvancedFunctions.value = Boolean(s.showAdvancedFunctions)
+  playerStore.previewSinkId = s.previewSinkId || ''
+  settingsStore.previewSinkId = s.previewSinkId || ''
+  playerStore.deckSinkId = s.deckSinkId || ''
+  settingsStore.deckSinkId = s.deckSinkId || ''
+  settingsStore.excludeTags = s.excludeTags || []
+  settingsStore.colorSchema = applyColorSchema(s.colorSchema)
+  settingsStore.showAdvancedFunctions = Boolean(s.showAdvancedFunctions)
   await preparePreviewOutput()
   await initializePreferredOutputDevices()
   if (Boolean(s.autoUpdateCovers)) {
@@ -4445,8 +3806,8 @@ async function settingsSaved() {
     .sort((a, b) => (b.playedAt || 0) - (a.playedAt || 0))
     .slice(0, historyLimit)
   saveSongHistory()
-  if (currentSelectedOption.value === options.library) {
-    const allowed = selectedTags.value.filter((id) => !excludedTags.value.includes(id))
+  if (uiStore.currentSelectedOption === options.library) {
+    const allowed = selectedTags.value.filter((id) => !settingsStore.excludeTags.includes(id))
     selectedTags.value = allowed
     if (tagMultiSelect.value?.setSelected) {
       tagMultiSelect.value.setSelected(allowed)
@@ -4455,7 +3816,7 @@ async function settingsSaved() {
     saveLibraryView()
   }
   await syncWindowDisplayMode()
-  pageSizeRef.value = getRowsPerPageByMode(s)
+  // pageSizeRef is now a computed from settingsStore.rowsPerPage
   setOption(null)
 }
 
@@ -4491,45 +3852,7 @@ async function updated(payload) {
   await setOption(null)
 }
 
-async function refreshSongInLibrary(id) {
-  if (!id) return null
-
-  try {
-    const response = await axios.get(`http://localhost:3000/songs/${id}`)
-    const updatedSong = response.data
-    const storedCoverMap = getStoredCoverMap()
-    const normalizedSong = {
-      ...updatedSong,
-      key: updatedSong.id,
-      coverUrl: getSongCoverUrl(updatedSong, storedCoverMap),
-      hasCover: songHasCover(updatedSong, storedCoverMap),
-      artistsJoined: (Array.isArray(updatedSong.Artists) ? updatedSong.Artists : [])
-        .map((artist) => artist.name)
-        .join(', '),
-      composersJoined: (Array.isArray(updatedSong.Composers) ? updatedSong.Composers : [])
-        .map((composer) => composer.name)
-        .join(', '),
-      nameNorm: removeAccents((updatedSong.name || '').toLowerCase()),
-      artistsNorm: removeAccents(
-        (Array.isArray(updatedSong.Artists) ? updatedSong.Artists : [])
-          .map((artist) => artist.name)
-          .join(' ')
-          .toLowerCase()
-      )
-    }
-
-    const index = songs.value.findIndex((song) => song.id === id)
-    if (index !== -1) {
-      songs.value.splice(index, 1, normalizedSong)
-    }
-
-    return normalizedSong
-  } catch (error) {
-    console.log(error)
-
-    return null
-  }
-}
+// refreshSongInLibrary from composable
 
 function refreshEditedSongInLoadedPlayer(playerRef, updatedSong) {
   if (!playerRef?.songFull?.id || !updatedSong?.id || playerRef.songFull.id !== updatedSong.id)
@@ -4539,10 +3862,7 @@ function refreshEditedSongInLoadedPlayer(playerRef, updatedSong) {
   playerRef.updateSongMetadata(updatedSong)
 }
 
-function refreshEditedSongInLoadedPlayers(updatedSong) {
-  refreshEditedSongInLoadedPlayer(player1.value, updatedSong)
-  refreshEditedSongInLoadedPlayer(player2.value, updatedSong)
-}
+// refreshEditedSongInLoadedPlayers from composable
 
 function reloadEditedSongInInactivePlayer(playerRef, songId, markers) {
   if (!playerRef?.songFull?.id || playerRef.songFull.id !== songId) return
@@ -4556,16 +3876,13 @@ function reloadEditedSongInInactivePlayer(playerRef, songId, markers) {
   })
 }
 
-function reloadEditedSongInInactivePlayers(songId, markers) {
-  reloadEditedSongInInactivePlayer(player1.value, songId, markers)
-  reloadEditedSongInInactivePlayer(player2.value, songId, markers)
-}
+// reloadEditedSongInInactivePlayers from composable
 
 function waveUpdated(markers) {
   const editedSongId = selectedSongs.value[0]
 
-  axios
-    .post('http://localhost:3000/songs/update-markers/' + editedSongId, markers)
+  api
+    .updateSongMarkers(editedSongId, markers)
     .then(function () {
       reloadEditedSongInInactivePlayers(editedSongId, markers)
     })
@@ -4590,11 +3907,8 @@ function saveSpeed(p) {
     speed = player2.value.speed_added
   }
 
-  axios
-    .post('http://localhost:3000/songs/save-speed', {
-      id: id,
-      speed: speed
-    })
+  api
+    .saveSongSpeed(id, speed)
     .then(function (response) {})
 }
 
@@ -5009,45 +4323,13 @@ function onHardwareMediaKey(event) {
   }
 }
 
-function isEditableKeyboardTarget(target) {
-  if (!(target instanceof HTMLElement)) return false
-  if (target.isContentEditable) return true
+// isEditableKeyboardTarget from composable
 
-  const tagName = target.tagName
+// seekActivePlayer from composable
 
-  return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT'
-}
+// adjustActivePlayerSpeed from composable
 
-function seekActivePlayer(deltaSeconds) {
-  const targetPlayer = getMediaTargetPlayer()
-  if (!targetPlayer || typeof targetPlayer.seekBy !== 'function') return false
-  if (!isPlayerReady(targetPlayer)) return false
-
-  targetPlayer.seekBy(deltaSeconds)
-
-  return true
-}
-
-function adjustActivePlayerSpeed(delta) {
-  const targetPlayer = getMediaTargetPlayer()
-  if (!targetPlayer || typeof targetPlayer.setSpeed !== 'function') return false
-
-  targetPlayer.setSpeed(delta)
-
-  return true
-}
-
-function resetActivePlayerSpeed() {
-  const targetPlayer = getMediaTargetPlayer()
-  if (!targetPlayer || typeof targetPlayer.setSpeed !== 'function') return false
-
-  const currentOffset = Number(targetPlayer.speed_added || 0)
-  if (!Number.isFinite(currentOffset) || currentOffset === 0) return false
-
-  targetPlayer.setSpeed(-currentOffset)
-
-  return true
-}
+// resetActivePlayerSpeed from composable
 
 function isPlayerActivelyPlaying(playerRef) {
   if (!playerRef) return false
@@ -5073,11 +4355,11 @@ function restorePlaybackAfterPowerInterruption() {
   }
 
   systemPowerResumeTimerId = setTimeout(() => {
-    if (player1.value?.setSinkId && deckSinkId.value) {
-      player1.value.setSinkId(deckSinkId.value)
+    if (player1.value?.setSinkId && playerStore.deckSinkId) {
+      player1.value.setSinkId(playerStore.deckSinkId)
     }
-    if (player2.value?.setSinkId && deckSinkId.value) {
-      player2.value.setSinkId(deckSinkId.value)
+    if (player2.value?.setSinkId && playerStore.deckSinkId) {
+      player2.value.setSinkId(playerStore.deckSinkId)
     }
 
     if (
@@ -5270,7 +4552,7 @@ function quickFilterByArtist(artistId) {
 
 function handleLibraryEscapeShortcut(event) {
   if (event.repeat) return false
-  if (currentSelectedOption.value !== options.library) return false
+  if (uiStore.currentSelectedOption !== options.library) return false
 
   const now = Date.now()
   const isDoubleEscape =
@@ -5295,7 +4577,7 @@ function handleLibraryEscapeShortcut(event) {
 function selectAllLibraryFilters() {
   const allArtistIds = artists.value.map((artist) => artist.id)
   const allowedTagIds = tags.value
-    .filter((tag) => !excludedTags.value.includes(tag.id))
+    .filter((tag) => !settingsStore.excludeTags.includes(tag.id))
     .map((tag) => tag.id)
 
   selectedArtists.value = allArtistIds
@@ -5332,7 +4614,7 @@ function selectNoneArtists() {
 function selectAllTags(evt) {
   const ignoreExclusions = evt?.altKey
   const allowed = tags.value
-    .filter((t) => (ignoreExclusions ? true : !excludedTags.value.includes(t.id)))
+    .filter((t) => (ignoreExclusions ? true : !settingsStore.excludeTags.includes(t.id)))
     .map((t) => t.id)
   selectedTags.value = allowed
   if (tagMultiSelect.value?.setSelected) {
@@ -5398,7 +4680,7 @@ function openInfoForSong(songData) {
   if (!songId) return
 
   selectedSongs.value = [songId]
-  currentSelectedOption.value = options.edit
+  uiStore.currentSelectedOption = options.edit
 }
 
 async function previewStartFromPlayer({ song, status }) {
@@ -5422,85 +4704,7 @@ function onM3uSourceSelect({ key }) {
   saveLibraryView()
 }
 
-const lyricsLines = ref([])
-const lyricsSynced = ref(false)
-const lyricsLoading = ref(false)
-const currentLyricIndex = ref(-1)
-let lyricsActiveDeck = null
-let activeLyricsPlayer = null
-
-function handleLyricsTimeupdate(currentTime) {
-  const lines = lyricsLines.value
-  if (!lines.length) return
-  let idx = -1
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (currentTime >= lines[i].time) {
-      idx = i
-      break
-    }
-  }
-  currentLyricIndex.value = idx
-}
-
-async function fetchLyricsForPlayer(playerRef) {
-  if (!playerRef?.songFull) {
-    lyricsLines.value = []
-    lyricsSynced.value = false
-    currentLyricIndex.value = -1
-    return
-  }
-  const song = playerRef.songFull
-  const artist = Array.isArray(song.Artists) && song.Artists.length > 0
-    ? song.Artists[0].name
-    : ''
-  const title = song.name || ''
-  if (!artist || !title) {
-    lyricsLines.value = []
-    lyricsSynced.value = false
-    return
-  }
-  lyricsLoading.value = true
-  lyricsLines.value = []
-  lyricsSynced.value = false
-  currentLyricIndex.value = -1
-  try {
-    const res = await fetch(
-      `http://localhost:3000/lyrics?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`
-    )
-    const data = await res.json()
-    if (data.lines && data.lines.length > 0) {
-      lyricsLines.value = data.lines
-      lyricsSynced.value = data.synced
-      lyricsActiveDeck = playerRef.position
-    }
-  } catch {
-    // silently fail
-  } finally {
-    lyricsLoading.value = false
-  }
-}
-
-const shouldShowLyrics = computed(() => {
-  return lyricsLines.value.length > 0 && lyricsSynced.value
-})
-
-const activeLyricsLine = computed(() => {
-  const idx = currentLyricIndex.value
-  if (idx < 0 || idx >= lyricsLines.value.length) return ''
-  return lyricsLines.value[idx].text
-})
-
-const nextLyricsLine = computed(() => {
-  const idx = currentLyricIndex.value + 1
-  if (idx < 0 || idx >= lyricsLines.value.length) return ''
-  return lyricsLines.value[idx].text
-})
-
-const prevLyricsLine = computed(() => {
-  const idx = currentLyricIndex.value - 1
-  if (idx < 0 || idx >= lyricsLines.value.length) return ''
-  return lyricsLines.value[idx].text
-})
+// Lyrics state managed by useLyrics composable
 </script>
 
 <style>
@@ -6200,6 +5404,15 @@ table tr td.ant-table-cell {
 
 #app .vmusic-app .playlist-list-container table.playlist-table tbody tr td.playlist-artist-cell {
   color: rgba(255, 255, 255, 0.5) !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app .vmusic-app .playlist-list-container table.playlist-table tbody tr td .playlist-title-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #app .vmusic-app .playlist-list-container table.playlist-table tbody tr td.playlist-index-cell {
@@ -6294,6 +5507,7 @@ table tr td.ant-table-cell {
 
 #app .vmusic-app .playlist-list-container {
   background-color: transparent !important;
+  overflow-x: hidden !important;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }

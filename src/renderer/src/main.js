@@ -1,10 +1,13 @@
 import './assets/main.css'
 
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import App from './App.vue'
 import { installIpcHttpBridge } from './lib/ipc-http'
+import router from './router'
 
 installIpcHttpBridge()
+
 window.addEventListener('unhandledrejection', (event) => {
   const reason = event?.reason
   const name = String(reason?.name || '')
@@ -14,4 +17,8 @@ window.addEventListener('unhandledrejection', (event) => {
     event.preventDefault()
   }
 })
-createApp(App).mount('#app')
+
+const app = createApp(App)
+app.use(createPinia())
+app.use(router)
+app.mount('#app')
