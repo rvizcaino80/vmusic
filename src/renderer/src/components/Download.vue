@@ -72,7 +72,7 @@
           class="flex items-center gap-0.5 text-green-600 font-medium"
         >
           <Icon icon="mdi:check-circle" class="w-4 h-4" />
-          {{ appleMusicCookiesPath }}
+          Listo
         </span>
         <span
           v-else-if="appleMusicStatus === 'checking'"
@@ -86,14 +86,14 @@
           class="flex items-center gap-0.5 text-amber-600 font-medium"
         >
           <Icon icon="mdi:help-circle" class="w-4 h-4" />
-          {{ appleMusicCookiesPath || 'No se pudo verificar' }}
+          No se pudo verificar
         </span>
         <span
           v-else
           class="flex items-center gap-0.5 text-red-600 font-medium"
         >
           <Icon icon="mdi:alert-circle" class="w-4 h-4" />
-          {{ appleMusicCookiesPath || 'Necesita configuración' }}
+          Necesita configuración
         </span>
       </div>
       <a-form-item label="URL de Apple Music / Youtube / Deezer">
