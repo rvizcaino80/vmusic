@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.5.9",
+      "date": "2026-05-14",
+      "changes": {
+        "fix": [
+          "Corregir descarga Apple Music - usar argumentos compatibles con gamdl 2.3.7 y 2.9.1"
+        ]
+      }
+    },
+    {
       "version": "1.5.8",
       "date": "2026-05-14",
       "changes": {
