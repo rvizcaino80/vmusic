@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.5",
+      "date": "2026-05-14",
+      "changes": {
+        "fix": [
+          "Corregir boton Instalar ahora - nombre incorrecto de funcion"
+        ]
+      }
+    },
+    {
       "version": "1.6.4",
       "date": "2026-05-14",
       "changes": {
