@@ -72,7 +72,8 @@ const YT_DLP_BIN = resolveBinaryFromCandidates('yt-dlp', process.env.VMUSIC_YT_D
 if (YT_DLP_BIN) {
   process.env.VMUSIC_YT_DLP_BIN = YT_DLP_BIN
 }
-const GAMDL_BIN = process.env.VMUSIC_GAMDL_BIN || process.env.GAMDL
+const GAMDL_BIN = resolveBinaryFromCandidates('gamdl', undefined)
+console.log('[vmusic][gamdl] GAMDL_BIN:', GAMDL_BIN)
 
 function resolveCookiesPath() {
   try {
@@ -2044,18 +2045,32 @@ app.post('/download', async (req, res, next) => {
 
     const cookiesPath = resolveCookiesPath()
 
-    args = [
-      '--no-synced-lyrics',
-      '--overwrite',
-      '--multi-disc-file-template',
-      '{title_id}',
-      '--single-disc-file-template',
-      '{title_id}',
-      '--no-album-folder-template',
-      '',
-      '-o',
-      MUSIC_LIBRARY_DIR,
-    ]
+    if (process.env.VMUSIC_GAMDL_BIN || process.env.GAMDL) {
+      args = [
+        '--no-synced-lyrics',
+        '--overwrite',
+        '--template-file-multi-disc',
+        '{title_id}',
+        '--template-file-single-disc',
+        '{title_id}',
+        '--template-folder-no-album',
+        '-o',
+        MUSIC_LIBRARY_DIR,
+      ]
+    } else {
+      args = [
+        '--no-synced-lyrics',
+        '--overwrite',
+        '--multi-disc-file-template',
+        '{title_id}',
+        '--single-disc-file-template',
+        '{title_id}',
+        '--no-album-folder-template',
+        '',
+        '-o',
+        MUSIC_LIBRARY_DIR,
+      ]
+    }
     if (cookiesPath) {
       args.push('--cookies-path', cookiesPath)
     }
@@ -2071,8 +2086,11 @@ app.post('/download', async (req, res, next) => {
       console.log(`stdout: ${data}`)
     })
 
+    let gamdlStderr = ''
+
     gamdl.stderr.on('data', (data) => {
       console.log(`stderr: ${data}`)
+      gamdlStderr += data.toString()
     })
 
     gamdl.on('error', (error) => {
@@ -2081,15 +2099,19 @@ app.post('/download', async (req, res, next) => {
 
     gamdl.on('close', (code) => {
       if (code !== 0) {
+        const details = gamdlStderr.trim()
         return res.status(400).send({
-          message: 'No se pudo descargar el archivo',
+          message: details
+            ? `No se pudo descargar el archivo: ${details.slice(-400)}`
+            : 'No se pudo descargar el archivo',
           code
         })
       }
 
       if (!getDownloadedFilePath(yid)) {
         return res.status(400).send({
-          message: 'No se pudo descargar el archivo'
+          message: 'No se pudo descargar el archivo',
+          code: 0
         })
       }
 
