@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.1",
+      "date": "2026-05-14",
+      "changes": {
+        "fix": [
+          "Mostrar panel de actualizacion al hacer clic en buscar actualizacion"
+        ]
+      }
+    },
+    {
       "version": "1.6.0",
       "date": "2026-05-14",
       "changes": {}
