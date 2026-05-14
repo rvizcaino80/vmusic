@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.6",
+      "date": "2026-05-14",
+      "changes": {
+        "fix": [
+          "Agregar --temp-path a gamdl para evitar error de directorio no escribible"
+        ]
+      }
+    },
+    {
       "version": "1.6.5",
       "date": "2026-05-14",
       "changes": {
