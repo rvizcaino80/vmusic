@@ -203,8 +203,8 @@ export function useCustomUpdater() {
   }
 
   function installCustomUpdaterNow() {
-    if (window.electron2?.installUpdate) {
-      window.electron2.installUpdate()
+    if (window.electron2?.installCustomUpdaterNow) {
+      window.electron2.installCustomUpdaterNow()
     }
   }
 
