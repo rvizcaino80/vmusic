@@ -103,7 +103,7 @@ export function useCustomUpdater() {
   const customUpdaterVisible = computed(() => customUpdaterOverlayOpen.value || customUpdaterState.value.status !== 'idle')
   const customUpdaterBlocking = computed(() => {
     const status = customUpdaterDisplayState.value.status
-    return ['checking', 'downloading', 'installing'].includes(status)
+    return status !== 'idle' && status !== 'up-to-date'
   })
   const customUpdaterActionVisible = computed(() => {
     const status = customUpdaterDisplayState.value.status
@@ -192,6 +192,12 @@ export function useCustomUpdater() {
     }
   }
 
+  function checkAndPrepareCustomUpdater() {
+    if (window.electron2?.checkAndPrepareCustomUpdater) {
+      window.electron2.checkAndPrepareCustomUpdater()
+    }
+  }
+
   function openCustomUpdaterOverlay() {
     customUpdaterOverlayOpen.value = true
   }
@@ -256,6 +262,7 @@ export function useCustomUpdater() {
     customUpdaterMessage,
     // Actions
     checkCustomUpdater,
+    checkAndPrepareCustomUpdater,
     openCustomUpdaterOverlay,
     installCustomUpdaterNow,
     applyCustomUpdaterPreview,

@@ -760,6 +760,14 @@
         </div>
         <div class="vm-update-actions">
           <a-button
+            v-if="customUpdaterDisplayState.status === 'available' && !customUpdaterPreviewActive"
+            type="primary"
+            size="large"
+            @click="checkAndPrepareCustomUpdater()"
+          >
+            Descargar actualización
+          </a-button>
+          <a-button
             v-if="customUpdaterDisplayState.status === 'downloaded' && !customUpdaterPreviewActive"
             type="primary"
             size="large"
@@ -1457,7 +1465,7 @@ const {
   customUpdaterDevtoolsVisible, customUpdaterStatusLabel, customUpdaterStatusDetail,
   customUpdaterProgressValue, customUpdaterProgressVisible, customUpdaterProgressCaption,
   customUpdaterTitle, customUpdaterMessage,
-  checkCustomUpdater, openCustomUpdaterOverlay, installCustomUpdaterNow,
+  checkCustomUpdater, checkAndPrepareCustomUpdater, openCustomUpdaterOverlay, installCustomUpdaterNow,
   applyCustomUpdaterPreview, clearCustomUpdaterPreview, toggleCustomUpdaterDevtools,
   shouldAutoOpenLibraryAtStartup
 } = useCustomUpdater()
