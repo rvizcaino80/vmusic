@@ -2045,7 +2045,8 @@ app.post('/download', async (req, res, next) => {
 
     const cookiesPath = resolveCookiesPath()
 
-    if (process.env.VMUSIC_GAMDL_BIN || process.env.GAMDL) {
+    const gamdlOverride = process.env.VMUSIC_GAMDL_BIN || (process.env.GAMDL && process.env.GAMDL !== GAMDL_BIN ? process.env.GAMDL : null)
+    if (gamdlOverride) {
       args = [
         '--no-synced-lyrics',
         '--overwrite',
