@@ -115,8 +115,12 @@ export const api = {
     return apiClient.post('/songs/import', data).catch((err) => handleError(err, 'importSong'))
   },
 
-  updateTags() {
-    return fetch(`${API_BASE_URL}/songs/update-tags`, { method: 'POST' }).then(r => r.json())
+  updateTags(recentlyAddedTime) {
+    return fetch(`${API_BASE_URL}/songs/update-tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recentlyAddedTime })
+    }).then(r => r.json())
   },
 
   // --- Artists ---

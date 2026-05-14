@@ -2778,7 +2778,7 @@ async function setOption(option, extraArtists = [], recent = false) {
 
     const savedSettings = JSON.parse(localStorage.getItem('vmusic_settings'))
 
-    await api.updateTags()
+    await api.updateTags(recentlyAddedTime.value)
 
     // pageSizeRef is now a computed from settingsStore.rowsPerPage
 
