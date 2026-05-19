@@ -15,6 +15,7 @@
           :src="songImage"
           class="player-vinyl-cover select-none"
           draggable="false"
+          :style="coverStyle"
         />
         <div
           v-else
@@ -225,6 +226,10 @@ const left = ref(0)
 const speed_added = ref(0.0)
 const volume_added = ref(0.0)
 const songImage = ref('')
+const coverZoom = ref(0)
+const coverStyle = computed(() => ({
+  transform: `scale(${1 + coverZoom.value * 0.05})`
+}))
 const baseSpeed = ref(0)
 const hasManualEndMarker = ref(false)
 const fadeProfile = ref({ hasFade: false, fadeStartSec: null, confidence: 0 })
@@ -1101,6 +1106,14 @@ async function setSong(s) {
   end.value = s.end
   songId.value = s.id
   applySongMetadata(s)
+  try {
+    const zoomStored = localStorage.getItem('vmusic_cover_zoom')
+    const zoomParsed = zoomStored ? JSON.parse(zoomStored) : {}
+    const ytid = s.ytid || s.song?.ytid || songFull.value?.ytid
+    coverZoom.value = typeof zoomParsed[ytid] === 'number' ? zoomParsed[ytid] : 0
+  } catch {
+    coverZoom.value = 0
+  }
   speed.value = 1
   speed_added.value = normalizeSpeedOffset(s.speed)
   player.setPlaybackRate(1.0, true)

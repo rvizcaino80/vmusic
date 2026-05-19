@@ -37,6 +37,31 @@ export const useLibraryStore = defineStore('library', () => {
   // --- Computed ---
   const deletedSongsSet = computed(() => new Set(deletedSongs.value))
 
+  function levenshtein(a, b) {
+    if (a === b) return 0
+    if (a.length === 0) return b.length
+    if (b.length === 0) return a.length
+    if (Math.abs(a.length - b.length) > 2) return Math.abs(a.length - b.length)
+
+    const m = a.length, n = b.length
+    let prev = new Uint8Array(n + 1)
+    let curr = new Uint8Array(n + 1)
+    for (let j = 0; j <= n; j++) prev[j] = j
+    for (let i = 1; i <= m; i++) {
+      curr[0] = i
+      for (let j = 1; j <= n; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1
+        curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+      }
+      ;[prev, curr] = [curr, prev]
+    }
+    return prev[n]
+  }
+
+  function matchesQuery(query, str) {
+    return str.includes(query) || levenshtein(query, str) <= 2
+  }
+
   const filteredSongs2 = computed(() => {
     let result = filteredSongs.value
 
@@ -44,9 +69,10 @@ export const useLibraryStore = defineStore('library', () => {
     if (debouncedFilterQuery.value) {
       const query = debouncedFilterQuery.value.toLowerCase()
       result = result.filter((song) => {
-        const name = (song.name || '').toLowerCase()
-        const artistNames = (song.artists || []).map((a) => a.name.toLowerCase()).join(' ')
-        return name.includes(query) || artistNames.includes(query)
+        const name = song.nameNorm || (song.name || '').toLowerCase()
+        const artistsArr = song.artists || song.Artists || []
+        const artistNames = song.artistsNorm || artistsArr.map((a) => a.name.toLowerCase()).join(' ')
+        return matchesQuery(query, name) || matchesQuery(query, artistNames)
       })
     }
 

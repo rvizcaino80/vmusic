@@ -106,6 +106,33 @@
         />
       </div>
 
+      <div class="flex items-center gap-4 mt-4 mb-2">
+        <div
+          class="cd-preview-frame"
+          :style="{ backgroundImage: `url(${cdBgUrl})` }"
+        >
+          <img
+            v-if="coverUrl"
+            :src="coverUrl"
+            class="cd-preview-cover"
+            :style="{ transform: `scale(${1 + coverZoom * 0.05})` }"
+          />
+          <div v-else class="cd-preview-fallback">Sin portada</div>
+          <img :src="cdCenterUrl" class="cd-preview-center" />
+        </div>
+        <div>
+          <label class="text-sm text-gray-500 block">Zoom de portada</label>
+          <a-input-number
+            v-model:value="coverZoom"
+            :min="-10"
+            :max="10"
+            :step="1"
+            @change="saveCoverZoom"
+          />
+          <span class="text-xs text-gray-400 block mt-1">Negativo aleja, positivo acerca</span>
+        </div>
+      </div>
+
       <div>
         <label class="text-sm text-gray-500 block">Etiquetas</label>
         <a-checkbox-group
@@ -156,6 +183,9 @@ import { Icon } from '@iconify/vue'
 import * as cheerio from 'cheerio'
 import { buildSpotifySearchUrl } from '../lib/spotify-cover'
 
+const cdBgUrl = new URL('./cd-bg.png', window.location.href).href
+const cdCenterUrl = new URL('./cd-center.png', window.location.href).href
+
 // Download
 const song = ref('')
 const url = ref('')
@@ -174,6 +204,7 @@ const localArtists = ref([])
 const isAppleMusic = ref(false)
 const metadataUrl = ref('')
 const coverUrl = ref('')
+const coverZoom = ref(0)
 const noteText = ref('')
 const isUpdateDisabled = computed(() => isSaving.value || selectedTags.value.length === 0)
 const selectedArtistNames = computed(() => {
@@ -191,6 +222,7 @@ const spotifySearchUrl = computed(() => {
 
 const emit = defineEmits(['updated'])
 const COVER_MAP_STORAGE_KEY = 'vmusic_cover_map'
+const COVER_ZOOM_KEY = 'vmusic_cover_zoom'
 const NOTES_STORAGE_KEY = 'vmusic_song_notes'
 
 const props = defineProps({
@@ -233,6 +265,7 @@ onMounted(async() => {
       selectedTags.value = response.data.Tags.map((item) => (item.id))
       coverUrl.value = getStoredCoverUrl(response.data.ytid)
       loadNote()
+      loadCoverZoom()
     })
     .catch(function(error) {
       console.log(error)
@@ -431,4 +464,85 @@ function loadNote() {
     noteText.value = ''
   }
 }
+
+function loadCoverZoom() {
+  if (!ytid.value) {
+    coverZoom.value = 0
+    return
+  }
+  try {
+    const stored = localStorage.getItem(COVER_ZOOM_KEY)
+    const parsed = stored ? JSON.parse(stored) : {}
+    coverZoom.value = typeof parsed[ytid.value] === 'number' ? parsed[ytid.value] : 0
+  } catch (error) {
+    coverZoom.value = 0
+  }
+}
+
+function saveCoverZoom() {
+  if (!ytid.value) return
+  try {
+    const stored = localStorage.getItem(COVER_ZOOM_KEY)
+    const parsed = stored ? JSON.parse(stored) : {}
+    parsed[ytid.value] = coverZoom.value
+    localStorage.setItem(COVER_ZOOM_KEY, JSON.stringify(parsed))
+  } catch (error) {
+    // ignore
+  }
+}
 </script>
+
+<style scoped>
+.cd-preview-frame {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #000;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.cd-preview-cover {
+  position: absolute;
+  top: 3%;
+  left: 3%;
+  width: 94%;
+  height: 94%;
+  border-radius: 999px;
+  object-fit: cover;
+  opacity: 0.9;
+  display: block;
+}
+
+.cd-preview-fallback {
+  position: absolute;
+  top: 3%;
+  left: 3%;
+  width: 94%;
+  height: 94%;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.cd-preview-center {
+  position: absolute;
+  width: 28%;
+  height: 28%;
+  object-fit: contain;
+  opacity: 0.3;
+  z-index: 2;
+  pointer-events: none;
+}
+</style>

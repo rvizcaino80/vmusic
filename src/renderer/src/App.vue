@@ -3790,13 +3790,12 @@ async function onAddMp3Saved() {
 
 async function settingsSaved() {
   const s = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
+  settingsStore.updateSettings({
+    ...s,
+    colorSchema: applyColorSchema(s.colorSchema)
+  })
   playerStore.previewSinkId = s.previewSinkId || ''
-  settingsStore.previewSinkId = s.previewSinkId || ''
   playerStore.deckSinkId = s.deckSinkId || ''
-  settingsStore.deckSinkId = s.deckSinkId || ''
-  settingsStore.excludeTags = s.excludeTags || []
-  settingsStore.colorSchema = applyColorSchema(s.colorSchema)
-  settingsStore.showAdvancedFunctions = Boolean(s.showAdvancedFunctions)
   await preparePreviewOutput()
   await initializePreferredOutputDevices()
   if (Boolean(s.autoUpdateCovers)) {

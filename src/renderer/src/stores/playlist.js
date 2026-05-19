@@ -203,12 +203,36 @@ export const usePlaylistStore = defineStore('playlist', () => {
       return
     }
 
-    const results = []
+    function levenshtein(a, b) {
+      if (a === b) return 0
+      if (a.length === 0) return b.length
+      if (b.length === 0) return a.length
+      if (Math.abs(a.length - b.length) > 2) return Math.abs(a.length - b.length)
+      const m = a.length, n = b.length
+      let prev = new Uint8Array(n + 1)
+      let curr = new Uint8Array(n + 1)
+      for (let j = 0; j <= n; j++) prev[j] = j
+      for (let i = 1; i <= m; i++) {
+        curr[0] = i
+        for (let j = 1; j <= n; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1
+          curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+        }
+        ;[prev, curr] = [curr, prev]
+      }
+      return prev[n]
+    }
+
+    function matchesQuery(q, str) {
+      return str.includes(q) || levenshtein(q, str) <= 2
+    }
+
     playlistDetails.value.forEach((entry, index) => {
       const song = entry.song || {}
       const name = (song.name || '').toLowerCase()
-      const artistNames = (song.artists || []).map((a) => a.name.toLowerCase()).join(' ')
-      if (name.includes(query) || artistNames.includes(query)) {
+      const artistsArr = song.artists || song.Artists || []
+      const artistNames = artistsArr.map((a) => a.name.toLowerCase()).join(' ')
+      if (matchesQuery(query, name) || matchesQuery(query, artistNames)) {
         results.push({ index, entryId: entry.entryId })
       }
     })

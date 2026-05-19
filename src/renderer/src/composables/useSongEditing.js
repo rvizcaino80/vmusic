@@ -26,7 +26,7 @@ export function useSongEditing() {
   }
 
   function refreshEditedSongInLoadedPlayer(playerRef, updatedSong) {
-    if (!playerRef || !playerRef.songFull?.id) return
+    if (!playerRef || !playerRef.songFull?.id || !updatedSong?.id) return
 
     if (playerRef.songFull.id === updatedSong.id) {
       Object.assign(playerRef.songFull, updatedSong)
