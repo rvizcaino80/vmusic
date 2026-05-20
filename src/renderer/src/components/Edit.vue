@@ -129,7 +129,6 @@
             :min="0"
             :max="10"
             :step="1"
-            @change="saveCoverZoom"
           />
         </div>
       </div>
@@ -207,6 +206,9 @@ const metadataUrl = ref('')
 const coverUrl = ref('')
 const coverZoom = ref(0)
 const noteText = ref('')
+
+watch(coverZoom, saveCoverZoom)
+
 const isUpdateDisabled = computed(() => isSaving.value || selectedTags.value.length === 0)
 const selectedArtistNames = computed(() => {
   const artistIds = Object.values(selectedArtists.value || {}).filter(Boolean)

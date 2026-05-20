@@ -19,17 +19,21 @@ export function useSongEditing() {
         if (index !== -1) {
           libraryStore.filteredSongs[index] = { ...libraryStore.filteredSongs[index], ...data }
         }
+        return data
       }
     } catch (err) {
       console.error('Error refreshing song in library:', err)
     }
+    return null
   }
 
   function refreshEditedSongInLoadedPlayer(playerRef, updatedSong) {
     if (!playerRef || !playerRef.songFull?.id || !updatedSong?.id) return
+    if (playerRef.songFull.id !== updatedSong.id) return
 
-    if (playerRef.songFull.id === updatedSong.id) {
-      Object.assign(playerRef.songFull, updatedSong)
+    Object.assign(playerRef.songFull, updatedSong)
+    if (typeof playerRef.updateSongMetadata === 'function') {
+      playerRef.updateSongMetadata(updatedSong)
     }
   }
 

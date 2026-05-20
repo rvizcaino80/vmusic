@@ -1298,15 +1298,6 @@ function setSinkId(sinkId) {
 function getStoredCoverForSong(song) {
   if (!song) return ''
 
-  try {
-    const stored = localStorage.getItem('vmusic_cover_map')
-    if (stored && song.ytid) {
-      const parsed = JSON.parse(stored)
-      const mappedCover = parsed[song.ytid] || ''
-      if (mappedCover) return mappedCover
-    }
-  } catch (error) {}
-
   const directCover =
     song.songImage || song.coverUrl || song.cover || song.image || song.artwork || ''
   if (directCover) return directCover
@@ -1523,6 +1514,15 @@ function applySongMetadata(songData) {
   artist.value = artistsList.value.map((i) => i.name).join(', ')
   primaryArtistId.value = artistsList.value?.[0]?.id || null
   composer.value = (songFull.value.Composers || []).map((i) => i.name).join(', ')
+
+  try {
+    const zoomStored = localStorage.getItem('vmusic_cover_zoom')
+    const zoomParsed = zoomStored ? JSON.parse(zoomStored) : {}
+    const raw = typeof zoomParsed[songFull.value.ytid] === 'number' ? zoomParsed[songFull.value.ytid] : 0
+    coverZoom.value = Math.max(0, Math.min(10, raw))
+  } catch {
+    coverZoom.value = 0
+  }
 
   const nextCover = getStoredCoverForSong(songFull.value)
   console.log('[vmusic][auto-cover] resolved current cover', {
