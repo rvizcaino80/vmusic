@@ -10,21 +10,23 @@
         class="player-vinyl-frame"
         :style="{ backgroundImage: `url(${cdBgUrl})` }"
       >
-        <img
-          v-if="songImage"
-          :src="songImage"
-          class="player-vinyl-cover select-none"
-          draggable="false"
-          :style="coverStyle"
-        />
-        <div
-          v-else
-          :class="{
-            'player-deck-b': props.position === 'bottom',
-            'player-deck-a': props.position === 'top'
-          }"
-          class="player-vinyl-fallback player-text text-bold text-center"
-        />
+        <div class="player-vinyl-cover-wrapper">
+          <img
+            v-if="songImage"
+            :src="songImage"
+            class="player-vinyl-cover select-none"
+            draggable="false"
+            :style="coverStyle"
+          />
+          <div
+            v-else
+            :class="{
+              'player-deck-b': props.position === 'bottom',
+              'player-deck-a': props.position === 'top'
+            }"
+            class="player-vinyl-fallback player-text text-bold text-center"
+          />
+        </div>
         <img
           :src="cdCenterUrl"
           :class="{ 'player-vinyl-center-no-cover': !songImage }"
@@ -43,7 +45,7 @@
     >
       <div class="player-header flex justify-between space-x-3">
         <div class="flex-1 min-w-0">
-          <h2 class="text-white text-xl select-none w-full truncate">
+          <h2 class="text-white text-2xl select-none w-full truncate">
             <template v-if="artistsList.length">
               <template v-for="(a, idx) in artistsList" :key="a.id">
                 <button
@@ -58,21 +60,23 @@
               </template>
             </template>
             <span v-else>Sin artista</span>
-            <span v-if="artist && composer"> ({{ composer }})</span>
           </h2>
           <div class="flex items-center space-x-2 w-full min-w-0">
-            <h1 class="text-white text-2xl select-none flex-1 min-w-0 truncate">
-              <button
-                v-if="songFull?.id"
-                type="button"
-                class="hover:underline"
-                title="Ver información de esta canción"
-                @click.stop="emitSongClick"
-              >
-                {{ song || 'Sin canción' }}
-              </button>
-              <span v-else>{{ song || 'Sin canción' }}</span>
-            </h1>
+            <div class="flex-1 min-w-0">
+              <h1 class="text-white text-xl select-none truncate">
+                <button
+                  v-if="songFull?.id"
+                  type="button"
+                  class="hover:underline"
+                  title="Ver información de esta canción"
+                  @click.stop="emitSongClick"
+                >
+                  {{ song || 'Sin canción' }}
+                </button>
+                <span v-else>{{ song || 'Sin canción' }}</span>
+                <span v-if="artist && composer" class="text-gray-300"> ({{ composer }})</span>
+              </h1>
+            </div>
             <button
               v-if="canPreview"
               type="button"
@@ -86,21 +90,6 @@
             >
               <i-mdi-headphones class="w-6 h-6" />
             </button>
-          </div>
-          <div class="text-sm text-gray-300 select-none">
-            <span>Status: {{ visibleStatusLabel }}</span>
-            <span v-if="status !== props.statuses['Sin Carga'] && finalModeLabel !== 'Exacto'">
-              | Final: {{ finalModeLabel }}</span
-            >
-            <span
-              v-if="
-                status === props.statuses.Nivelando ||
-                status === props.statuses.Placa ||
-                status === props.statuses.Cambiando
-              "
-            >
-              ({{ Math.round(volume * 100) }})</span
-            >
           </div>
         </div>
 
@@ -155,7 +144,6 @@
       <div
         v-show="status !== props.statuses['Sin Carga']"
         :id="playerId"
-        :class="{ 'mt-3': props.position === 'bottom' }"
         class="wavesurfer wavesurfer-fixed-height min-w-0 w-full overflow-hidden"
       />
     </div>
@@ -1110,7 +1098,8 @@ async function setSong(s) {
     const zoomStored = localStorage.getItem('vmusic_cover_zoom')
     const zoomParsed = zoomStored ? JSON.parse(zoomStored) : {}
     const ytid = s.ytid || s.song?.ytid || songFull.value?.ytid
-    coverZoom.value = typeof zoomParsed[ytid] === 'number' ? zoomParsed[ytid] : 0
+    const raw = typeof zoomParsed[ytid] === 'number' ? zoomParsed[ytid] : 0
+    coverZoom.value = Math.max(0, Math.min(10, raw))
   } catch {
     coverZoom.value = 0
   }
@@ -1883,15 +1872,21 @@ defineExpose({
   animation: vm-player-vinyl-spin 8s linear infinite;
 }
 
-.player-vinyl-cover,
-.player-vinyl-fallback {
+.player-vinyl-cover-wrapper {
   position: absolute;
   top: 3%;
   left: 3%;
   width: 94%;
   height: 94%;
   border-radius: 999px;
+  overflow: hidden;
   z-index: 1;
+}
+
+.player-vinyl-cover,
+.player-vinyl-fallback {
+  width: 100%;
+  height: 100%;
 }
 
 .player-vinyl-cover {

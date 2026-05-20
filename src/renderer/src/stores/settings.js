@@ -12,8 +12,6 @@ const STORAGE_KEY = 'vmusic_settings'
  * Default settings values
  */
 const DEFAULTS = {
-  rowsPerPage: 50,
-  rowsPerPageFs: 100,
   crossfaderTime: 8,
   recentlyAddedTime: 7,
   historyLimit: 100,
@@ -33,8 +31,6 @@ function normalizeSettings(raw) {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS }
 
   return {
-    rowsPerPage: Number(raw.rowsPerPage) || DEFAULTS.rowsPerPage,
-    rowsPerPageFs: Number(raw.rowsPerPageFs) || DEFAULTS.rowsPerPageFs,
     crossfaderTime: Number(raw.crossfaderTime) || DEFAULTS.crossfaderTime,
     recentlyAddedTime: Number(raw.recentlyAddedTime) || DEFAULTS.recentlyAddedTime,
     historyLimit: Number(raw.historyLimit) || DEFAULTS.historyLimit,
@@ -60,8 +56,6 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   // --- State ---
-  const rowsPerPage = ref(stored.rowsPerPage)
-  const rowsPerPageFs = ref(stored.rowsPerPageFs)
   const crossfaderTime = ref(stored.crossfaderTime)
   const recentlyAddedTime = ref(stored.recentlyAddedTime)
   const historyLimit = ref(stored.historyLimit)
@@ -76,8 +70,6 @@ export const useSettingsStore = defineStore('settings', () => {
   // --- Persist to localStorage on change ---
   function persist() {
     const data = {
-      rowsPerPage: rowsPerPage.value,
-      rowsPerPageFs: rowsPerPageFs.value,
       crossfaderTime: crossfaderTime.value,
       recentlyAddedTime: recentlyAddedTime.value,
       historyLimit: historyLimit.value,
@@ -95,7 +87,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // Watch all settings and persist
   watch(
     [
-      rowsPerPage, rowsPerPageFs, crossfaderTime, recentlyAddedTime,
+      crossfaderTime, recentlyAddedTime,
       historyLimit, previewSinkId, deckSinkId, baseSpeed, colorSchema,
       showAdvancedFunctions, autoUpdateCovers, excludeTags
     ],
@@ -103,15 +95,8 @@ export const useSettingsStore = defineStore('settings', () => {
     { deep: true }
   )
 
-  // --- Getters ---
-  function getRowsPerPageByMode(isFullscreen) {
-    return isFullscreen ? rowsPerPageFs.value : rowsPerPage.value
-  }
-
   // --- Actions ---
   function updateSettings(settings) {
-    if (settings.rowsPerPage !== undefined) rowsPerPage.value = settings.rowsPerPage
-    if (settings.rowsPerPageFs !== undefined) rowsPerPageFs.value = settings.rowsPerPageFs
     if (settings.crossfaderTime !== undefined) crossfaderTime.value = settings.crossfaderTime
     if (settings.recentlyAddedTime !== undefined) recentlyAddedTime.value = settings.recentlyAddedTime
     if (settings.historyLimit !== undefined) historyLimit.value = settings.historyLimit
@@ -130,8 +115,6 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     // State
-    rowsPerPage,
-    rowsPerPageFs,
     crossfaderTime,
     recentlyAddedTime,
     historyLimit,
@@ -142,8 +125,6 @@ export const useSettingsStore = defineStore('settings', () => {
     showAdvancedFunctions,
     autoUpdateCovers,
     excludeTags,
-    // Getters
-    getRowsPerPageByMode,
     // Actions
     updateSettings,
     resetToDefaults,

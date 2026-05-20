@@ -415,12 +415,10 @@
             </div>
             </div>
 
-          <div class="flex-1">
+          <div ref="tableContainerRef" class="flex-1 min-h-[0] flex flex-col">
             <a-table
               class="ant-table-striped"
               :animate-rows="false"
-              :scroll="{ y: 600 }"
-              :virtual="true"
               :row-key="(record) => record.id"
               :row-class-name="
                 (_record, index) =>
@@ -439,7 +437,7 @@
                 'show-total': (total) =>
                   `${selectedSongs.length} seleccionadas / ${total} canciones`,
                 defaultPageSize: 24,
-                pageSize: pageSizeRef,
+                pageSize: effectivePageSize,
                 showSizeChanger: false
               }"
               :row-selection="{
@@ -1440,7 +1438,7 @@ const {
 } = storeToRefs(uiStore)
 
 const {
-  rowsPerPage, rowsPerPageFs, crossfaderTime, recentlyAddedTime,
+  crossfaderTime, recentlyAddedTime,
   historyLimit, previewSinkId, deckSinkId, baseSpeed,
   colorSchema, showAdvancedFunctions, autoUpdateCovers, excludeTags
 } = storeToRefs(settingsStore)
@@ -1546,8 +1544,6 @@ let filterQueryDebounceTimer = null
 const hasStoredSettings = Boolean(localStorage.getItem('vmusic_settings'))
 const savedSettingsRef = JSON.parse(localStorage.getItem('vmusic_settings')) || {}
 const normalizedHistoryLimit = settingsStore.historyLimit
-const normalizedRowsPerPage = settingsStore.rowsPerPage
-const normalizedRowsPerPageFs = settingsStore.rowsPerPageFs
 const normalizedShowAdvancedFunctions = Boolean(savedSettingsRef.showAdvancedFunctions)
 const normalizedAutoUpdateCovers = Boolean(savedSettingsRef.autoUpdateCovers)
 settingsStore.previewSinkId = savedSettingsRef.previewSinkId || ''
@@ -1659,7 +1655,40 @@ function onWavePreviewPlayState(isPlaying) {
 // Multiselects
 const artistMultiSelect = ref(null)
 const tagMultiSelect = ref(null)
-const pageSizeRef = computed(() => settingsStore.getRowsPerPageByMode(uiStore.isWindowFullscreen))
+const TABLE_ROW_HEIGHT = 28
+const TABLE_HEADER_HEIGHT = 28
+const TABLE_PAGINATION_HEIGHT = 34
+const tableContainerRef = ref(null)
+const pageSizeByHeight = ref(24)
+let tableResizeObserver = null
+
+function onTableContainerResize() {
+  if (!tableContainerRef.value) return
+  const h = tableContainerRef.value.clientHeight
+  if (!h) return
+  const rowArea = Math.max(100, h - TABLE_HEADER_HEIGHT - TABLE_PAGINATION_HEIGHT)
+  const rows = Math.max(5, Math.floor(rowArea / TABLE_ROW_HEIGHT))
+  pageSizeByHeight.value = rows
+}
+
+watch(tableContainerRef, (el) => {
+  tableResizeObserver?.disconnect()
+  window.removeEventListener('resize', onTableContainerResize)
+  document.removeEventListener('fullscreenchange', onTableContainerResize)
+  if (el) {
+    tableResizeObserver = new ResizeObserver(onTableContainerResize)
+    tableResizeObserver.observe(el)
+    window.addEventListener('resize', onTableContainerResize)
+    document.addEventListener('fullscreenchange', onTableContainerResize)
+    onTableContainerResize()
+  }
+}, { flush: 'post' })
+
+watch(isWindowFullscreen, () => {
+  nextTick(onTableContainerResize)
+})
+
+const effectivePageSize = computed(() => pageSizeByHeight.value)
 // Library state for persistence (saved to localStorage)
 const libraryState = ref({
   artists: [],
@@ -1961,8 +1990,6 @@ if (!localStorage.getItem('vmusic_library_state')) {
 
 if (!localStorage.getItem('vmusic_settings')) {
   const initialSettings = {
-    rowsPerPage: 24,
-    rowsPerPageFs: 24,
     crossfaderTime: 1,
     recentlyAddedTime: 24,
     historyLimit: 15,
@@ -1996,14 +2023,6 @@ const onSelectAll = (selected, selectedRows, changeRows) => {
     }, 0)
     // pageSizeRef is now a computed from settingsStore.rowsPerPage
   }
-}
-
-function getRowsPerPageByMode(settings = null) {
-  const saved = settings || JSON.parse(localStorage.getItem('vmusic_settings')) || {}
-  const normal = normalizeRowsPerPage(saved.rowsPerPage, 24)
-  const fullscreen = normalizeRowsPerPage(saved.rowsPerPageFs, normal)
-
-  return isWindowFullscreen.value ? fullscreen : normal
 }
 
 async function syncWindowDisplayMode() {
@@ -2990,7 +3009,7 @@ async function filterSongs() {
 
   // tags.value = data.tags.sort((a, b) => a.name.localeCompare(b.name))
 
-  const pageSize = pageSizeRef.value || 24
+  const pageSize = effectivePageSize.value || 24
   const totalPages = Math.max(1, Math.ceil((filteredSongs2.value.length || 1) / pageSize))
   if (!libraryState.value.page || libraryState.value.page > totalPages) {
     libraryState.value.page = totalPages
@@ -4671,7 +4690,7 @@ async function openLibraryForSong(songData) {
   }
 
   if (targetIndex !== -1) {
-    const pageSize = pageSizeRef.value || 24
+    const pageSize = effectivePageSize.value || 24
     libraryState.value.page = Math.floor(targetIndex / pageSize) + 1
     selectedSongs.value = [filteredSongs2.value[targetIndex].id]
   } else {
@@ -4758,6 +4777,22 @@ table tr td.ant-table-cell {
 .ant-table-striped .table-deleted td {
   text-decoration: line-through !important;
   text-decoration-thickness: 1.5px;
+}
+
+.ant-table-wrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+.ant-table {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ant-table-container {
+  flex: 1;
+  min-height: 0;
 }
 
 .ant-table-pagination.ant-pagination {

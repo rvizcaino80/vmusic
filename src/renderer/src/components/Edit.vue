@@ -111,25 +111,26 @@
           class="cd-preview-frame"
           :style="{ backgroundImage: `url(${cdBgUrl})` }"
         >
-          <img
-            v-if="coverUrl"
-            :src="coverUrl"
-            class="cd-preview-cover"
-            :style="{ transform: `scale(${1 + coverZoom * 0.05})` }"
-          />
-          <div v-else class="cd-preview-fallback">Sin portada</div>
+          <div class="cd-preview-cover-wrapper">
+            <img
+              v-if="coverUrl"
+              :src="coverUrl"
+              class="cd-preview-cover"
+              :style="{ transform: `scale(${1 + coverZoom * 0.05})` }"
+            />
+            <div v-else class="cd-preview-fallback">Sin portada</div>
+          </div>
           <img :src="cdCenterUrl" class="cd-preview-center" />
         </div>
         <div>
           <label class="text-sm text-gray-500 block">Zoom de portada</label>
           <a-input-number
             v-model:value="coverZoom"
-            :min="-10"
+            :min="0"
             :max="10"
             :step="1"
             @change="saveCoverZoom"
           />
-          <span class="text-xs text-gray-400 block mt-1">Negativo aleja, positivo acerca</span>
         </div>
       </div>
 
@@ -473,7 +474,8 @@ function loadCoverZoom() {
   try {
     const stored = localStorage.getItem(COVER_ZOOM_KEY)
     const parsed = stored ? JSON.parse(stored) : {}
-    coverZoom.value = typeof parsed[ytid.value] === 'number' ? parsed[ytid.value] : 0
+    const raw = typeof parsed[ytid.value] === 'number' ? parsed[ytid.value] : 0
+    coverZoom.value = Math.max(0, Math.min(10, raw))
   } catch (error) {
     coverZoom.value = 0
   }
@@ -484,7 +486,7 @@ function saveCoverZoom() {
   try {
     const stored = localStorage.getItem(COVER_ZOOM_KEY)
     const parsed = stored ? JSON.parse(stored) : {}
-    parsed[ytid.value] = coverZoom.value
+    parsed[ytid.value] = Math.max(0, Math.min(10, coverZoom.value))
     localStorage.setItem(COVER_ZOOM_KEY, JSON.stringify(parsed))
   } catch (error) {
     // ignore
@@ -509,25 +511,28 @@ function saveCoverZoom() {
   overflow: hidden;
 }
 
-.cd-preview-cover {
+.cd-preview-cover-wrapper {
   position: absolute;
   top: 3%;
   left: 3%;
   width: 94%;
   height: 94%;
   border-radius: 999px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.cd-preview-cover {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   opacity: 0.9;
   display: block;
 }
 
 .cd-preview-fallback {
-  position: absolute;
-  top: 3%;
-  left: 3%;
-  width: 94%;
-  height: 94%;
-  border-radius: 999px;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;

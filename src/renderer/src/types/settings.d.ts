@@ -3,8 +3,6 @@
  */
 
 export interface AppSettings {
-  rowsPerPage: number
-  rowsPerPageFs: number
   crossfaderTime: number
   recentlyAddedTime: number
   historyLimit: number
