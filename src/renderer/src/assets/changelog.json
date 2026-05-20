@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.12",
+      "date": "2026-05-20",
+      "changes": {
+        "fix": [
+          "Actualizar portada y zoom en players al editar cancion"
+        ]
+      }
+    },
+    {
       "version": "1.6.11",
       "date": "2026-05-20",
       "changes": {}
