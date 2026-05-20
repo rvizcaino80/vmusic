@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.10",
+      "date": "2026-05-20",
+      "changes": {
+        "new": [
+          "Ajuste automatico de paginacion y zoom de portada solo positivo"
+        ]
+      }
+    },
+    {
       "version": "1.6.8",
       "date": "2026-05-14",
       "changes": {
