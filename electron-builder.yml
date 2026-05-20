@@ -21,10 +21,8 @@ files:
 asarUnpack:
   - resources/**
 extraResources:
-  - from: build/bin
-    to: bin
-    filter:
-      - '**/*'
+  - from: resources/changelog.json
+    to: changelog.json
 afterSign: scripts/clear-mac-bundle-icon-flags.cjs
 win:
   executableName: salsamania

@@ -52,8 +52,10 @@ function resolveBundledBinary(name) {
   const candidates = []
   if (app?.isPackaged) {
     candidates.push(path.join(process.resourcesPath, 'bin', name))
+    candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'bin', name))
   } else {
     candidates.push(path.resolve(__dirname, '../../../build/bin', name))
+    candidates.push(path.resolve(__dirname, '../../../resources/bin', name))
   }
 
   for (const candidate of candidates) {

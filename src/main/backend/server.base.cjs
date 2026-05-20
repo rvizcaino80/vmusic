@@ -46,9 +46,12 @@ function resolveBinaryFromCandidates(name, explicitPath) {
   candidates.push(path.resolve(process.cwd(), 'build/bin', name))
   candidates.push(path.resolve(__dirname, '../../../build/bin', name))
   candidates.push(path.resolve(__dirname, '../../../../build/bin', name))
+  candidates.push(path.resolve(process.cwd(), 'resources/bin', name))
+  candidates.push(path.resolve(__dirname, '../../../resources/bin', name))
   if (process.resourcesPath) {
     candidates.push(path.resolve(process.resourcesPath, 'bin', name))
     candidates.push(path.resolve(process.resourcesPath, '..', 'bin', name))
+    candidates.push(path.resolve(process.resourcesPath, 'app.asar.unpacked', 'resources', 'bin', name))
   }
 
   for (const candidate of candidates) {
