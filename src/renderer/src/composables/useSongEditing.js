@@ -54,6 +54,13 @@ export function useSongEditing() {
       if (song) {
         Object.assign(playerRef.songFull, song)
       }
+      if (markers) {
+        playerRef.songFull.start = markers.start
+        playerRef.songFull.end = markers.end
+      }
+      if (typeof playerRef.updateSongMetadata === 'function') {
+        playerRef.updateSongMetadata(playerRef.songFull)
+      }
     } catch (err) {
       console.error('Error reloading edited song:', err)
     }

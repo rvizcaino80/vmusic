@@ -1,5 +1,32 @@
 <template>
   <div class="flex flex-col space-y-6 min-h-full">
+    <a-divider>Dispositivos de audio</a-divider>
+
+    <a-table
+      :data-source="outputsForAlias"
+      :columns="deviceAliasColumns"
+      :pagination="false"
+      size="small"
+      row-key="value"
+      :loading="isLoadingOutputs"
+      class="device-alias-table"
+    >
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'name'">
+          <span class="text-xs">{{ record.label }}</span>
+        </template>
+        <template v-else-if="column.key === 'alias'">
+          <a-input
+            :value="getDeviceAlias(record.value)"
+            @change="(e) => setDeviceAlias(record.value, e.target.value)"
+            placeholder="Alias opcional"
+            size="small"
+            allow-clear
+          />
+        </template>
+      </template>
+    </a-table>
+
     <a-divider>Ajustes</a-divider>
 
     <a-form
@@ -160,7 +187,7 @@
 </template>
 
 <script>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 
 export default {
   name: 'AppSettings',
@@ -204,11 +231,53 @@ export default {
       { label: 'Playa', value: 'nocturno' },
       { label: 'Rubí', value: 'coral' }
     ])
+    const DEVICE_ALIAS_KEY = 'vmusic_device_aliases'
     const audioOutputs = ref([])
     const isLoadingOutputs = ref(false)
     const isLoadingTags = ref(false)
     const isCheckingUpdate = ref(false)
     const updateCheckMessage = ref('')
+
+    const deviceAliasColumns = [
+      { title: 'Dispositivo', key: 'name', dataIndex: 'label' },
+      { title: 'Alias', key: 'alias' }
+    ]
+
+    const outputsForAlias = computed(() => audioOutputs.value.filter((d) => d.value !== 'default'))
+
+    function loadDeviceAliases() {
+      try {
+        const stored = localStorage.getItem(DEVICE_ALIAS_KEY)
+        return stored ? JSON.parse(stored) : {}
+      } catch {
+        return {}
+      }
+    }
+
+    function getDeviceAlias(deviceId) {
+      const aliases = loadDeviceAliases()
+      return aliases[deviceId] || ''
+    }
+
+    function setDeviceAlias(deviceId, alias) {
+      try {
+        const aliases = loadDeviceAliases()
+        if (alias && alias.trim()) {
+          aliases[deviceId] = alias.trim()
+        } else {
+          delete aliases[deviceId]
+        }
+        localStorage.setItem(DEVICE_ALIAS_KEY, JSON.stringify(aliases))
+        const oldLabel = audioOutputs.value.find((d) => d.value === deviceId)?.originalLabel || ''
+        audioOutputs.value = audioOutputs.value.map((d) => {
+          if (d.value !== deviceId) return d
+          const aliasLabel = aliases[deviceId] || d.originalLabel
+          return { ...d, label: aliasLabel }
+        })
+      } catch {
+        // ignore
+      }
+    }
 
     const enumerateOutputs = async() => {
       if (!navigator.mediaDevices?.enumerateDevices) return []
@@ -221,8 +290,13 @@ export default {
           devices = await navigator.mediaDevices.enumerateDevices()
           stream.getTracks().forEach((track) => track.stop())
         }
+        const aliases = loadDeviceAliases()
         const outputs = devices.filter((d) => d.kind === 'audiooutput')
-          .map((d) => ({ label: d.label || 'Salida predeterminada', value: d.deviceId }))
+          .map((d) => {
+            const originalLabel = d.label || 'Salida predeterminada'
+            const aliasLabel = aliases[d.deviceId] || originalLabel
+            return { label: aliasLabel, value: d.deviceId, originalLabel }
+          })
         audioOutputs.value = [
           { label: 'Predeterminada (sistema)', value: 'default' },
           ...outputs
@@ -340,9 +414,20 @@ export default {
       onFinish,
       onOutputsDropdown,
       onFinishFailed,
-      checkForUpdates
+      checkForUpdates,
+      deviceAliasColumns,
+      outputsForAlias,
+      getDeviceAlias,
+      setDeviceAlias
     }
   }
 }
 
 </script>
+
+<style scoped>
+.device-alias-table :deep(td),
+.device-alias-table :deep(th) {
+  padding: 8px 12px !important;
+}
+</style>
