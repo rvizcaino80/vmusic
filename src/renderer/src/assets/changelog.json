@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.14",
+      "date": "2026-05-23",
+      "changes": {
+        "new": [
+          "Alias para dispositivos de audio y correccion al editar onda"
+        ]
+      }
+    },
+    {
       "version": "1.6.13",
       "date": "2026-05-23",
       "changes": {
