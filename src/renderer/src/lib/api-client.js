@@ -83,7 +83,7 @@ export const api = {
   },
 
   saveSongSpeed(songId, speed) {
-    return apiClient.post('/songs/save-speed', { songId, speed }).catch((err) => handleError(err, 'saveSongSpeed'))
+    return apiClient.post('/songs/save-speed', { id: songId, speed }).catch((err) => handleError(err, 'saveSongSpeed'))
   },
 
   incrementPlaycount(id) {

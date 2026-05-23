@@ -485,10 +485,10 @@
                 </template>
                 <template v-else-if="column.dataIndex === 'name'">
                   <div
-                    class="flex items-center space-x-2 cursor-pointer"
+                    class="flex items-center space-x-2 cursor-pointer min-w-0"
                     @contextmenu.prevent="openSongContextMenu($event, record)"
                   >
-                    <span>{{ text }}</span>
+                    <span class="truncate whitespace-nowrap flex-1 min-w-0">{{ text }}</span>
                     <a-tooltip v-if="getSongNote(record)" placement="top">
                       <template #title>
                         <div class="vm-song-note-tooltip">
@@ -792,7 +792,7 @@
       </div>
     </div>
 
-    <div v-else class="vmusic-app flex items-stretch min-w-0">
+    <div class="vmusic-app flex items-stretch min-w-0">
       <div class="flex-[5] flex flex-col min-w-0 min-h-0 overflow-hidden p-6 gap-4">
         <Player
           ref="player1"
