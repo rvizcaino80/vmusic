@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.13",
+      "date": "2026-05-23",
+      "changes": {
+        "fix": [
+          "No destruir players al buscar actualizacion y corregir save-speed"
+        ]
+      }
+    },
+    {
       "version": "1.6.12",
       "date": "2026-05-20",
       "changes": {
