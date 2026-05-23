@@ -13,7 +13,7 @@
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'name'">
-          <span class="text-xs">{{ record.label }}</span>
+          <span class="text-xs">{{ record.displayLabel }}</span>
         </template>
         <template v-else-if="column.key === 'alias'">
           <a-input
@@ -243,7 +243,14 @@ export default {
       { title: 'Alias', key: 'alias' }
     ]
 
-    const outputsForAlias = computed(() => audioOutputs.value.filter((d) => d.value !== 'default'))
+    const outputsForAlias = computed(() =>
+      audioOutputs.value
+        .filter((d) => d.value !== 'default')
+        .map((d) => ({
+          ...d,
+          displayLabel: `${d.originalLabel} (${d.value.slice(-4)}${d.groupId ? ` g:${d.groupId.slice(-4)}` : ''})`
+        }))
+    )
 
     function loadDeviceAliases() {
       try {
@@ -259,16 +266,26 @@ export default {
       return aliases[deviceId] || ''
     }
 
+    function resolveAlias(deviceId, originalLabel, groupId, aliases) {
+      return aliases[deviceId] || aliases[originalLabel] || (groupId ? aliases[groupId] : '') || ''
+    }
+
     function setDeviceAlias(deviceId, alias) {
       try {
+        const device = audioOutputs.value.find((d) => d.value === deviceId)
+        const originalLabel = device?.originalLabel || ''
+        const groupId = device?.groupId || ''
         const aliases = loadDeviceAliases()
         if (alias && alias.trim()) {
           aliases[deviceId] = alias.trim()
+          if (originalLabel) aliases[originalLabel] = alias.trim()
+          if (groupId) aliases[groupId] = alias.trim()
         } else {
           delete aliases[deviceId]
+          if (originalLabel) delete aliases[originalLabel]
+          if (groupId) delete aliases[groupId]
         }
         localStorage.setItem(DEVICE_ALIAS_KEY, JSON.stringify(aliases))
-        const oldLabel = audioOutputs.value.find((d) => d.value === deviceId)?.originalLabel || ''
         audioOutputs.value = audioOutputs.value.map((d) => {
           if (d.value !== deviceId) return d
           const aliasLabel = aliases[deviceId] || d.originalLabel
@@ -294,8 +311,8 @@ export default {
         const outputs = devices.filter((d) => d.kind === 'audiooutput')
           .map((d) => {
             const originalLabel = d.label || 'Salida predeterminada'
-            const aliasLabel = aliases[d.deviceId] || originalLabel
-            return { label: aliasLabel, value: d.deviceId, originalLabel }
+            const aliasLabel = resolveAlias(d.deviceId, originalLabel, d.groupId, aliases) || originalLabel
+            return { label: aliasLabel, value: d.deviceId, originalLabel, groupId: d.groupId || '' }
           })
         audioOutputs.value = [
           { label: 'Predeterminada (sistema)', value: 'default' },
