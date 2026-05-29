@@ -5,10 +5,13 @@
         :class="{
           'player-vinyl-playing': status === props.statuses.Reproduciendo,
           'player-deck-b': props.position === 'bottom',
-          'player-deck-a': props.position === 'top'
+          'player-deck-a': props.position === 'top',
+          'player-vinyl-ejectable': canEject
         }"
         class="player-vinyl-frame"
         :style="{ backgroundImage: `url(${cdBgUrl})` }"
+        :title="canEject ? 'Expulsar disco' : ''"
+        @click.stop="ejectDisc"
       >
         <div class="player-vinyl-cover-wrapper">
           <img
@@ -245,6 +248,15 @@ const baseSpeedLabel = computed(() => {
 const canPreview = computed(
   () => status.value !== props.statuses.Reproduciendo && Boolean(songFull.value?.id)
 )
+
+const canEject = computed(() => {
+  if (!songFull.value?.id) return false
+  if (status.value === props.statuses.Reproduciendo) return false
+  if (status.value === props.statuses.Cambiando) return false
+  if (status.value === props.statuses.Nivelando) return false
+  if (status.value === props.statuses.Cargando) return false
+  return true
+})
 const MIN_SPEED_OFFSET = -50
 const MAX_SPEED_OFFSET = 50
 const KEYBOARD_SEEK_FORWARD_END_GUARD_SECONDS = 10
@@ -1151,6 +1163,30 @@ function stop() {
   player.stop()
 }
 
+function ejectDisc() {
+  if (!canEject.value) return
+
+  resetSongMetadata()
+  clearPreprocessDebounce()
+  preprocessRequestSerial += 1
+  isPreprocessingSpeed.value = false
+  isInitialSpeedPreprocessPending.value = false
+  currentMediaVariant.value = 'original'
+  processedSpeedRate.value = null
+  fadeProfileRequestSerial += 1
+  fadeProfile.value = { hasFade: false, fadeStartSec: null, confidence: 0 }
+  waveformDuration.value = 0
+  forcedFadeEndAt = null
+  start.value = null
+  end.value = null
+  player.stop()
+  player.destroy()
+  init()
+  wsRegions.clearRegions()
+  status.value = props.statuses['Sin Carga']
+  emit('stopped')
+}
+
 function restart() {
   if (!isReadyStatus()) return
   if (!player) return
@@ -1815,7 +1851,8 @@ defineExpose({
   refreshWaveform,
   forceWaveformRebuild: hardRebuildWaveform,
   setSinkId,
-  setPreviewDucking
+  setPreviewDucking,
+  ejectDisc
 })
 </script>
 
@@ -1882,6 +1919,14 @@ defineExpose({
 
 .player-vinyl-playing {
   animation: vm-player-vinyl-spin 8s linear infinite;
+}
+
+.player-vinyl-ejectable {
+  cursor: pointer;
+}
+
+.player-vinyl-ejectable:hover {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34), 0 0 0 2px rgba(255, 255, 255, 0.15);
 }
 
 .player-vinyl-cover-wrapper {
