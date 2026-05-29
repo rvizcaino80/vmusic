@@ -1,6 +1,18 @@
 {
   "versions": [
     {
+      "version": "1.6.16",
+      "date": "2026-05-29",
+      "changes": {
+        "new": [
+          "Es posible ahora desmontar una cancion, haciendo clic en un reproductor inactivo"
+        ],
+        "fix": [
+          "Evitar que la busqueda de actualizaciones bloquee la app sin conexion"
+        ]
+      }
+    },
+    {
       "version": "1.6.15",
       "date": "2026-05-23",
       "changes": {
