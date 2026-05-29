@@ -1961,17 +1961,7 @@ function onCustomUpdaterDevShortcut(event) {
 watch(
   () => customUpdaterDisplayState.value.status,
   (status) => {
-    if (
-      !customUpdaterInitialStateHandled.value &&
-      ['available', 'downloading', 'downloaded', 'installing', 'error'].includes(status)
-    ) {
-      customUpdaterOverlayOpen.value = true
-      customUpdaterInitialStateHandled.value = true
-
-      return
-    }
-
-    if (!customUpdaterInitialStateHandled.value && ['up-to-date', 'idle'].includes(status)) {
+    if (!customUpdaterInitialStateHandled.value) {
       customUpdaterInitialStateHandled.value = true
     }
 

@@ -1602,10 +1602,12 @@ async function checkCustomMacUpdate({ silent = false } = {}) {
 
     return customUpdateState
   } catch (error) {
-    setCustomUpdateState({
-      status: 'error',
-      message: error?.message || 'No se pudo buscar actualizaciones.'
-    })
+    if (!silent) {
+      setCustomUpdateState({
+        status: 'error',
+        message: error?.message || 'No se pudo buscar actualizaciones.'
+      })
+    }
 
     return customUpdateState
   }
@@ -1714,11 +1716,9 @@ function scheduleCustomMacUpdateChecks() {
     customUpdateCheckTimer = null
   }
 
-  prepareCustomMacUpdate({ silent: false }).catch((error) => {
-    setCustomUpdateState({
-      status: 'error',
-      message: error?.message || 'No se pudo preparar la actualización.'
-    })
+  // Primera búsqueda silenciosa — nunca bloquear la app por una actualización
+  prepareCustomMacUpdate({ silent: true }).catch(() => {
+    // Falla silenciosa: no se modifica el estado
   })
 
   customUpdateCheckTimer = setInterval(() => {

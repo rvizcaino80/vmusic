@@ -103,7 +103,7 @@ export function useCustomUpdater() {
   const customUpdaterVisible = computed(() => customUpdaterOverlayOpen.value || customUpdaterState.value.status !== 'idle')
   const customUpdaterBlocking = computed(() => {
     const status = customUpdaterDisplayState.value.status
-    return status !== 'idle' && status !== 'up-to-date'
+    return status === 'installing'
   })
   const customUpdaterActionVisible = computed(() => {
     const status = customUpdaterDisplayState.value.status
