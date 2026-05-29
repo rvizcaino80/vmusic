@@ -37,6 +37,21 @@
           alt=""
           draggable="false"
         />
+        <div v-if="canEject" class="player-vinyl-eject-overlay">
+          <svg
+            viewBox="0 0 24 24"
+            class="player-vinyl-eject-icon"
+            aria-hidden="true"
+          >
+            <path
+              d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+              fill="white"
+              stroke="black"
+              stroke-width="1.8"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
       </div>
     </div>
 
@@ -1927,6 +1942,29 @@ defineExpose({
 
 .player-vinyl-ejectable:hover {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34), 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+
+.player-vinyl-eject-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.player-vinyl-ejectable:hover .player-vinyl-eject-overlay {
+  opacity: 1;
+}
+
+.player-vinyl-eject-icon {
+  width: clamp(48px, 6vw, 72px);
+  height: clamp(48px, 6vw, 72px);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
 }
 
 .player-vinyl-cover-wrapper {
