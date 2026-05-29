@@ -1955,8 +1955,8 @@ defineExpose({
 
 .player-vinyl-eject-icon {
   color: white;
-  width: clamp(48px, 6vw, 72px);
-  height: clamp(48px, 6vw, 72px);
+  width: clamp(64px, 8vw, 96px);
+  height: clamp(64px, 8vw, 96px);
   filter: drop-shadow(1px 0 0 black) drop-shadow(-1px 0 0 black)
     drop-shadow(0 1px 0 black) drop-shadow(0 -1px 0 black)
     drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
