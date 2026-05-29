@@ -38,19 +38,11 @@
           draggable="false"
         />
         <div v-if="canEject" class="player-vinyl-eject-overlay">
-          <svg
-            viewBox="0 0 24 24"
+          <Icon
+            icon="bi:trash"
             class="player-vinyl-eject-icon"
             aria-hidden="true"
-          >
-            <path
-              d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
-              fill="white"
-              stroke="black"
-              stroke-width="1.8"
-              stroke-linejoin="round"
-            />
-          </svg>
+          />
         </div>
       </div>
     </div>
@@ -1962,9 +1954,12 @@ defineExpose({
 }
 
 .player-vinyl-eject-icon {
+  color: white;
   width: clamp(48px, 6vw, 72px);
   height: clamp(48px, 6vw, 72px);
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(1px 0 0 black) drop-shadow(-1px 0 0 black)
+    drop-shadow(0 1px 0 black) drop-shadow(0 -1px 0 black)
+    drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
 }
 
 .player-vinyl-cover-wrapper {
