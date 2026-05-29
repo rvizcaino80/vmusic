@@ -6,3 +6,5 @@ out
 /.idea
 /.vscode
 .tmp
+.codegraph
+.cursor
