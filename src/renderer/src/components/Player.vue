@@ -1500,6 +1500,18 @@ function applySongMetadata(songData) {
     ...songFull.value,
     ...songData
   }
+
+  // Actualizar marcadores de inicio/fin si vienen en los datos
+  if (typeof songData.start === 'number') {
+    start.value = songData.start
+  }
+  if (typeof songData.end === 'number') {
+    end.value = songData.end
+  }
+  if (typeof songData.start === 'number' || typeof songData.end === 'number') {
+    renderWaveRegions()
+  }
+
   const coverProbe = {
     ytid: songFull.value?.ytid || null,
     songImage: songFull.value?.songImage || '',
