@@ -449,10 +449,10 @@ function init() {
 
   player.on('error', (err) => {
     console.warn('[vmusic][audio] Error al cargar audio:', err)
-    // Si la canción estaba cargándose, notificar el error
+    // Si la canción estaba cargándose, restaurar estado sin auto-cargar
+    // la siguiente canción para no saltar canciones silenciosamente
     if (status.value === props.statuses.Cargando) {
       status.value = props.statuses['Sin Carga']
-      emit('stopped')
     }
   })
 
@@ -557,11 +557,11 @@ function init() {
 
     player.toggleInteraction(false)
     player.stop()
-    status.value = props.statuses['Sin Carga']
     destroyCurrentPlayer()
     init()
 
     wsRegions.clearRegions()
+    status.value = props.statuses['Sin Carga']
     emit('stopped')
   })
 
@@ -606,10 +606,10 @@ function next() {
   player.setPlaybackRate(1.0, true)
   speed_added.value = 0
   player.stop()
-  status.value = props.statuses['Sin Carga']
   destroyCurrentPlayer()
   init()
   wsRegions.clearRegions()
+  status.value = props.statuses['Sin Carga']
   emit('stopped')
   emit('fading')
 }
@@ -641,10 +641,10 @@ function calculateVolume(ct) {
     start.value = null
     end.value = null
     player.stop()
-    status.value = props.statuses['Sin Carga']
     destroyCurrentPlayer()
     init()
     wsRegions.clearRegions()
+    status.value = props.statuses['Sin Carga']
     emit('stopped')
   } else {
     const shouldStartCrossfade = Number.isFinite(forcedFadeEndAt) || left.value <= crossfader_time
@@ -1217,13 +1217,10 @@ function ejectDisc() {
   player.setPlaybackRate(1.0, true)
   speed_added.value = 0
   player.stop()
-  // Ocultar el contenedor ANTES de destruir el player para que
-  // el nuevo WaveSurfer se cree con el contenedor oculto y
-  // setSong lo active cuando esté listo para cargar
-  status.value = props.statuses['Sin Carga']
   destroyCurrentPlayer()
   init()
   wsRegions.clearRegions()
+  status.value = props.statuses['Sin Carga']
   emit('stopped')
 }
 
