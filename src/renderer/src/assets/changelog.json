@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.20",
+      "date": "2026-05-30",
+      "changes": {
+        "fix": [
+          "Overlay de actualizacion no debe abrirse automaticamente si no hay update"
+        ]
+      }
+    },
+    {
       "version": "1.6.19",
       "date": "2026-05-30",
       "changes": {
