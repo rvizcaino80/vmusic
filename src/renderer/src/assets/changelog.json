@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.17",
+      "date": "2026-05-30",
+      "changes": {
+        "fix": [
+          "Corregir carga de canciones fallida tras expulsar disco del player inactivo"
+        ]
+      }
+    },
+    {
       "version": "1.6.16",
       "date": "2026-05-29",
       "changes": {
