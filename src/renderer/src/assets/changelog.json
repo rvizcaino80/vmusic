@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.23",
+      "date": "2026-05-30",
+      "changes": {
+        "fix": [
+          "Error ReferenceError: renderWaveRegions is not defined al cargar canciones"
+        ]
+      }
+    },
+    {
       "version": "1.6.22",
       "date": "2026-05-30",
       "changes": {
