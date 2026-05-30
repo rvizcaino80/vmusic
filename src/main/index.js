@@ -1645,11 +1645,12 @@ async function downloadCustomMacUpdate() {
   customUpdateContext.zipPath = zipPath
   customUpdateContext.extractedAppPath = join(extractDir, appName)
   customUpdateContext.targetAppPath = getWritableTargetAppPath()
+  customUpdateContext.shouldInstallOnQuit = true
 
   setCustomUpdateState({
     status: 'downloaded',
     downloaded: true,
-    message: 'Actualización descargada. Lista para instalar.'
+    message: 'Actualización descargada. Se instalará al cerrar la app.'
   })
 
   return customUpdateState

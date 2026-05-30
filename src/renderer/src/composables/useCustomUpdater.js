@@ -107,7 +107,8 @@ export function useCustomUpdater() {
   })
   const customUpdaterActionVisible = computed(() => {
     const status = customUpdaterDisplayState.value.status
-    return ['available', 'downloaded', 'error'].includes(status)
+    // Solo mostrar el icono si hay error; la descarga e instalación son automáticas
+    return status === 'error'
   })
   const customUpdaterDevtoolsVisible = computed(() => customUpdaterDevtoolsOpen.value)
 
