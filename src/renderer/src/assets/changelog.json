@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.19",
+      "date": "2026-05-30",
+      "changes": {
+        "fix": [
+          "Overlay de actualizacion no tenia boton para cerrar"
+        ]
+      }
+    },
+    {
       "version": "1.6.18",
       "date": "2026-05-30",
       "changes": {
