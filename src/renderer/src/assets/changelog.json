@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.22",
+      "date": "2026-05-30",
+      "changes": {
+        "fix": [
+          "No saltar canciones silenciosamente al fallar carga de audio"
+        ]
+      }
+    },
+    {
       "version": "1.6.21",
       "date": "2026-05-30",
       "changes": {
