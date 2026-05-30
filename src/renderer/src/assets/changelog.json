@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.21",
+      "date": "2026-05-30",
+      "changes": {
+        "new": [
+          "Actualizacion automatica sin intervencion del usuario"
+        ]
+      }
+    },
+    {
       "version": "1.6.20",
       "date": "2026-05-30",
       "changes": {
