@@ -400,38 +400,6 @@ function init() {
 
   wsRegions = player.registerPlugin(RegionsPlugin.create())
 
-  const renderWaveRegions = () => {
-    if (!wsRegions) return
-    wsRegions.clearRegions()
-    const totalDuration = Number(waveformDuration.value)
-    if (!Number.isFinite(totalDuration) || totalDuration <= 0) return
-
-    const playbackStart = toPlaybackTime(start.value)
-    const playbackEnd = toPlaybackTime(end.value || toSourceTime(totalDuration))
-
-    if (start.value && start.value !== 0) {
-      wsRegions.addRegion({
-        id: 'inicio',
-        start: 0,
-        end: playbackStart,
-        color: regionColor.value,
-        drag: false,
-        resize: false
-      })
-    }
-
-    if (end.value) {
-      wsRegions.addRegion({
-        id: 'final',
-        start: playbackEnd,
-        end: totalDuration,
-        color: regionColor.value,
-        drag: false,
-        resize: false
-      })
-    }
-  }
-
   player.on('decode', (d) => {
     waveformDuration.value = d
     const playbackStart = toPlaybackTime(start.value)
@@ -1564,6 +1532,38 @@ async function resolveCoverFromSpotifySearch(songData) {
   spotifyCoverRequests.set(requestKey, request)
 
   return request
+}
+
+function renderWaveRegions() {
+  if (!wsRegions) return
+  wsRegions.clearRegions()
+  const totalDuration = Number(waveformDuration.value)
+  if (!Number.isFinite(totalDuration) || totalDuration <= 0) return
+
+  const playbackStart = toPlaybackTime(start.value)
+  const playbackEnd = toPlaybackTime(end.value || toSourceTime(totalDuration))
+
+  if (start.value && start.value !== 0) {
+    wsRegions.addRegion({
+      id: 'inicio',
+      start: 0,
+      end: playbackStart,
+      color: regionColor.value,
+      drag: false,
+      resize: false
+    })
+  }
+
+  if (end.value) {
+    wsRegions.addRegion({
+      id: 'final',
+      start: playbackEnd,
+      end: totalDuration,
+      color: regionColor.value,
+      drag: false,
+      resize: false
+    })
+  }
 }
 
 function applySongMetadata(songData) {
