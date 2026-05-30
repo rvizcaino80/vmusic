@@ -447,6 +447,15 @@ function init() {
     e.stopPropagation() // prevent triggering a click on the waveform
   })
 
+  player.on('error', (err) => {
+    console.warn('[vmusic][audio] Error al cargar audio:', err)
+    // Si la canción estaba cargándose, notificar el error
+    if (status.value === props.statuses.Cargando) {
+      status.value = props.statuses['Sin Carga']
+      emit('stopped')
+    }
+  })
+
   player.on('load', () => {
     applyPreservePitch()
     waveformDuration.value = 0
@@ -548,11 +557,11 @@ function init() {
 
     player.toggleInteraction(false)
     player.stop()
-    player.destroy()
+    status.value = props.statuses['Sin Carga']
+    destroyCurrentPlayer()
     init()
 
     wsRegions.clearRegions()
-    status.value = props.statuses['Sin Carga']
     emit('stopped')
   })
 
@@ -594,11 +603,13 @@ function next() {
   forcedFadeEndAt = null
   start.value = null
   end.value = null
+  player.setPlaybackRate(1.0, true)
+  speed_added.value = 0
   player.stop()
-  player.destroy()
+  status.value = props.statuses['Sin Carga']
+  destroyCurrentPlayer()
   init()
   wsRegions.clearRegions()
-  status.value = props.statuses['Sin Carga']
   emit('stopped')
   emit('fading')
 }
@@ -630,10 +641,10 @@ function calculateVolume(ct) {
     start.value = null
     end.value = null
     player.stop()
-    player.destroy()
+    status.value = props.statuses['Sin Carga']
+    destroyCurrentPlayer()
     init()
     wsRegions.clearRegions()
-    status.value = props.statuses['Sin Carga']
     emit('stopped')
   } else {
     const shouldStartCrossfade = Number.isFinite(forcedFadeEndAt) || left.value <= crossfader_time
@@ -1170,6 +1181,23 @@ function stop() {
   player.stop()
 }
 
+/**
+ * Destruye el WaveSurfer actual limpiando correctamente el mediaElement
+ * del DOM para evitar elementos <audio> huérfanos que puedan interferir
+ */
+function destroyCurrentPlayer() {
+  if (!player) return
+  try {
+    const mediaEl = typeof player.getMediaElement === 'function' ? player.getMediaElement() : null
+    player.destroy()
+    if (mediaEl && mediaEl.parentNode) {
+      mediaEl.parentNode.removeChild(mediaEl)
+    }
+  } catch (e) {
+    // Ignorar errores durante la destrucción
+  }
+}
+
 function ejectDisc() {
   if (!canEject.value) return
 
@@ -1186,11 +1214,16 @@ function ejectDisc() {
   forcedFadeEndAt = null
   start.value = null
   end.value = null
+  player.setPlaybackRate(1.0, true)
+  speed_added.value = 0
   player.stop()
-  player.destroy()
+  // Ocultar el contenedor ANTES de destruir el player para que
+  // el nuevo WaveSurfer se cree con el contenedor oculto y
+  // setSong lo active cuando esté listo para cargar
+  status.value = props.statuses['Sin Carga']
+  destroyCurrentPlayer()
   init()
   wsRegions.clearRegions()
-  status.value = props.statuses['Sin Carga']
   emit('stopped')
 }
 
