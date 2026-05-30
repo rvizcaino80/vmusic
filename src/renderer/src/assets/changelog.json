@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.18",
+      "date": "2026-05-30",
+      "changes": {
+        "fix": [
+          "Overlay de actualizacion no se mostraba al hacer click en el icono del sidebar"
+        ]
+      }
+    },
+    {
       "version": "1.6.17",
       "date": "2026-05-30",
       "changes": {
