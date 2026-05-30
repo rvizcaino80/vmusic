@@ -693,13 +693,14 @@
       />
     </div>
 
-    <div v-if="customUpdaterVisible" class="vm-update-screen">
+    <div v-if="customUpdaterVisible" class="vm-update-screen" @click="closeCustomUpdaterOverlay()">
       <div
         class="vm-update-shell"
         :class="{
           'vm-update-shell-error': customUpdaterDisplayState.status === 'error',
           'vm-update-shell-ready': customUpdaterDisplayState.status === 'downloaded'
         }"
+        @click.stop
       >
         <div class="vm-update-glow" />
         <div class="vm-update-status-row">
@@ -787,6 +788,14 @@
             @click="clearCustomUpdaterPreview()"
           >
             Cerrar vista previa
+          </a-button>
+          <a-button
+            v-if="!customUpdaterPreviewActive && customUpdaterDisplayState.status !== 'installing'"
+            size="large"
+            class="ml-2"
+            @click="closeCustomUpdaterOverlay()"
+          >
+            Cerrar
           </a-button>
         </div>
       </div>
@@ -1463,7 +1472,7 @@ const {
   customUpdaterDevtoolsVisible, customUpdaterStatusLabel, customUpdaterStatusDetail,
   customUpdaterProgressValue, customUpdaterProgressVisible, customUpdaterProgressCaption,
   customUpdaterTitle, customUpdaterMessage,
-  checkCustomUpdater, checkAndPrepareCustomUpdater, openCustomUpdaterOverlay, installCustomUpdaterNow,
+  checkCustomUpdater, checkAndPrepareCustomUpdater, openCustomUpdaterOverlay, closeCustomUpdaterOverlay, installCustomUpdaterNow,
   applyCustomUpdaterPreview, clearCustomUpdaterPreview, toggleCustomUpdaterDevtools,
   shouldAutoOpenLibraryAtStartup
 } = useCustomUpdater()
@@ -1942,6 +1951,7 @@ const canManualNext = computed(() => {
 // shouldAutoOpenLibraryAtStartup from useCustomUpdater composable
 // checkCustomUpdater from useCustomUpdater composable
 // openCustomUpdaterOverlay from useCustomUpdater composable
+// closeCustomUpdaterOverlay from useCustomUpdater composable
 // applyCustomUpdaterPreview from useCustomUpdater composable
 // clearCustomUpdaterPreview from useCustomUpdater composable
 

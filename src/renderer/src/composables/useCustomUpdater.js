@@ -202,6 +202,10 @@ export function useCustomUpdater() {
     customUpdaterOverlayOpen.value = true
   }
 
+  function closeCustomUpdaterOverlay() {
+    customUpdaterOverlayOpen.value = false
+  }
+
   function installCustomUpdaterNow() {
     if (window.electron2?.installCustomUpdaterNow) {
       window.electron2.installCustomUpdaterNow()
@@ -264,6 +268,7 @@ export function useCustomUpdater() {
     checkCustomUpdater,
     checkAndPrepareCustomUpdater,
     openCustomUpdaterOverlay,
+    closeCustomUpdaterOverlay,
     installCustomUpdaterNow,
     applyCustomUpdaterPreview,
     clearCustomUpdaterPreview,
