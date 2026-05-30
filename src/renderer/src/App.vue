@@ -693,7 +693,7 @@
       />
     </div>
 
-    <div v-if="customUpdaterBlocking" class="vm-update-screen">
+    <div v-if="customUpdaterVisible" class="vm-update-screen">
       <div
         class="vm-update-shell"
         :class="{
