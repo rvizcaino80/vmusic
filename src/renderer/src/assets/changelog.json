@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.24",
+      "date": "2026-08-11",
+      "changes": {
+        "new": [
+          "Agregar soporte para YouTube Music en descargas"
+        ]
+      }
+    },
+    {
       "version": "1.6.23",
       "date": "2026-05-30",
       "changes": {
