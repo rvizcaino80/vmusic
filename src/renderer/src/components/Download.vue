@@ -96,7 +96,7 @@
           Necesita configuración
         </span>
       </div>
-      <a-form-item label="URL de Apple Music / Youtube / Deezer">
+      <a-form-item label="URL de Apple Music / YouTube / YouTube Music / Deezer">
         <a-input
           v-model:value="url"
           class="w-full"
@@ -290,7 +290,7 @@ function isSupportedSourceUrl(value) {
   const lower = (value || '').toString().trim()
     .toLowerCase()
 
-  return lower.includes('music.apple') || lower.includes('youtube.com') || lower.includes('youtu.be') || lower.includes('deezer.com') || lower.includes('deezer.page.link')
+  return lower.includes('music.apple') || lower.includes('music.youtube.com') || lower.includes('youtube.com') || lower.includes('youtu.be') || lower.includes('deezer.com') || lower.includes('deezer.page.link')
 }
 
 async function checkAppleMusicStatus() {
@@ -655,7 +655,7 @@ function saveSong() {
     errorMessage.value = 'La información está incompleta'
     isError.value = true
   } else if (!isValidSource) {
-    errorMessage.value = 'La URL principal debe ser de Apple Music, YouTube o Deezer'
+    errorMessage.value = 'La URL principal debe ser de Apple Music, YouTube, YouTube Music o Deezer'
     isError.value = true
   } else {
     const taskId = `${Date.now()}-${Math.random().toString(16)
