@@ -1077,6 +1077,8 @@ function sanitizeYoutubeDownloadUrl(url) {
     const parsed = new URL(url)
     parsed.searchParams.delete('list')
     parsed.searchParams.delete('start_radio')
+    parsed.searchParams.delete('si')
+    // music.youtube.com comparte extractor con youtube.com
     return parsed.toString()
   } catch (error) {
     return url
@@ -1084,7 +1086,13 @@ function sanitizeYoutubeDownloadUrl(url) {
 }
 
 function isYoutubeUrl(url) {
-  return typeof url === 'string' && (url.includes('youtube') || url.includes('youtu.be'))
+  return (
+    typeof url === 'string' &&
+    (url.includes('music.youtube.com') ||
+      url.includes('youtube.com') ||
+      url.includes('youtu.be') ||
+      url.includes('youtube'))
+  )
 }
 
 function getAppleMusicTrackId(url) {
