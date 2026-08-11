@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.27",
+      "date": "2026-08-11",
+      "changes": {
+        "new": [
+          "Autollenar titulo y artista desde YouTube Music al pegar link"
+        ]
+      }
+    },
+    {
       "version": "1.6.26",
       "date": "2026-08-11",
       "changes": {}

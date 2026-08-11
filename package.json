@@ -1,6 +1,6 @@
 {
   "name": "salsamania",
-  "version": "1.6.26",
+  "version": "1.6.27",
   "description": "An Electron application with Vue",
   "main": "./out/main/index.js",
   "author": "Rogers Vizcaino",
