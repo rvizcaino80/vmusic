@@ -65,37 +65,6 @@
       :disabled="formDisabled"
       @submit.prevent="saveSong"
     >
-      <div class="mb-3 flex items-center justify-end gap-1 text-sm">
-        <span class="text-gray-500">Apple Music:</span>
-        <span
-          v-if="appleMusicStatus === 'ready'"
-          class="flex items-center gap-0.5 text-green-600 font-medium"
-        >
-          <Icon icon="mdi:check-circle" class="w-4 h-4" />
-          Listo
-        </span>
-        <span
-          v-else-if="appleMusicStatus === 'checking'"
-          class="flex items-center gap-0.5 text-gray-400"
-        >
-          <Icon icon="mdi:loading" class="w-4 h-4 animate-spin" />
-          Verificando...
-        </span>
-        <span
-          v-else-if="appleMusicStatus === 'unknown'"
-          class="flex items-center gap-0.5 text-amber-600 font-medium"
-        >
-          <Icon icon="mdi:help-circle" class="w-4 h-4" />
-          No se pudo verificar
-        </span>
-        <span
-          v-else
-          class="flex items-center gap-0.5 text-red-600 font-medium"
-        >
-          <Icon icon="mdi:alert-circle" class="w-4 h-4" />
-          Necesita configuración
-        </span>
-      </div>
       <a-form-item label="URL de Apple Music / YouTube / YouTube Music / Deezer">
         <a-input
           v-model:value="url"
@@ -229,7 +198,7 @@
         html-type="submit"
         size="large"
         class="flex items-center space-x-1"
-        :disabled="selectedTags.length === 0 || (isAppleLink && (appleMusicStatus === 'missing' || appleMusicStatus === 'invalid'))"
+        :disabled="selectedTags.length === 0"
       >
         <Icon
           v-if="!isSaving"
@@ -262,8 +231,6 @@ const selectedComposers = ref([])
 const metadataUrl = ref('')
 const coverUrl = ref('')
 const isAppleLink = ref(false)
-const appleMusicStatus = ref('unknown')
-const appleMusicCookiesPath = ref('')
 const isError = ref(false)
 const errorMessage = ref('')
 const noteText = ref('')
@@ -291,17 +258,6 @@ function isSupportedSourceUrl(value) {
     .toLowerCase()
 
   return lower.includes('music.apple') || lower.includes('music.youtube.com') || lower.includes('youtube.com') || lower.includes('youtu.be') || lower.includes('deezer.com') || lower.includes('deezer.page.link')
-}
-
-async function checkAppleMusicStatus() {
-  appleMusicStatus.value = 'checking'
-  try {
-    const res = await axios.get('http://localhost:3000/apple-music/check')
-    appleMusicStatus.value = res.data?.status || 'missing'
-    appleMusicCookiesPath.value = res.data?.cookiesPath || ''
-  } catch {
-    appleMusicStatus.value = 'missing'
-  }
 }
 
 function normalizeArtistName(value) {
@@ -812,9 +768,6 @@ async function onURLChange(e) {
   metadataUrl.value = ''
   coverUrl.value = ''
   isAppleLink.value = e.target.value.includes('music.apple')
-  if (isAppleLink.value) {
-    checkAppleMusicStatus()
-  }
 
   const isValidSource = isSupportedSourceUrl(e.target.value)
   if (!isValidSource) {
@@ -1024,7 +977,6 @@ onMounted(() => {
   }
   cleanupTimedOutTasks()
   downloadTasksWatchdog = setInterval(cleanupTimedOutTasks, 5000)
-  checkAppleMusicStatus()
   if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
     Notification.requestPermission()
   }
