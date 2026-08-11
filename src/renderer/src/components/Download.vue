@@ -260,6 +260,34 @@ function isSupportedSourceUrl(value) {
   return lower.includes('music.apple') || lower.includes('music.youtube.com') || lower.includes('youtube.com') || lower.includes('youtu.be') || lower.includes('deezer.com') || lower.includes('deezer.page.link')
 }
 
+function isYoutubeLikeUrl(value) {
+  const lower = (value || '').toString().trim()
+    .toLowerCase()
+
+  return lower.includes('music.youtube.com') || lower.includes('youtube.com') || lower.includes('youtu.be')
+}
+
+function extractYoutubeId(url) {
+  const raw = (url || '').toString().trim()
+  if (!raw) return ''
+  try {
+    const parsed = new URL(raw)
+    const v = parsed.searchParams.get('v')
+    if (v) return v.trim()
+    const pathParts = parsed.pathname.split('/').filter(Boolean)
+    const last = pathParts[pathParts.length - 1] || ''
+    if (last && /^[a-zA-Z0-9_-]{6,}$/.test(last)) return last
+  } catch {}
+  const match = raw.match(/(?:v=|youtu\.be\/|\/embed\/|\/v\/)([a-zA-Z0-9_-]{6,})/)
+  if (match?.[1]) return match[1]
+  const fallback = raw.replace(/(>|<)/gi, '').split(/(vi\/|v=|\/v\/|youtu\.be\/|\/embed\/)/)
+  if (fallback[2] !== undefined) {
+    const id = fallback[2].split(/[^0-9a-z_\-]/i)[0]
+    if (id) return id
+  }
+  return ''
+}
+
 function normalizeArtistName(value) {
   return (value || '')
     .toString()
@@ -801,6 +829,26 @@ async function onURLChange(e) {
       notFoundArtist.value = isPerfect ? null : tempArtist
     } else {
       notFoundArtist.value = tempArtist
+    }
+  } else if (isYoutubeLikeUrl(e.target.value)) {
+    try {
+      const yid = extractYoutubeId(e.target.value)
+      if (yid) {
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${yid}`)}&format=json`
+        const res = await fetch(oembedUrl)
+        if (res.ok) {
+          const data = await res.json()
+          const oembedTitle = (data?.title || '').toString().trim()
+          const oembedAuthor = (data?.author_name || '').toString().trim()
+          const oembedThumb = (data?.thumbnail_url || '').toString().trim()
+          if (oembedThumb) coverUrl.value = oembedThumb
+          await fillSongAndArtist(oembedTitle || null, oembedAuthor || null)
+        }
+      }
+    } catch (err) {
+      // ignore oembed errors, deja llenado manual
+    } finally {
+      formDisabled.value = false
     }
   } else {
     formDisabled.value = false
