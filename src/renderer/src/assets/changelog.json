@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.25",
+      "date": "2026-08-11",
+      "changes": {
+        "fix": [
+          "Completar soporte de YouTube Music en interfaz de descargas"
+        ]
+      }
+    },
+    {
       "version": "1.6.24",
       "date": "2026-08-11",
       "changes": {
