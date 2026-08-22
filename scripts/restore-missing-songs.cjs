@@ -14,7 +14,9 @@ const REVISAR_TAG = 'revisar'
 function runYtDlp(ytid) {
   return new Promise((resolve, reject) => {
     const url = `https://www.youtube.com/watch?v=${ytid}`
-    const args = ['--skip-download', '--print', '%(title)s', '--print', '%(duration)s', url]
+    const DENO_BIN = process.env.VMUSIC_DENO_BIN || path.join(__dirname, '..', 'build/bin/deno')
+    const denoArgs = fs.existsSync(DENO_BIN) ? ['--js-runtimes', `deno:${DENO_BIN}`, '--js-runtimes', 'node'] : ['--js-runtimes', 'deno:node']
+    const args = [...denoArgs, '--skip-download', '--print', '%(title)s', '--print', '%(duration)s', url]
     const child = spawn(YT_DLP_BIN, args)
     let stdout = ''
     let stderr = ''

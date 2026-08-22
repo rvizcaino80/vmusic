@@ -75,8 +75,13 @@ const YT_DLP_BIN = resolveBinaryFromCandidates('yt-dlp', process.env.VMUSIC_YT_D
 if (YT_DLP_BIN) {
   process.env.VMUSIC_YT_DLP_BIN = YT_DLP_BIN
 }
+const DENO_BIN = resolveBinaryFromCandidates('deno', process.env.VMUSIC_DENO_BIN)
+if (DENO_BIN) {
+  process.env.VMUSIC_DENO_BIN = DENO_BIN
+}
 const GAMDL_BIN = resolveBinaryFromCandidates('gamdl', undefined)
 console.log('[vmusic][gamdl] GAMDL_BIN:', GAMDL_BIN)
+console.log('[vmusic][deno] DENO_BIN:', DENO_BIN || null)
 
 // Always use bundled gamdl, never fall back to system-installed version
 delete process.env.GAMDL
@@ -1095,6 +1100,10 @@ function isYoutubeUrl(url) {
   )
 }
 
+function isSpotifyUrl(url) {
+  return typeof url === 'string' && url.includes('open.spotify.com')
+}
+
 function getAppleMusicTrackId(url) {
   const urlObject = node_url.parse(url, true)
   return urlObject?.query?.i
@@ -1969,6 +1978,11 @@ app.post('/download', async (req, res, next) => {
 
   // ID is the URL now
   let yid
+  if (isSpotifyUrl(requestUrl)) {
+    return res.status(400).send({
+      message: 'Spotify no es descargable directamente. Pega el enlace de YouTube/Apple Music en el campo principal y usa el enlace de Spotify en el campo de metadata para autocompletar título y artista.'
+    })
+  }
   if (isYoutubeUrl(requestUrl)) {
     yid = YouTubeGetID(requestUrl)
   } else {
@@ -1977,7 +1991,7 @@ app.post('/download', async (req, res, next) => {
 
   if (!yid) {
     return res.status(400).send({
-      message: 'No se pudo identificar la canción en la URL'
+      message: 'No se pudo identificar la canción en la URL. Usa un enlace de YouTube, YouTube Music o Apple Music.'
     })
   }
 
@@ -2004,10 +2018,15 @@ app.post('/download', async (req, res, next) => {
         message: 'No se encontró el binario embebido de yt-dlp'
       })
     }
+    const denoRuntime = DENO_BIN ? `deno:${DENO_BIN}` : 'deno'
     args = [
       '--no-playlist',
+      '--js-runtimes',
+      denoRuntime,
+      '--js-runtimes',
+      'node',
       '-f',
-      'bestaudio[protocol^=https]/bestaudio/best',
+      'bestaudio/best',
       '-o',
       path.join(MUSIC_LIBRARY_DIR, '%(id)s.%(ext)s'),
       '--rm-cache-dir',
@@ -2016,6 +2035,15 @@ app.post('/download', async (req, res, next) => {
     ]
     if (FFMPEG_BIN) {
       args.splice(args.length - 1, 0, '--ffmpeg-location', path.dirname(FFMPEG_BIN))
+    }
+    // Ensure bundled deno is in PATH for yt-dlp EJS
+    if (DENO_BIN) {
+      try {
+        const denoDir = path.dirname(DENO_BIN)
+        if (!process.env.PATH.includes(denoDir)) {
+          process.env.PATH = `${denoDir}:${process.env.PATH}`
+        }
+      } catch {}
     }
 
     console.log(command, args.join(' '))

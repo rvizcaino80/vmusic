@@ -8,3 +8,5 @@ out
 .tmp
 .codegraph
 .cursor
+build/bin/deno
+resources/bin/deno

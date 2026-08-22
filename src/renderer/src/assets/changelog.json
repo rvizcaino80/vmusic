@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.28",
+      "date": "2026-08-22",
+      "changes": {
+        "fix": [
+          "Corregir error 403 al descargar canciones de YouTube"
+        ]
+      }
+    },
+    {
       "version": "1.6.27",
       "date": "2026-08-11",
       "changes": {

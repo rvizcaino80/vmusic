@@ -182,6 +182,7 @@ resolveBundledBinary('yt-dlp')
 resolveBundledBinary('aacgain')
 const gamdlBin = resolveBundledBinary('gamdl')
 resolveBundledBinary('ffmpeg')
+resolveBundledBinary('deno')
 if (gamdlBin) {
   process.env.GAMDL = gamdlBin
 }
