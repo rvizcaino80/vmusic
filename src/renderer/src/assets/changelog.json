@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.29",
+      "date": "2026-08-26",
+      "changes": {
+        "fix": [
+          "Corregir overlay de actualización que no se mostraba"
+        ]
+      }
+    },
+    {
       "version": "1.6.28",
       "date": "2026-08-22",
       "changes": {
