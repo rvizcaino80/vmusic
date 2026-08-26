@@ -85,14 +85,13 @@ export function useCustomUpdater() {
   ]
 
   // --- Computed ---
-  const customUpdaterDevPreset = computed(
-    () => customUpdaterDevPresets.find((preset) => preset.key === customUpdaterDevPresetKey.value) || null
-  )
+  const customUpdaterDevPreset = computed(() => customUpdaterDevPresets.find((preset) => preset.key === customUpdaterDevPresetKey.value) || null)
   const customUpdaterPreviewActive = computed(() => isDev && Boolean(customUpdaterDevPreset.value))
   const customUpdaterDisplayState = computed(() => {
     if (!customUpdaterPreviewActive.value) {
       return customUpdaterState.value
     }
+
     return {
       ...customUpdaterState.value,
       ...customUpdaterDevPreset.value.state,
@@ -100,13 +99,16 @@ export function useCustomUpdater() {
     }
   })
 
-  const customUpdaterVisible = computed(() => customUpdaterOverlayOpen.value)
+  const customUpdaterVisible = computed(() => customUpdaterOverlayOpen.value || customUpdaterPreviewActive.value || ['installing', 'error'].includes(customUpdaterDisplayState.value.status))
   const customUpdaterBlocking = computed(() => {
     const status = customUpdaterDisplayState.value.status
+
     return status === 'installing'
   })
   const customUpdaterActionVisible = computed(() => {
     const status = customUpdaterDisplayState.value.status
+
+
     // Solo mostrar el icono si hay error; la descarga e instalación son automáticas
     return status === 'error'
   })
@@ -122,6 +124,7 @@ export function useCustomUpdater() {
       installing: 'Instalando',
       error: 'Error'
     }
+
     return map[customUpdaterDisplayState.value.status] || 'Sin actualizaciones'
   })
 
@@ -129,14 +132,17 @@ export function useCustomUpdater() {
     const s = customUpdaterDisplayState.value
     if (s.status === 'idle' && !s.supported) return 'No disponible en esta versión'
     if (s.status === 'error') return s.message || 'Error desconocido'
+
     return ''
   })
 
   const customUpdaterProgressValue = computed(() => {
     if (customUpdaterPreviewActive.value) {
       const preset = customUpdaterDevPreset.value
+
       return preset ? preset.progress : 0
     }
+
     // Map real states to progress
     const progressMap = {
       idle: 0,
@@ -147,12 +153,12 @@ export function useCustomUpdater() {
       installing: 100,
       error: 100
     }
+
     return progressMap[customUpdaterDisplayState.value.status] || 0
   })
 
   const customUpdaterProgressVisible = computed(() => {
-    return ['checking', 'downloading', 'installing'].includes(customUpdaterDisplayState.value.status) ||
-      customUpdaterPreviewActive.value
+    return ['checking', 'downloading', 'installing'].includes(customUpdaterDisplayState.value.status) || customUpdaterPreviewActive.value
   })
 
   const customUpdaterProgressCaption = computed(() => {
@@ -160,6 +166,7 @@ export function useCustomUpdater() {
     if (s.status === 'checking') return 'Consultando versión...'
     if (s.status === 'downloading') return 'Descargando actualización...'
     if (s.status === 'installing') return 'Instalando...'
+
     return ''
   })
 
@@ -171,6 +178,7 @@ export function useCustomUpdater() {
     if (s.status === 'downloaded') return 'Actualización lista'
     if (s.status === 'installing') return 'Instalando actualización'
     if (s.status === 'error') return 'Error de actualización'
+
     return 'Actualización'
   })
 
@@ -243,6 +251,7 @@ export function useCustomUpdater() {
   })
 
   return {
+
     // State
     customUpdaterState,
     customUpdaterOverlayOpen,
@@ -250,6 +259,7 @@ export function useCustomUpdater() {
     customUpdaterDevtoolsOpen,
     customUpdaterDevPresetKey,
     customUpdaterDevPresets,
+
     // Computed
     customUpdaterDevPreset,
     customUpdaterPreviewActive,
@@ -265,6 +275,7 @@ export function useCustomUpdater() {
     customUpdaterProgressCaption,
     customUpdaterTitle,
     customUpdaterMessage,
+
     // Actions
     checkCustomUpdater,
     checkAndPrepareCustomUpdater,
