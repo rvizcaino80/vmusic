@@ -78,6 +78,15 @@
       </div>
 
       <div>
+        <label class="text-sm text-gray-500 block">Cantante</label>
+        <a-input
+          v-model:value="cantante"
+          class="w-full"
+          placeholder="Nombre del cantante (opcional)"
+        />
+      </div>
+
+      <div>
         <div class="flex items-center justify-between">
           <label class="text-sm text-gray-500 block">URL de portada o metadata</label>
           <div class="flex items-center gap-3">
@@ -117,10 +126,18 @@
               :src="coverUrl"
               class="cd-preview-cover"
               :style="{ transform: `scale(${1 + coverZoom * 0.05})` }"
-            />
-            <div v-else class="cd-preview-fallback">Sin portada</div>
+            >
+            <div
+              v-else
+              class="cd-preview-fallback"
+            >
+              Sin portada
+            </div>
           </div>
-          <img :src="cdCenterUrl" class="cd-preview-center" />
+          <img
+            :src="cdCenterUrl"
+            class="cd-preview-center"
+          >
         </div>
         <div>
           <label class="text-sm text-gray-500 block">Zoom de portada</label>
@@ -188,6 +205,7 @@ const cdCenterUrl = new URL('./cd-center.png', window.location.href).href
 
 // Download
 const song = ref('')
+const cantante = ref('')
 const url = ref('')
 const ytid = ref('')
 const artistIds = ref([])
@@ -247,6 +265,7 @@ onMounted(async() => {
       totalArtists.value = response.data.Artists ? response.data.Artists.length : 1
       totalComposers.value = response.data.Composers ? response.data.Composers.length : 1
       song.value = response.data.name
+      cantante.value = response.data.cantante || ''
       isAppleMusic.value = response.data.isAppleMusic
 
       if (totalArtists.value > 0) {
@@ -347,6 +366,7 @@ function saveSong() {
     axios
       .post('http://localhost:3000/songs/update/' + props.id, {
         name: song.value,
+        cantante: cantante.value.trim() || null,
         artists: artistIds,
         composers: composerIds,
         tags: selectedTags.value
@@ -471,6 +491,7 @@ function loadNote() {
 function loadCoverZoom() {
   if (!ytid.value) {
     coverZoom.value = 0
+
     return
   }
   try {

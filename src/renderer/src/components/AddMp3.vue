@@ -67,6 +67,15 @@
       </div>
 
       <div>
+        <label class="text-sm text-gray-500 block">Cantante</label>
+        <a-input
+          v-model:value="cantante"
+          class="w-full"
+          placeholder="Nombre del cantante (opcional)"
+        />
+      </div>
+
+      <div>
         <label class="text-sm text-gray-500 block">Etiquetas</label>
         <a-checkbox-group
           v-model:value="selectedTags"
@@ -105,6 +114,7 @@ import axios from 'axios'
 import { Icon } from '@iconify/vue'
 
 const songTitle = ref('')
+const cantante = ref('')
 const totalArtists = ref(1)
 const selectedTags = ref([])
 const selectedArtists = ref([])
@@ -186,6 +196,7 @@ function onFileSelected(event) {
 
 function resetForm() {
   songTitle.value = ''
+  cantante.value = ''
   totalArtists.value = 1
   selectedTags.value = []
   selectedArtists.value = []
@@ -225,6 +236,7 @@ async function saveSong() {
     await axios.post('http://localhost:3000/songs/import', {
       filePath: mp3FilePath.value,
       name: songTitle.value.trim(),
+      cantante: cantante.value.trim() || null,
       artists: artistIds,
       tags: tagIds
     })

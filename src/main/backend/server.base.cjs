@@ -209,6 +209,7 @@ ComposerSong.init(
 class Song extends Model {}
 Song.init(
   {
+    cantante: Sequelize.DataTypes.STRING,
     folder: Sequelize.DataTypes.STRING,
     ytid: Sequelize.DataTypes.STRING,
     name: Sequelize.DataTypes.STRING,
@@ -1306,9 +1307,13 @@ app.post('/songs/update/:id', async (req, res, next) => {
     const artists = Array.isArray(req.body.artists) ? req.body.artists : []
     const composers = Array.isArray(req.body.composers) ? req.body.composers : []
 
+    const cantanteValue = typeof req.body.cantante === 'string' ? req.body.cantante.trim() : null
+    const cantanteToSave = cantanteValue && cantanteValue.length > 0 ? cantanteValue.slice(0, 255) : null
+
     await Song.update(
       {
-        name: req.body.name
+        name: req.body.name,
+        cantante: cantanteToSave
       },
       {
         where: {
@@ -2238,10 +2243,12 @@ app.post('/songs/save', async (req, res, next) => {
           })
         }
 
+        const cantanteForSave = typeof req.body.cantante === 'string' ? req.body.cantante.trim().slice(0, 255) : null
         const s = await Song.create({
           folder: folder,
           ytid: req.body.ytid.toString().trim(),
           name: req.body.song.trim(),
+          cantante: cantanteForSave && cantanteForSave.length > 0 ? cantanteForSave : null,
           duration: durationSeconds,
           duration_original: convertTime(durationSeconds)
         })
@@ -2363,10 +2370,12 @@ app.post('/songs/import', async (req, res, next) => {
       return res.status(500).send({ message: 'No se pudo leer la duración del mp3' })
     }
 
+    const cantanteForImport = typeof req.body.cantante === 'string' ? req.body.cantante.trim().slice(0, 255) : null
     const s = await Song.create({
       folder: folder,
       ytid: ytid,
       name: songName.trim(),
+      cantante: cantanteForImport && cantanteForImport.length > 0 ? cantanteForImport : null,
       duration: durationSeconds,
       duration_original: convertTime(durationSeconds)
     })
@@ -2636,6 +2645,16 @@ async function runMigrations() {
       // Inicializar playCount en 0 para canciones existentes
       await sequelize.query('UPDATE Songs SET playCount = 0 WHERE playCount IS NULL')
       console.log('[vmusic] Migración completada: columna playCount agregada')
+    }
+
+    if (!tableInfo.cantante) {
+      console.log('[vmusic] Migrando: agregando columna cantante a Songs')
+      await sequelize.getQueryInterface().addColumn('Songs', 'cantante', {
+        type: Sequelize.DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null
+      })
+      console.log('[vmusic] Migración completada: columna cantante agregada')
     }
 
     // Verificar si existen las tablas de playlists

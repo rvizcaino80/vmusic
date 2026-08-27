@@ -526,10 +526,10 @@
                 </template>
                 <template v-else-if="column.dataIndex === 'name'">
                   <div
-                    class="flex items-center space-x-2 cursor-pointer min-w-0"
+                    class="flex items-center gap-2 cursor-pointer min-w-0"
                     @contextmenu.prevent="openSongContextMenu($event, record)"
                   >
-                    <span class="truncate whitespace-nowrap flex-1 min-w-0">{{ text }}</span>
+                    <span class="truncate whitespace-nowrap min-w-0 max-w-[70%]">{{ text }}</span>
                     <a-tooltip
                       v-if="getSongNote(record)"
                       placement="top"
@@ -550,7 +550,7 @@
                   </div>
                 </template>
                 <template v-else-if="column.dataIndex === 'artistsJoined'">
-                  <div class="flex flex-wrap gap-x-3 gap-y-1">
+                  <div class="flex flex-wrap gap-x-1.5 gap-y-1">
                     <div
                       v-for="artist in record.Artists"
                       :key="artist.id"
@@ -565,6 +565,7 @@
                         {{ artist.name }}
                       </button>
                     </div>
+                    <span v-if="record.cantante" class="text-[13px] opacity-70">con {{ record.cantante }}</span>
                   </div>
                 </template>
                 <template v-else-if="column.dataIndex === 'playCount'">
@@ -688,7 +689,7 @@
               </template>
               <template #bodyCell="{ record, column }">
                 <template v-if="column.dataIndex === 'artistsJoined'">
-                  <div class="flex flex-wrap gap-x-3 gap-y-1">
+                  <div class="flex flex-wrap gap-x-1.5 gap-y-1">
                     <div
                       v-for="artist in record.Artists"
                       :key="artist.id"
@@ -703,6 +704,7 @@
                         {{ artist.name }}
                       </button>
                     </div>
+                    <span v-if="record.cantante" class="text-[13px] opacity-70">con {{ record.cantante }}</span>
                   </div>
                 </template>
                 <template v-else-if="column.dataIndex === 'source'">
@@ -2145,7 +2147,7 @@ function normalizeSongForHistory(song) {
   return {
     ...song,
     key: song.id,
-    artistsJoined: Array.isArray(song.Artists) ? song.Artists.map((artist) => artist.name).join(', ') : '',
+    artistsJoined: (() => { const base = Array.isArray(song.Artists) ? song.Artists.map((artist) => artist.name).join(', ') : ''; const cantante = (song.cantante || '').toString().trim(); return cantante ? (base ? `${base} con ${cantante}` : cantante) : base; })(),
     composersJoined: Array.isArray(song.Composers) ? song.Composers.map((composer) => composer.name).join(', ') : ''
   }
 }
@@ -3045,17 +3047,12 @@ async function filterSongs() {
     coverUrl: getSongCoverUrl(item, storedCoverMap),
     hasCover: songHasCover(item, storedCoverMap),
     key: item.id,
-    artistsJoined: (Array.isArray(item.Artists) ? item.Artists : [])
-      .map((artist) => artist.name)
-      .join(', '),
+    artistsJoined: (() => { const base = (Array.isArray(item.Artists) ? item.Artists : []).map((artist) => artist.name).join(', '); const cantante = (item.cantante || '').toString().trim(); return cantante ? (base ? `${base} con ${cantante}` : cantante) : base; })(),
     composersJoined: (Array.isArray(item.Composers) ? item.Composers : [])
       .map((composer) => composer.name)
       .join(', '),
     nameNorm: removeAccents((item.name || '').toLowerCase()),
-    artistsNorm: removeAccents((Array.isArray(item.Artists) ? item.Artists : [])
-      .map((artist) => artist.name)
-      .join(' ')
-      .toLowerCase()),
+    artistsNorm: removeAccents(((Array.isArray(item.Artists) ? item.Artists : []).map((artist) => artist.name).join(' ') + (item.cantante ? ` ${item.cantante}` : '')).toLowerCase()),
     playCount: item.playCount || 0
   }))
 

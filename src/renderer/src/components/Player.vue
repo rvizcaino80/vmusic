@@ -20,7 +20,7 @@
             class="player-vinyl-cover select-none"
             draggable="false"
             :style="coverStyle"
-          />
+          >
           <div
             v-else
             :class="{
@@ -36,8 +36,11 @@
           class="player-vinyl-center select-none"
           alt=""
           draggable="false"
-        />
-        <div v-if="canEject" class="player-vinyl-eject-overlay">
+        >
+        <div
+          v-if="canEject"
+          class="player-vinyl-eject-overlay"
+        >
           <Icon
             icon="bi:trash"
             class="player-vinyl-eject-icon"
@@ -57,7 +60,10 @@
         <div class="flex-1 min-w-0">
           <h2 class="text-white text-2xl select-none w-full truncate">
             <template v-if="artistsList.length">
-              <template v-for="(a, idx) in artistsList" :key="a.id">
+              <template
+                v-for="(a, idx) in artistsList"
+                :key="a.id"
+              >
                 <button
                   type="button"
                   class="hover:underline"
@@ -68,8 +74,17 @@
                 </button>
                 <span v-if="idx < artistsList.length - 1">, </span>
               </template>
+              <span
+                v-if="cantante"
+                class="font-normal text-white/80"
+              > con {{ cantante }}</span>
             </template>
-            <span v-else>Sin artista</span>
+            <span v-else>
+              Sin artista<span
+                v-if="cantante"
+                class="font-normal text-white/80"
+              > con {{ cantante }}</span>
+            </span>
           </h2>
           <div class="flex items-center space-x-2 w-full min-w-0">
             <div class="flex-1 min-w-0">
@@ -84,7 +99,10 @@
                   {{ song || 'Sin canción' }}
                 </button>
                 <span v-else>{{ song || 'Sin canción' }}</span>
-                <span v-if="artist && composer" class="text-gray-300"> ({{ composer }})</span>
+                <span
+                  v-if="artist && composer"
+                  class="text-gray-300"
+                > ({{ composer }})</span>
               </h1>
             </div>
             <button
@@ -104,7 +122,10 @@
         </div>
 
         <div class="flex flex-col items-center text-gray-500 translate-y-[6px]">
-          <div v-if="status !== props.statuses['Sin Carga']" class="flex flex-col items-center">
+          <div
+            v-if="status !== props.statuses['Sin Carga']"
+            class="flex flex-col items-center"
+          >
             <span class="text-sm mb-0.5 select-none flex items-center gap-1">
               Velocidad
               <Icon
@@ -127,9 +148,10 @@
                   icon="teenyicons:left-solid"
                   @click="setSpeed(-1)"
                 />
-                <span v-if="speed_added > 0" class="text-lime-500 font-bold text-xl select-none"
-                  >+</span
-                >
+                <span
+                  v-if="speed_added > 0"
+                  class="text-lime-500 font-bold text-xl select-none"
+                >+</span>
                 <span
                   :class="{
                     'text-lime-500': speed_added > 0,
@@ -211,6 +233,7 @@ const songId = ref(null)
 const start = ref(null)
 const end = ref(null)
 const song = ref('')
+const cantante = ref('')
 const artistsList = ref([])
 const composer = ref('')
 const artist = ref('')
@@ -252,9 +275,7 @@ const baseSpeedLabel = computed(() => {
   return `${sign}${value}`
 })
 
-const canPreview = computed(
-  () => status.value !== props.statuses.Reproduciendo && Boolean(songFull.value?.id)
-)
+const canPreview = computed(() => status.value !== props.statuses.Reproduciendo && Boolean(songFull.value?.id))
 
 const canEject = computed(() => {
   if (!songFull.value?.id) return false
@@ -262,6 +283,7 @@ const canEject = computed(() => {
   if (status.value === props.statuses.Cambiando) return false
   if (status.value === props.statuses.Nivelando) return false
   if (status.value === props.statuses.Cargando) return false
+
   return true
 })
 const MIN_SPEED_OFFSET = -50
@@ -347,7 +369,8 @@ function safePlay() {
 
 onBeforeMount(() => {
   status.value = props.statuses['Sin Carga']
-  playerId.value = 'w' + Math.random().toString(36).substring(2, 7)
+  playerId.value = 'w' + Math.random().toString(36)
+    .substring(2, 7)
 })
 
 onMounted(() => {
@@ -417,8 +440,11 @@ function init() {
 
   player.on('error', (err) => {
     console.warn('[vmusic][audio] Error al cargar audio:', err)
-    // Si la canción estaba cargándose, restaurar estado sin auto-cargar
-    // la siguiente canción para no saltar canciones silenciosamente
+
+    /*
+     * Si la canción estaba cargándose, restaurar estado sin auto-cargar
+     * la siguiente canción para no saltar canciones silenciosamente
+     */
     if (status.value === props.statuses.Cargando) {
       status.value = props.statuses['Sin Carga']
     }
@@ -486,6 +512,7 @@ function init() {
   player.on('play', () => {
     player.toggleInteraction(true)
     status.value = props.statuses.Reproduciendo
+
     // Incrementar contador de reproducción solo una vez por canción
     if (songFull.value?.id && !playCountIncremented) {
       playCountIncremented = true
@@ -533,23 +560,20 @@ function init() {
     emit('stopped')
   })
 
-let lastLyricsEmit = 0
+  let lastLyricsEmit = 0
 
-player.on('timeupdate', (currentTime) => {
-  if (
-    status.value === props.statuses.Reproduciendo ||
-    status.value === props.statuses.Cambiando ||
-    status.value === props.statuses.Placa ||
-    status.value === props.statuses.Nivelando
-  ) {
-    calculateVolume(currentTime)
-    const now = Date.now()
-    if (now - lastLyricsEmit > 200) {
-      lastLyricsEmit = now
-      emit('timeupdate', currentTime)
+  player.on('timeupdate', (currentTime) => {
+    if (
+      status.value === props.statuses.Reproduciendo || status.value === props.statuses.Cambiando || status.value === props.statuses.Placa || status.value === props.statuses.Nivelando
+    ) {
+      calculateVolume(currentTime)
+      const now = Date.now()
+      if (now - lastLyricsEmit > 200) {
+        lastLyricsEmit = now
+        emit('timeupdate', currentTime)
+      }
     }
-  }
-})
+  })
 }
 
 function next() {
@@ -596,8 +620,7 @@ function calculateVolume(ct) {
 
   const forcedFadeFinished = Number.isFinite(forcedFadeEndAt) && ct >= forcedFadeEndAt
   if (
-    status.value === props.statuses.Cambiando &&
-    (forcedFadeFinished || (!Number.isFinite(forcedFadeEndAt) && ct > playbackEnd))
+    status.value === props.statuses.Cambiando && (forcedFadeFinished || (!Number.isFinite(forcedFadeEndAt) && ct > playbackEnd))
   ) {
     const finishedSong = songFull.value?.id ? { ...songFull.value } : null
     if (finishedSong) {
@@ -642,7 +665,7 @@ function tempFade(duration = 3000) {
     applyVolume(vol - 0.1)
     setTimeout(tempFade, 100)
   } else {
-    setTimeout(function () {
+    setTimeout(function() {
       status.value = props.statuses.Nivelando
       volToNormal()
     }, duration)
@@ -670,6 +693,7 @@ function load(url) {
 
 function resetSongMetadata() {
   artist.value = ''
+  cantante.value = ''
   artistsList.value = []
   composer.value = ''
   song.value = ''
@@ -685,8 +709,7 @@ function roundRate(value) {
 }
 
 function getTargetPlaybackRate() {
-  const totalOffset =
-    normalizeSpeedOffset(speed_added.value) + normalizeSpeedOffset(baseSpeed.value)
+  const totalOffset = normalizeSpeedOffset(speed_added.value) + normalizeSpeedOffset(baseSpeed.value)
   const total = 1 + totalOffset / 100
 
   return clamp(Number(total), 0.5, 1.8)
@@ -749,9 +772,7 @@ async function loadFadeProfile(song) {
     const profile = response?.data || {}
     fadeProfile.value = {
       hasFade: Boolean(profile?.hasFade),
-      fadeStartSec: Number.isFinite(Number(profile?.fadeStartSec))
-        ? Number(profile.fadeStartSec)
-        : null,
+      fadeStartSec: Number.isFinite(Number(profile?.fadeStartSec)) ? Number(profile.fadeStartSec) : null,
       confidence: Number.isFinite(Number(profile?.confidence)) ? Number(profile.confidence) : 0
     }
   } catch (error) {
@@ -1205,13 +1226,9 @@ function seekBy(deltaSeconds) {
 
   const now = player.getCurrentTime()
   const playbackStart = Number.isFinite(start.value) ? Math.max(0, toPlaybackTime(start.value)) : 0
-  const playbackEnd = Number.isFinite(end.value)
-    ? Math.max(playbackStart, toPlaybackTime(end.value))
-    : Number.POSITIVE_INFINITY
+  const playbackEnd = Number.isFinite(end.value) ? Math.max(playbackStart, toPlaybackTime(end.value)) : Number.POSITIVE_INFINITY
   const requestedDelta = Number(deltaSeconds || 0)
-  const maxForwardTime = Number.isFinite(playbackEnd)
-    ? Math.max(playbackStart, playbackEnd - KEYBOARD_SEEK_FORWARD_END_GUARD_SECONDS)
-    : playbackEnd
+  const maxForwardTime = Number.isFinite(playbackEnd) ? Math.max(playbackStart, playbackEnd - KEYBOARD_SEEK_FORWARD_END_GUARD_SECONDS) : playbackEnd
   const clampedMaxTime = requestedDelta > 0 ? maxForwardTime : playbackEnd
   const targetTime = clamp(now + requestedDelta, playbackStart, clampedMaxTime)
 
@@ -1258,8 +1275,7 @@ function applySpeed() {
   const total = getTargetPlaybackRate()
   speed.value = total
 
-  const shouldUseNativeRate =
-    currentMediaVariant.value !== 'speed' || !ratesMatch(processedSpeedRate.value, total)
+  const shouldUseNativeRate = currentMediaVariant.value !== 'speed' || !ratesMatch(processedSpeedRate.value, total)
   const playbackRate = shouldUseNativeRate ? total : 1
   player.setPlaybackRate(playbackRate, true)
 }
@@ -1339,8 +1355,7 @@ function setSinkId(sinkId) {
 function getStoredCoverForSong(song) {
   if (!song) return ''
 
-  const directCover =
-    song.songImage || song.coverUrl || song.cover || song.image || song.artwork || ''
+  const directCover = song.songImage || song.coverUrl || song.cover || song.image || song.artwork || ''
   if (directCover) return directCover
 
   try {
@@ -1366,8 +1381,7 @@ function isRemoteCoverUrl(value) {
 
 async function cacheCoverInBackground(song, coverUrl) {
   const cacheKey = String(song?.ytid || '').trim()
-  if (!cacheKey || !coverUrl || !isRemoteCoverUrl(coverUrl) || !window.electron2?.cacheCoverImage)
-    return
+  if (!cacheKey || !coverUrl || !isRemoteCoverUrl(coverUrl) || !window.electron2?.cacheCoverImage) return
   if (coverCacheRequests.has(cacheKey)) return
 
   console.debug('Descargando portada', { ytid: cacheKey, url: coverUrl })
@@ -1442,9 +1456,7 @@ async function resolveCoverFromSpotifySearch(songData) {
     return currentCover
   }
 
-  const artistNames = Array.isArray(songData.Artists)
-    ? songData.Artists.map((artist) => artist?.name).filter(Boolean)
-    : []
+  const artistNames = Array.isArray(songData.Artists) ? songData.Artists.map((artist) => artist?.name).filter(Boolean) : []
   const searchUrl = buildSpotifySearchUrl(songData.name, artistNames)
   if (!searchUrl) {
     console.log('[vmusic][auto-cover] empty search url', {
@@ -1463,7 +1475,7 @@ async function resolveCoverFromSpotifySearch(songData) {
     return spotifyCoverRequests.get(requestKey)
   }
 
-  const request = (async () => {
+  const request = (async() => {
     if (!window.electron2?.resolveSpotifyCover) {
       console.log('[vmusic][auto-cover] ipc unavailable', { requestKey })
 
@@ -1477,15 +1489,7 @@ async function resolveCoverFromSpotifySearch(songData) {
         searchUrl
       })
       const spotifyResult = await window.electron2.resolveSpotifyCover({ searchUrl })
-      const resolvedCoverUrl =
-        typeof spotifyResult === 'string'
-          ? spotifyResult
-          : String(
-              spotifyResult?.coverUrl ||
-                spotifyResult?.imageUrl ||
-                spotifyResult?.resolvedCoverUrl ||
-                ''
-            )
+      const resolvedCoverUrl = typeof spotifyResult === 'string' ? spotifyResult : String(spotifyResult?.coverUrl || spotifyResult?.imageUrl || spotifyResult?.resolvedCoverUrl || '')
       console.log('[vmusic][auto-cover] spotify result', {
         requestKey,
         resolvedCoverUrl,
@@ -1574,6 +1578,9 @@ function applySongMetadata(songData) {
     ...songData
   }
 
+  cantante.value = (songData.cantante || '').toString().trim()
+    .slice(0, 255)
+
   // Actualizar marcadores de inicio/fin si vienen en los datos
   if (typeof songData.start === 'number') {
     start.value = songData.start
@@ -1626,16 +1633,15 @@ function applySongMetadata(songData) {
 }
 
 function getThemeColor(varName, fallback) {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+  const value = getComputedStyle(document.documentElement).getPropertyValue(varName)
+    .trim()
 
   return value || fallback
 }
 
 function getCurrentWaveColor() {
-  return getThemeColor(
-    props.position === 'top' ? '--vm-player-wave-a' : '--vm-player-wave-b',
-    props.position === 'top' ? '#EAB308' : '#EC4899'
-  )
+  return getThemeColor(props.position === 'top' ? '--vm-player-wave-a' : '--vm-player-wave-b',
+    props.position === 'top' ? '#EAB308' : '#EC4899')
 }
 
 function getCurrentProgressColor() {
@@ -1695,10 +1701,7 @@ function redrawWaveform() {
 
   const waveColor = getCurrentWaveColor()
   const progressColor = getCurrentProgressColor()
-  const cursorColor =
-    status.value === props.statuses.Cambiando
-      ? getThemeColor('--vm-player-crossfader-cursor', '#FF0000')
-      : getThemeColor('--vm-player-cursor', '#FFFFFF')
+  const cursorColor = status.value === props.statuses.Cambiando ? getThemeColor('--vm-player-crossfader-cursor', '#FF0000') : getThemeColor('--vm-player-cursor', '#FFFFFF')
 
   player.setOptions({
     waveColor,
@@ -1826,12 +1829,10 @@ function handleThemeChanged() {
   }
 }
 
-watch(
-  () => props.outputSinkId,
+watch(() => props.outputSinkId,
   (val) => {
     setSinkId(val)
-  }
-)
+  })
 
 watch(status, () => {
   syncWaveColor()

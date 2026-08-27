@@ -26,14 +26,15 @@ function buildSongMetadata(song) {
     .map((item) => sanitizeMetadataValue(item.name))
     .filter(Boolean)
     .filter((tagName) => tagName.toLowerCase() !== 'agregado-reciente')
+  const cantante = sanitizeMetadataValue(song.cantante)
   const title = sanitizeMetadataValue(song.name)
   const createdAtYear = song.createdAt ? new Date(song.createdAt).getUTCFullYear() : ''
   const genre = tags[0] || ''
 
   const metadata = {
     title,
-    artist: artists.join(', '),
-    album_artist: artists.join(', '),
+    artist: artists.join(', ') + (cantante ? ` con ${cantante}` : ''),
+    album_artist: artists.join(', ') + (cantante ? ` con ${cantante}` : ''),
     composer: composers.join(', '),
     genre,
     track: sanitizeMetadataValue(song.id),
@@ -42,6 +43,7 @@ function buildSongMetadata(song) {
       `vmusic_song_id=${sanitizeMetadataValue(song.id)}`,
       `ytid=${sanitizeMetadataValue(song.ytid)}`,
       `folder=${sanitizeMetadataValue(song.folder)}`,
+      cantante ? `cantante=${cantante}` : '',
       tags.length ? `tags=${tags.join('|')}` : ''
     ].filter(Boolean).join('; ')
   }

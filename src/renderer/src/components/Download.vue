@@ -107,6 +107,14 @@
         />
       </a-form-item>
 
+      <a-form-item label="Cantante">
+        <a-input
+          v-model:value="cantante"
+          class="w-full"
+          placeholder="Nombre del cantante (opcional)"
+        />
+      </a-form-item>
+
       <a-alert
         v-if="notFoundArtist"
         class="download-message-alert"
@@ -223,6 +231,7 @@ const songId = ref('')
 const songDuration = ref(0)
 const songDurationOriginal = ref('')
 const song = ref('')
+const cantante = ref('')
 const totalArtists = ref(1)
 const totalComposers = ref(1)
 const selectedTags = ref([])
@@ -276,7 +285,7 @@ function extractYoutubeId(url) {
     if (v) return v.trim()
     const pathParts = parsed.pathname.split('/').filter(Boolean)
     const last = pathParts[pathParts.length - 1] || ''
-    if (last && /^[a-zA-Z0-9_-]{6,}$/.test(last)) return last
+    if (last && (/^[a-zA-Z0-9_-]{6,}$/).test(last)) return last
   } catch {}
   const match = raw.match(/(?:v=|youtu\.be\/|\/embed\/|\/v\/)([a-zA-Z0-9_-]{6,})/)
   if (match?.[1]) return match[1]
@@ -285,6 +294,7 @@ function extractYoutubeId(url) {
     const id = fallback[2].split(/[^0-9a-z_\-]/i)[0]
     if (id) return id
   }
+
   return ''
 }
 
@@ -555,6 +565,7 @@ function saveNoteLocally(ytid, note) {
 function resetForm() {
   url.value = ''
   song.value = ''
+  cantante.value = ''
   metadataUrl.value = ''
   coverUrl.value = ''
   noteText.value = ''
@@ -681,6 +692,7 @@ function saveSong() {
         return axios.post('http://localhost:3000/songs/save', {
           ytid: payload.ytid,
           song: payload.song,
+          cantante: cantante.value.trim() || null,
           artists: payload.artists,
           composers: payload.composers,
           duration: payload.duration,

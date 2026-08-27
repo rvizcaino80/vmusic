@@ -55,6 +55,7 @@ ComposerSong.init({
 
 class Song extends Model {}
 Song.init({
+  cantante: Sequelize.DataTypes.STRING,
   folder: Sequelize.DataTypes.STRING,
   ytid: Sequelize.DataTypes.STRING,
   name: Sequelize.DataTypes.STRING,
@@ -63,6 +64,10 @@ Song.init({
   start: Sequelize.DataTypes.INTEGER,
   end: Sequelize.DataTypes.INTEGER,
   duration_original: Sequelize.DataTypes.STRING,
+  playCount: {
+    type: Sequelize.DataTypes.INTEGER,
+    defaultValue: 0
+  },
   timestamp: {
     type: Sequelize.DataTypes.VIRTUAL,
     get() {
