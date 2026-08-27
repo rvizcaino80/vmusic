@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.6.30",
+      "date": "2026-08-27",
+      "changes": {
+        "new": [
+          "Agregar campo cantante a canciones y mostrarlo con artista"
+        ]
+      }
+    },
+    {
       "version": "1.6.29",
       "date": "2026-08-26",
       "changes": {
