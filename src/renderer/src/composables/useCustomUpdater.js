@@ -99,7 +99,7 @@ export function useCustomUpdater() {
     }
   })
 
-  const customUpdaterVisible = computed(() => customUpdaterOverlayOpen.value || customUpdaterPreviewActive.value || ['installing', 'error'].includes(customUpdaterDisplayState.value.status))
+  const customUpdaterVisible = computed(() => customUpdaterOverlayOpen.value || customUpdaterPreviewActive.value || ['checking', 'available', 'downloading', 'downloaded', 'installing', 'error'].includes(customUpdaterDisplayState.value.status))
   const customUpdaterBlocking = computed(() => {
     const status = customUpdaterDisplayState.value.status
 

@@ -4815,7 +4815,7 @@ table tr td.ant-table-cell {
 .vm-update-screen {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: 2147483647;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5099,7 +5099,7 @@ table tr td.ant-table-cell {
   position: fixed;
   right: 18px;
   top: 18px;
-  z-index: 10001;
+  z-index: 2147483646;
   display: flex;
   flex-direction: column;
   align-items: flex-end;

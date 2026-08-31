@@ -58,7 +58,7 @@
     >
       <div class="player-header flex justify-between space-x-3">
         <div class="flex-1 min-w-0">
-          <h2 class="text-white text-2xl select-none w-full truncate">
+          <h2 class="text-white text-xl select-none w-full flex flex-wrap items-center gap-x-3 gap-y-0 leading-tight">
             <template v-if="artistsList.length">
               <template
                 v-for="(a, idx) in artistsList"
@@ -76,19 +76,19 @@
               </template>
               <span
                 v-if="cantante"
-                class="font-normal text-white/80"
-              > con {{ cantante }}</span>
+                class="font-normal text-white/80 inline-flex items-center gap-0.5"
+              ><Icon icon="entypo:modern-mic" class="w-4 h-4 flex-shrink-0 opacity-80" /> {{ cantante }}</span>
             </template>
             <span v-else>
               Sin artista<span
                 v-if="cantante"
-                class="font-normal text-white/80"
-              > con {{ cantante }}</span>
+                class="font-normal text-white/80 inline-flex items-center gap-0.5"
+              ><Icon icon="entypo:modern-mic" class="w-4 h-4 flex-shrink-0 opacity-80" /> {{ cantante }}</span>
             </span>
           </h2>
           <div class="flex items-center space-x-2 w-full min-w-0">
             <div class="flex-1 min-w-0">
-              <h1 class="text-white text-xl select-none truncate">
+              <h1 class="text-white text-lg select-none truncate">
                 <button
                   v-if="songFull?.id"
                   type="button"

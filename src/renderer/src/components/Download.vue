@@ -665,6 +665,7 @@ function saveSong() {
       updatedAt: now()
     }
     const coverFromMeta = coverUrl.value || ''
+    const cantanteForPayload = cantante.value.trim() || null
 
     downloadTasks.value = [task, ...downloadTasks.value]
     syncTasksToStorage()
@@ -673,6 +674,7 @@ function saveSong() {
     const payload = {
       url: trimmedUrl,
       song: trimmedSong,
+      cantante: cantanteForPayload,
       artists: artistIds,
       composers: composerIds,
       duration: songDuration.value,
@@ -692,7 +694,7 @@ function saveSong() {
         return axios.post('http://localhost:3000/songs/save', {
           ytid: payload.ytid,
           song: payload.song,
-          cantante: cantante.value.trim() || null,
+          cantante: payload.cantante,
           artists: payload.artists,
           composers: payload.composers,
           duration: payload.duration,
