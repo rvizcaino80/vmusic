@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.7.0",
+      "date": "2026-08-31",
+      "changes": {
+        "fix": [
+          "Corregir guardado de cantante al descargar y visual de tabla y overlay"
+        ]
+      }
+    },
+    {
       "version": "1.6.30",
       "date": "2026-08-27",
       "changes": {
