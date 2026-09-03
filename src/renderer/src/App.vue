@@ -57,9 +57,10 @@
     >
       <div
         :class="{
-          'w-9/12':
-            uiStore.currentSelectedOption === options.library || uiStore.currentSelectedOption === options.history,
-          'w-11/12': uiStore.currentSelectedOption === options.wave,
+          'w-11/12':
+            uiStore.currentSelectedOption === options.library ||
+            uiStore.currentSelectedOption === options.history ||
+            uiStore.currentSelectedOption === options.wave,
           'w-2/5':
             uiStore.currentSelectedOption !== options.wave &&
             uiStore.currentSelectedOption !== options.library &&
@@ -456,7 +457,7 @@
             class="flex-1 min-h-[0] flex flex-col"
           >
             <a-table
-              class="ant-table-striped"
+              class="ant-table-striped vm-library-table"
               :animate-rows="false"
               :row-key="(record) => record.id"
               :row-class-name="
@@ -482,10 +483,12 @@
               :row-selection="{
                 selectedRowKeys: selectedSongs,
                 onChange: onSelectChange,
-                onSelectAll: onSelectAll
+                onSelectAll: onSelectAll,
+                columnWidth: 1
               }"
               sticky
               size="small"
+              table-layout="auto"
               :data-source="filteredSongs2"
               :columns="columns"
               @change="onTableChange"
@@ -499,7 +502,7 @@
                 <template v-if="column.dataIndex === 'preview'">
                   <div class="flex items-center justify-center gap-1">
                     <a-button
-                      class="flex items-center justify-center w-8 h-8 p-0"
+                      class="flex items-center justify-center w-8 h-8 p-0 flex-shrink-0"
                       size="small"
                       :type="
                         playerStore.previewSongId === record.id && playerStore.previewStatus === 'playing'
@@ -516,7 +519,7 @@
                       <i-mdi-headphones class="w-4 h-4" />
                     </a-button>
                     <a-button
-                      class="flex items-center justify-center w-8 h-8 p-0"
+                      class="flex items-center justify-center w-8 h-8 p-0 flex-shrink-0"
                       size="small"
                       @click.stop="openWaveEditorForSong(record)"
                     >
@@ -586,7 +589,7 @@
                     <button
                       :disabled="isDeckManualLoadDisabled('A')"
                       type="button"
-                      class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
+                      class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white flex-shrink-0"
                       @click.stop="loadLibrarySongToDeck(record, 'A')"
                     >
                       <i-ic-baseline-download class="w-6 h-6 deck-a-indicator" />
@@ -596,7 +599,7 @@
                     <button
                       :disabled="isDeckManualLoadDisabled('B')"
                       type="button"
-                      class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white"
+                      class="flex items-center space-x-1 disabled:opacity-30 disabled:cursor-default cursor-pointer text-white flex-shrink-0"
                       @click.stop="loadLibrarySongToDeck(record, 'B')"
                     >
                       <i-ic-baseline-download class="w-6 h-6 deck-b-indicator" />
@@ -1850,7 +1853,7 @@ const columns = computed(() => {
     {
       title: '',
       dataIndex: 'preview',
-      width: 90,
+      width: 1,
       align: 'center'
     },
     {
@@ -1870,32 +1873,29 @@ const columns = computed(() => {
     {
       title: 'Duración',
       dataIndex: 'duration_original',
-      width: 100,
       align: 'right',
       sorter: {
         compare: (a, b) => (a.duration || 0) - (b.duration || 0)
       }
     },
     {
-      title: 'Rep',
+      title: 'R',
       dataIndex: 'playCount',
-      width: 120,
       align: 'center',
       sorter: {
         compare: (a, b) => (a.playCount || 0) - (b.playCount || 0)
       }
     },
     {
-      title: 'Fuente',
+      title: 'F',
       dataIndex: 'source',
-      align: 'center',
-      width: 80
+      align: 'center'
     },
     {
       title: '',
       dataIndex: 'decks',
-      align: 'center',
-      width: 190
+      width: 1,
+      align: 'center'
     }
   ]
 
@@ -4757,6 +4757,19 @@ function onM3uSourceSelect({ key }) {
 
 table tr td.ant-table-cell {
   padding: 2px 0 !important;
+}
+
+.vm-library-table td.ant-table-cell:nth-child(2),
+.vm-library-table td.ant-table-cell:nth-child(8) {
+  padding: 2px 8px !important;
+}
+
+.vm-library-table td.ant-table-selection-column {
+  padding: 2px 8px !important;
+}
+
+.ant-table-thead > tr > th.ant-table-cell {
+  white-space: nowrap;
 }
 
 .ant-table-striped .table-striped td {
