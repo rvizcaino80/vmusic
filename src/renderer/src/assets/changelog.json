@@ -1,6 +1,20 @@
 {
   "versions": [
     {
+      "version": "1.7.2",
+      "date": "2026-09-06",
+      "changes": {
+        "new": [
+          "Previsualizar cancion desde la posicion del click en el boton",
+          "Al cargar cancion en deck ocupado se envia la anterior al inicio del playlist"
+        ],
+        "fix": [
+          "Quitar sufijo Topic al extraer artista de YouTube",
+          "Corregir espaciado de artistas en el reproductor"
+        ]
+      }
+    },
+    {
       "version": "1.7.1",
       "date": "2026-09-03",
       "changes": {
