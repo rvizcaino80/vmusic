@@ -28,7 +28,8 @@ export interface Song {
   duration_original?: string
   playCount: number
   artists?: Artist[]
-  composers?: Artist[]
+  cantante?: string
+  compositor?: string
   tags?: Tag[]
   isAppleMusic?: boolean
   createdAt: string

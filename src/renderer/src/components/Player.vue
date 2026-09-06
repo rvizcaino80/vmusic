@@ -1607,7 +1607,7 @@ function applySongMetadata(songData) {
   artistsList.value = songFull.value.Artists || []
   artist.value = artistsList.value.map((i) => i.name).join(', ')
   primaryArtistId.value = artistsList.value?.[0]?.id || null
-  composer.value = (songFull.value.Composers || []).map((i) => i.name).join(', ')
+  composer.value = (songFull.value.compositor || '').toString().trim()
 
   try {
     const zoomStored = localStorage.getItem('vmusic_cover_zoom')

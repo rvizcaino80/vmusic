@@ -41,33 +41,6 @@
       </div>
 
       <div>
-        <label class="text-sm text-gray-500 block">Compositor</label>
-        <div
-          v-for="total in totalComposers"
-          :key="total"
-        >
-          <a-select
-            v-model:value="selectedComposers[total]"
-            :allow-clear="true"
-            class="mb-1"
-            show-search
-            placeholder="Seleccione..."
-            style="width: 100%"
-            :options="localArtists.map(item => ({ label: item.name, value: item.id }))"
-            :filter-option="filterOption"
-          />
-        </div>
-
-        <div class="mt-2">
-          <a-button
-            @click="addComposer"
-          >
-            Agregar compositor {{ totalComposers + 1 }}
-          </a-button>
-        </div>
-      </div>
-
-      <div>
         <label class="text-sm text-gray-500 block">Título</label>
         <a-input
           v-model:value.lazy="song"
@@ -83,6 +56,15 @@
           v-model:value="cantante"
           class="w-full"
           placeholder="Nombre del cantante (opcional)"
+        />
+      </div>
+
+      <div>
+        <label class="text-sm text-gray-500 block">Compositor</label>
+        <a-input
+          v-model:value="compositor"
+          class="w-full"
+          placeholder="Nombre del compositor (opcional)"
         />
       </div>
 
@@ -206,18 +188,17 @@ const cdCenterUrl = new URL('./cd-center.png', window.location.href).href
 // Download
 const song = ref('')
 const cantante = ref('')
+const compositor = ref('')
 const url = ref('')
 const ytid = ref('')
 const artistIds = ref([])
 const totalArtists = ref(1)
-const totalComposers = ref(1)
 const songTags = ref([])
 const tags = ref([])
 const artists = ref([])
 const isSaving = ref(false)
 const selectedTags = ref([])
 const selectedArtists = ref([])
-const selectedComposers = ref([])
 const localArtists = ref([])
 const isAppleMusic = ref(false)
 const metadataUrl = ref('')
@@ -263,9 +244,9 @@ onMounted(async() => {
       url.value = response.data.isAppleMusic ? `https://music.apple.com/co/song/${response.data.ytid}` : `https://www.youtube.com/watch?v=${response.data.ytid}`
       ytid.value = response.data.ytid
       totalArtists.value = response.data.Artists ? response.data.Artists.length : 1
-      totalComposers.value = response.data.Composers ? response.data.Composers.length : 1
       song.value = response.data.name
       cantante.value = response.data.cantante || ''
+      compositor.value = response.data.compositor || ''
       isAppleMusic.value = response.data.isAppleMusic
 
       if (totalArtists.value > 0) {
@@ -274,14 +255,6 @@ onMounted(async() => {
         })
       } else {
         totalArtists.value = 1
-      }
-
-      if (response.data.Composers && response.data.Composers.length > 0) {
-        response.data.Composers.forEach((item, index) => {
-          selectedComposers.value[index + 1] = item.id
-        })
-      } else {
-        totalComposers.value = 1
       }
 
       selectedTags.value = response.data.Tags.map((item) => (item.id))
@@ -332,7 +305,6 @@ function saveSong() {
   const note = noteText.value
 
   let artistIds = selectedArtists.value.filter((item) => item)
-  let composerIds = selectedComposers.value.filter((item) => item)
 
   const metadataPromise = metadataUrl.value.trim().length > 0 ? resolveCoverFromInput(metadataUrl.value.trim()) : Promise.resolve(coverUrl.value || null)
 
@@ -367,8 +339,8 @@ function saveSong() {
       .post('http://localhost:3000/songs/update/' + props.id, {
         name: song.value,
         cantante: cantante.value.trim() || null,
+        compositor: compositor.value.trim() || null,
         artists: artistIds,
-        composers: composerIds,
         tags: selectedTags.value
       })
       .then(function(response) {
@@ -437,10 +409,6 @@ async function selectCoverFromDisk() {
 
 function addArtist() {
   totalArtists.value += 1
-}
-
-function addComposer() {
-  totalComposers.value += 1
 }
 
 function normalizeSearchText(value) {

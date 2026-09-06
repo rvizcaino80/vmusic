@@ -34,28 +34,10 @@ ArtistSong.init({
   tableName: 'ArtistSong'
 })
 
-class Composer extends Model {}
-Composer.init({
-  name: Sequelize.DataTypes.STRING
-}, {
-  sequelize,
-  modelName: 'Composer',
-  tableName: 'Artists'
-})
-
-class ComposerSong extends Model {}
-ComposerSong.init({
-  composerId: Sequelize.DataTypes.INTEGER,
-  songId: Sequelize.DataTypes.INTEGER
-}, {
-  sequelize,
-  modelName: 'ComposerSong',
-  tableName: 'ComposerSong'
-})
-
 class Song extends Model {}
 Song.init({
   cantante: Sequelize.DataTypes.STRING,
+  compositor: Sequelize.DataTypes.STRING,
   folder: Sequelize.DataTypes.STRING,
   ytid: Sequelize.DataTypes.STRING,
   name: Sequelize.DataTypes.STRING,
@@ -110,8 +92,6 @@ Tag.init({
 
 db.Artist = Artist
 db.ArtistSong = ArtistSong
-db.Composer = Composer
-db.ComposerSong = ComposerSong
 db.Song = Song
 db.SongTag = SongTag
 db.Tag = Tag
@@ -120,16 +100,12 @@ db.Song.belongsToMany(db.Tag, { through: db.SongTag })
 db.Tag.belongsToMany(db.Song, { through: db.SongTag })
 db.Artist.belongsToMany(db.Song, { through: db.ArtistSong })
 db.Song.belongsToMany(db.Artist, { through: db.ArtistSong })
-db.Composer.belongsToMany(db.Song, { through: db.ComposerSong })
-db.Song.belongsToMany(db.Composer, { through: db.ComposerSong })
 
 db.sequelize = sequelize
 db.Sequelize = Sequelize
 
 exports.Artist = Artist
 exports.ArtistSong = ArtistSong
-exports.Composer = Composer
-exports.ComposerSong = ComposerSong
 exports.Song = Song
 exports.SongTag = SongTag
 exports.Tag = Tag

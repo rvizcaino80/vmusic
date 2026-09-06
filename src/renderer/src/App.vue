@@ -2148,7 +2148,7 @@ function normalizeSongForHistory(song) {
     ...song,
     key: song.id,
     artistsJoined: (() => { const base = Array.isArray(song.Artists) ? song.Artists.map((artist) => artist.name).join(', ') : ''; const cantante = (song.cantante || '').toString().trim(); return cantante ? (base ? `${base} con ${cantante}` : cantante) : base; })(),
-    composersJoined: Array.isArray(song.Composers) ? song.Composers.map((composer) => composer.name).join(', ') : ''
+    composersJoined: (song.compositor || '').toString().trim()
   }
 }
 
@@ -3062,15 +3062,12 @@ async function filterSongs() {
   songs.value = modeAdjustedSongs.map((item) => ({
     ...item,
     Artists: Array.isArray(item.Artists) ? item.Artists : [],
-    Composers: Array.isArray(item.Composers) ? item.Composers : [],
     Tags: Array.isArray(item.Tags) ? item.Tags : [],
     coverUrl: getSongCoverUrl(item, storedCoverMap),
     hasCover: songHasCover(item, storedCoverMap),
     key: item.id,
     artistsJoined: (() => { const base = (Array.isArray(item.Artists) ? item.Artists : []).map((artist) => artist.name).join(', '); const cantante = (item.cantante || '').toString().trim(); return cantante ? (base ? `${base} con ${cantante}` : cantante) : base; })(),
-    composersJoined: (Array.isArray(item.Composers) ? item.Composers : [])
-      .map((composer) => composer.name)
-      .join(', '),
+    composersJoined: (item.compositor || '').toString().trim(),
     nameNorm: removeAccents((item.name || '').toLowerCase()),
     artistsNorm: removeAccents(((Array.isArray(item.Artists) ? item.Artists : []).map((artist) => artist.name).join(' ') + (item.cantante ? ` ${item.cantante}` : '')).toLowerCase()),
     playCount: item.playCount || 0
@@ -3152,7 +3149,7 @@ function applyCombinedFilters(items) {
  *data.songs.forEach((item) => {
  *  item.key = item.id
  *  item.artistsJoined = item.Artists.map((artist) => artist.name).join(', ')
- *  item.composersJoined = item.Composers.map((composer) => composer.name).join(', ')
+ *  item.composersJoined = item.compositor
  *})
  *
  *songs.value = data.songs
@@ -3322,7 +3319,6 @@ function onLoadPlaylist({ songs: playlistSongs, mode, name }) {
     const entry = {
       ...songData,
       Artists: songData.Artists || [],
-      Composers: songData.Composers || [],
       Tags: songData.Tags || [],
       entryId: generateEntryId(),
       played: false

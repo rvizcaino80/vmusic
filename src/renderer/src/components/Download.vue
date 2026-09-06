@@ -115,6 +115,14 @@
         />
       </a-form-item>
 
+      <a-form-item label="Compositor">
+        <a-input
+          v-model:value="compositor"
+          class="w-full"
+          placeholder="Nombre del compositor (opcional)"
+        />
+      </a-form-item>
+
       <a-alert
         v-if="notFoundArtist"
         class="download-message-alert"
@@ -154,31 +162,6 @@
           @click="addArtist"
         >
           Agregar artista {{ totalArtists + 1 }}
-        </a-button>
-      </div>
-
-      <a-form-item
-        v-for="total in totalComposers"
-        :key="total"
-        :label="`Compositor ${total > 1 ? total : ''}`"
-      >
-        <a-select
-          v-model:value="selectedComposers[total]"
-          :allow-clear="true"
-          class="mb-1"
-          show-search
-          placeholder="Seleccione..."
-          style="width: 100%"
-          :options="localArtists.map(item => ({ label: item.name, value: item.id }))"
-          :filter-option="filterOption"
-        />
-      </a-form-item>
-
-      <div>
-        <a-button
-          @click="addComposer"
-        >
-          Agregar compositor {{ totalComposers + 1 }}
         </a-button>
       </div>
 
@@ -232,11 +215,10 @@ const songDuration = ref(0)
 const songDurationOriginal = ref('')
 const song = ref('')
 const cantante = ref('')
+const compositor = ref('')
 const totalArtists = ref(1)
-const totalComposers = ref(1)
 const selectedTags = ref([])
 const selectedArtists = ref([])
-const selectedComposers = ref([])
 const metadataUrl = ref('')
 const coverUrl = ref('')
 const isAppleLink = ref(false)
@@ -566,14 +548,13 @@ function resetForm() {
   url.value = ''
   song.value = ''
   cantante.value = ''
+  compositor.value = ''
   metadataUrl.value = ''
   coverUrl.value = ''
   noteText.value = ''
   selectedTags.value = []
   selectedArtists.value = []
-  selectedComposers.value = []
   totalArtists.value = 1
-  totalComposers.value = 1
   notFoundArtist.value = null
   isAppleLink.value = false
   formDisabled.value = false
@@ -635,7 +616,6 @@ function saveSong() {
   const noteForSong = noteText.value
 
   const artistIds = selectedArtists.value.filter((item) => item)
-  const composerIds = selectedComposers.value.filter((item) => item)
   const trimmedUrl = url.value.trim()
   const trimmedSong = song.value.trim()
 
@@ -666,6 +646,7 @@ function saveSong() {
     }
     const coverFromMeta = coverUrl.value || ''
     const cantanteForPayload = cantante.value.trim() || null
+    const compositorForPayload = compositor.value.trim() || null
 
     downloadTasks.value = [task, ...downloadTasks.value]
     syncTasksToStorage()
@@ -675,8 +656,8 @@ function saveSong() {
       url: trimmedUrl,
       song: trimmedSong,
       cantante: cantanteForPayload,
+      compositor: compositorForPayload,
       artists: artistIds,
-      composers: composerIds,
       duration: songDuration.value,
       durationOriginal: songDurationOriginal.value,
       songTags: normalizedTags,
@@ -695,8 +676,8 @@ function saveSong() {
           ytid: payload.ytid,
           song: payload.song,
           cantante: payload.cantante,
+          compositor: payload.compositor,
           artists: payload.artists,
-          composers: payload.composers,
           duration: payload.duration,
           durationOriginal: payload.durationOriginal,
           songTags: payload.songTags
@@ -745,10 +726,6 @@ function showNotification(title, body) {
 
 function addArtist() {
   totalArtists.value += 1
-}
-
-function addComposer() {
-  totalComposers.value += 1
 }
 
 async function onTagsChange(e) {

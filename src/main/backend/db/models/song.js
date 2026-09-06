@@ -12,6 +12,7 @@ module.exports = (sequelize, DataTypes) => {
   }
   Song.init({
     cantante: DataTypes.STRING,
+    compositor: DataTypes.STRING,
     folder: DataTypes.STRING,
     ytid: DataTypes.STRING,
     name: DataTypes.STRING,

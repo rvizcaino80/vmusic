@@ -12,7 +12,6 @@ function sanitizeMetadataValue(value) {
 
 function buildSongMetadata(song) {
   const artists = Array.isArray(song.Artists) ? song.Artists.map((item) => sanitizeMetadataValue(item.name)).filter(Boolean) : []
-  const composers = Array.isArray(song.Composers) ? song.Composers.map((item) => sanitizeMetadataValue(item.name)).filter(Boolean) : []
   const rawTags = Array.isArray(song.Tags) ? song.Tags : []
   const sortedTags = rawTags
     .slice()
@@ -27,6 +26,7 @@ function buildSongMetadata(song) {
     .filter(Boolean)
     .filter((tagName) => tagName.toLowerCase() !== 'agregado-reciente')
   const cantante = sanitizeMetadataValue(song.cantante)
+  const compositor = sanitizeMetadataValue(song.compositor)
   const title = sanitizeMetadataValue(song.name)
   const createdAtYear = song.createdAt ? new Date(song.createdAt).getUTCFullYear() : ''
   const genre = tags[0] || ''
@@ -35,7 +35,7 @@ function buildSongMetadata(song) {
     title,
     artist: artists.join(', ') + (cantante ? ` con ${cantante}` : ''),
     album_artist: artists.join(', ') + (cantante ? ` con ${cantante}` : ''),
-    composer: composers.join(', '),
+    composer: compositor,
     genre,
     track: sanitizeMetadataValue(song.id),
     date: Number.isFinite(createdAtYear) ? String(createdAtYear) : '',
@@ -115,10 +115,6 @@ async function loadSongWithRelations(db, songId) {
       {
         model: db.Artist,
         as: 'Artists'
-      },
-      {
-        model: db.Composer,
-        as: 'Composers'
       },
       {
         model: db.Tag,

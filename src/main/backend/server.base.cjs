@@ -191,25 +191,11 @@ ArtistSong.init(
   { sequelize, modelName: 'ArtistSong', tableName: 'ArtistSong' }
 )
 
-class Composer extends Model {}
-Composer.init(
-  { name: Sequelize.DataTypes.STRING },
-  { sequelize, modelName: 'Composer', tableName: 'Artists' }
-)
-
-class ComposerSong extends Model {}
-ComposerSong.init(
-  {
-    composerId: Sequelize.DataTypes.INTEGER,
-    songId: Sequelize.DataTypes.INTEGER
-  },
-  { sequelize, modelName: 'ComposerSong', tableName: 'ComposerSong' }
-)
-
 class Song extends Model {}
 Song.init(
   {
     cantante: Sequelize.DataTypes.STRING,
+    compositor: Sequelize.DataTypes.STRING,
     folder: Sequelize.DataTypes.STRING,
     ytid: Sequelize.DataTypes.STRING,
     name: Sequelize.DataTypes.STRING,
@@ -281,8 +267,6 @@ PlaylistSong.init(
 const db = {
   Artist,
   ArtistSong,
-  Composer,
-  ComposerSong,
   Song,
   SongTag,
   Tag,
@@ -297,8 +281,6 @@ Song.belongsToMany(Tag, { through: SongTag, foreignKey: 'songId', otherKey: 'tag
 Tag.belongsToMany(Song, { through: SongTag, foreignKey: 'tagId', otherKey: 'songId' })
 Artist.belongsToMany(Song, { through: ArtistSong, foreignKey: 'artistId', otherKey: 'songId' })
 Song.belongsToMany(Artist, { through: ArtistSong, foreignKey: 'songId', otherKey: 'artistId' })
-Composer.belongsToMany(Song, { through: ComposerSong, foreignKey: 'composerId', otherKey: 'songId' })
-Song.belongsToMany(Composer, { through: ComposerSong, foreignKey: 'songId', otherKey: 'composerId' })
 
 Playlist.hasMany(PlaylistSong, { foreignKey: 'playlistId', onDelete: 'CASCADE' })
 PlaylistSong.belongsTo(Playlist, { foreignKey: 'playlistId' })
@@ -1221,10 +1203,6 @@ app.post('/songs/by-id', async (req, res, next) => {
         as: 'Artists'
       },
       {
-        model: Composer,
-        as: 'Composers'
-      },
-      {
         model: Tag,
         as: 'Tags'
       }
@@ -1247,10 +1225,6 @@ app.get('/songs/:id', async (req, res, next) => {
     include: [
       {
         model: Artist
-      },
-      {
-        model: Composer,
-        as: 'Composers'
       },
       {
         model: Tag,
@@ -1305,15 +1279,18 @@ app.post('/songs/update/:id', async (req, res, next) => {
     const songId = Number(req.params.id)
     const tags = Array.isArray(req.body.tags) ? req.body.tags : []
     const artists = Array.isArray(req.body.artists) ? req.body.artists : []
-    const composers = Array.isArray(req.body.composers) ? req.body.composers : []
 
     const cantanteValue = typeof req.body.cantante === 'string' ? req.body.cantante.trim() : null
     const cantanteToSave = cantanteValue && cantanteValue.length > 0 ? cantanteValue.slice(0, 255) : null
 
+    const compositorValue = typeof req.body.compositor === 'string' ? req.body.compositor.trim() : null
+    const compositorToSave = compositorValue && compositorValue.length > 0 ? compositorValue.slice(0, 255) : null
+
     await Song.update(
       {
         name: req.body.name,
-        cantante: cantanteToSave
+        cantante: cantanteToSave,
+        compositor: compositorToSave
       },
       {
         where: {
@@ -1334,15 +1311,8 @@ app.post('/songs/update/:id', async (req, res, next) => {
       }
     })
 
-    await ComposerSong.destroy({
-      where: {
-        songId
-      }
-    })
-
     await Promise.all(tags.map((item) => SongTag.create({ songId, tagId: item })))
     await Promise.all(artists.map((item) => ArtistSong.create({ songId, artistId: item })))
-    await Promise.all(composers.map((item) => ComposerSong.create({ songId, composerId: item })))
 
     if (typeof tagSongFileById === 'function') {
       try {
@@ -1479,10 +1449,6 @@ app.post('/songs/filter', async (req, res, next) => {
       {
         model: Artist,
         as: 'Artists'
-      },
-      {
-        model: Composer,
-        as: 'Composers'
       },
       {
         model: Tag,
@@ -2244,17 +2210,18 @@ app.post('/songs/save', async (req, res, next) => {
         }
 
         const cantanteForSave = typeof req.body.cantante === 'string' ? req.body.cantante.trim().slice(0, 255) : null
+        const compositorForSave = typeof req.body.compositor === 'string' ? req.body.compositor.trim().slice(0, 255) : null
         const s = await Song.create({
           folder: folder,
           ytid: req.body.ytid.toString().trim(),
           name: req.body.song.trim(),
           cantante: cantanteForSave && cantanteForSave.length > 0 ? cantanteForSave : null,
+          compositor: compositorForSave && compositorForSave.length > 0 ? compositorForSave : null,
           duration: durationSeconds,
           duration_original: convertTime(durationSeconds)
         })
 
         await s.addArtists(req.body.artists)
-        await s.addComposers(req.body.composers)
 
         // Check tags
         const tags = await Tag.findAll({
@@ -2371,11 +2338,13 @@ app.post('/songs/import', async (req, res, next) => {
     }
 
     const cantanteForImport = typeof req.body.cantante === 'string' ? req.body.cantante.trim().slice(0, 255) : null
+    const compositorForImport = typeof req.body.compositor === 'string' ? req.body.compositor.trim().slice(0, 255) : null
     const s = await Song.create({
       folder: folder,
       ytid: ytid,
       name: songName.trim(),
       cantante: cantanteForImport && cantanteForImport.length > 0 ? cantanteForImport : null,
+      compositor: compositorForImport && compositorForImport.length > 0 ? compositorForImport : null,
       duration: durationSeconds,
       duration_original: convertTime(durationSeconds)
     })
@@ -2655,6 +2624,35 @@ async function runMigrations() {
         defaultValue: null
       })
       console.log('[vmusic] Migración completada: columna cantante agregada')
+    }
+
+    if (!tableInfo.compositor) {
+      console.log('[vmusic] Migrando: agregando columna compositor a Songs')
+      await sequelize.getQueryInterface().addColumn('Songs', 'compositor', {
+        type: Sequelize.DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null
+      })
+      try {
+        const composerRows = await sequelize.query(
+          `SELECT cs.songId, GROUP_CONCAT(a.name, ', ') AS names
+           FROM ComposerSong cs
+           JOIN Artists a ON a.id = cs.composerId
+           GROUP BY cs.songId`,
+          { type: Sequelize.QueryTypes.SELECT }
+        )
+        for (const row of composerRows) {
+          if (row && row.names) {
+            await sequelize.query('UPDATE Songs SET compositor = ? WHERE id = ?', {
+              replacements: [row.names, row.songId]
+            })
+          }
+        }
+        await sequelize.getQueryInterface().dropTable('ComposerSong')
+      } catch (migrationError) {
+        console.warn('[vmusic] No se pudo migrar compositores existentes', migrationError?.message || migrationError)
+      }
+      console.log('[vmusic] Migración completada: columna compositor agregada')
     }
 
     // Verificar si existen las tablas de playlists

@@ -76,6 +76,15 @@
       </div>
 
       <div>
+        <label class="text-sm text-gray-500 block">Compositor</label>
+        <a-input
+          v-model:value="compositor"
+          class="w-full"
+          placeholder="Nombre del compositor (opcional)"
+        />
+      </div>
+
+      <div>
         <label class="text-sm text-gray-500 block">Etiquetas</label>
         <a-checkbox-group
           v-model:value="selectedTags"
@@ -115,6 +124,7 @@ import { Icon } from '@iconify/vue'
 
 const songTitle = ref('')
 const cantante = ref('')
+const compositor = ref('')
 const totalArtists = ref(1)
 const selectedTags = ref([])
 const selectedArtists = ref([])
@@ -197,6 +207,7 @@ function onFileSelected(event) {
 function resetForm() {
   songTitle.value = ''
   cantante.value = ''
+  compositor.value = ''
   totalArtists.value = 1
   selectedTags.value = []
   selectedArtists.value = []
@@ -237,6 +248,7 @@ async function saveSong() {
       filePath: mp3FilePath.value,
       name: songTitle.value.trim(),
       cantante: cantante.value.trim() || null,
+      compositor: compositor.value.trim() || null,
       artists: artistIds,
       tags: tagIds
     })

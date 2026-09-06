@@ -46,10 +46,6 @@ async function tagAllSongs() {
         as: 'Artists'
       },
       {
-        model: db.Composer,
-        as: 'Composers'
-      },
-      {
         model: db.Tag,
         as: 'Tags'
       }
