@@ -960,12 +960,13 @@ async function fillSongAndArtist(title, artistName) {
 
   if (artistName) {
     const rawArtistName = String(artistName || '').trim()
-    const splitCandidates = rawArtistName
+    const cleanedArtistName = rawArtistName.replace(/\s*-\s*Topic\s*$/i, '')
+    const splitCandidates = cleanedArtistName
       .split(/\s*(?:,|;|\/|&|\+|\s+y\s+|\s+and\s+|\s+feat\.?\s+|\s+featuring\s+|\s+ft\.?\s+|\s+x\s+)\s*/i)
       .map((item) => item.trim())
       .filter((item) => item.length > 0)
     const normalizedSeen = new Set()
-    const uniqueCandidates = (splitCandidates.length > 1 ? splitCandidates : [rawArtistName])
+    const uniqueCandidates = (splitCandidates.length > 1 ? splitCandidates : [cleanedArtistName])
       .filter((candidate) => {
         const normalized = normalizeExactArtistName(candidate)
         if (!normalized || normalizedSeen.has(normalized)) return false
@@ -989,7 +990,7 @@ async function fillSongAndArtist(title, artistName) {
     })
 
     if (uniqueCandidates.length <= 0) {
-      notFoundArtist.value = artistName
+      notFoundArtist.value = cleanedArtistName
 
       return
     }
