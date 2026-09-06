@@ -3607,7 +3607,20 @@ function loadLibrarySongToDeck(song, deck) {
   if (!targetPlayer) return
 
   if (
-    targetPlayer.status === playerStatuses.Listo || targetPlayer.status === playerStatuses.Pausado || targetPlayer.status === playerStatuses.Detenido || targetPlayer.status === playerStatuses['Sin Carga']
+    targetPlayer.status === playerStatuses.Listo || targetPlayer.status === playerStatuses.Pausado
+  ) {
+    const songToInsert = targetPlayer.songFull?.entryId ? targetPlayer.songFull : targetPlayer.songFull ? createPlaylistEntry(targetPlayer.songFull) : null
+    if (songToInsert) {
+      playlistStore.addSongToTop(songToInsert)
+    }
+
+    targetPlayer.setSong(entry)
+
+    return
+  }
+
+  if (
+    targetPlayer.status === playerStatuses.Detenido || targetPlayer.status === playerStatuses['Sin Carga']
   ) {
     targetPlayer.setSong(entry)
   }

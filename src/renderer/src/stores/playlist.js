@@ -120,6 +120,13 @@ export const usePlaylistStore = defineStore('playlist', () => {
     syncPlaylistStateFromDetails()
   }
 
+  function addSongToTop(entry) {
+    playlistDetails.value.unshift(entry)
+    syncPlaylistStateFromDetails()
+
+    return entry
+  }
+
   function removeEntry(entryId) {
     const index = playlistDetails.value.findIndex((e) => e.entryId === entryId)
     if (index !== -1) {
@@ -402,6 +409,7 @@ export const usePlaylistStore = defineStore('playlist', () => {
     syncPlaylistStateFromDetails,
     addSong,
     addSongs,
+    addSongToTop,
     removeEntry,
     clearAll,
     moveEntry,
