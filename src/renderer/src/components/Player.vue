@@ -58,31 +58,33 @@
     >
       <div class="player-header flex justify-between space-x-3">
         <div class="flex-1 min-w-0">
-          <h2 class="text-white text-xl select-none w-full flex flex-wrap items-center gap-x-3 gap-y-0 leading-tight">
+          <h2 class="text-white text-xl select-none w-full flex flex-wrap items-center gap-x-1.5 gap-y-0 leading-tight">
             <template v-if="artistsList.length">
               <template
                 v-for="(a, idx) in artistsList"
                 :key="a.id"
               >
-                <button
-                  type="button"
-                  class="hover:underline"
-                  title="Ver canciones de este artista"
-                  @click.stop="emitArtistClick(a.id)"
-                >
-                  {{ a.name }}
-                </button>
-                <span v-if="idx < artistsList.length - 1">, </span>
+                <span class="inline-flex items-center">
+                  <button
+                    type="button"
+                    class="hover:underline"
+                    title="Ver canciones de este artista"
+                    @click.stop="emitArtistClick(a.id)"
+                  >
+                    {{ a.name }}
+                  </button>
+                  <span v-if="idx < artistsList.length - 1">,</span>
+                </span>
               </template>
               <span
                 v-if="cantante"
-                class="font-normal text-white/80 inline-flex items-center gap-0.5"
+                class="font-normal text-white/80 inline-flex items-center gap-0.5 ml-1.5"
               ><Icon icon="entypo:modern-mic" class="w-4 h-4 flex-shrink-0 opacity-80" /> {{ cantante }}</span>
             </template>
             <span v-else>
               Sin artista<span
                 v-if="cantante"
-                class="font-normal text-white/80 inline-flex items-center gap-0.5"
+                class="font-normal text-white/80 inline-flex items-center gap-0.5 ml-1.5"
               ><Icon icon="entypo:modern-mic" class="w-4 h-4 flex-shrink-0 opacity-80" /> {{ cantante }}</span>
             </span>
           </h2>
