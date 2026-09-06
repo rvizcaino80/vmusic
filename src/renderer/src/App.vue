@@ -510,10 +510,10 @@
                           : 'default'
                       "
                       :loading="playerStore.isPreviewLoading && playerStore.previewSongId === record.id"
-                      @mousedown.stop.prevent="startPreview(record)"
+                      @mousedown.stop.prevent="startPreview(record, { startRatio: previewStartAtFromEvent($event) })"
                       @mouseup.stop="stopPreview()"
                       @mouseleave.stop="stopPreview()"
-                      @touchstart.stop.prevent="startPreview(record)"
+                      @touchstart.stop.prevent="startPreview(record, { startRatio: previewStartAtFromEvent($event) })"
                       @touchend.stop="stopPreview()"
                     >
                       <i-mdi-headphones class="w-4 h-4" />
@@ -2660,8 +2660,19 @@ function stopPreview() {
   resetPreviewState()
 }
 
+function previewStartAtFromEvent(event) {
+  const el = event.currentTarget
+  if (!el) return null
+  const rect = el.getBoundingClientRect()
+  const hasTouch = typeof event.touches !== 'undefined' && event.touches.length > 0
+  const clientX = hasTouch ? event.touches[0].clientX : event.clientX
+  if (rect.width <= 0 || typeof clientX !== 'number') return null
+
+  return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+}
+
 async function startPreview(song, options = {}) {
-  const { playlistEntryId = null } = options
+  const { playlistEntryId = null, startRatio = null } = options
   const audio = await ensurePreviewPlayer()
 
   playerStore.isPreviewLoading = true
@@ -2689,12 +2700,21 @@ async function startPreview(song, options = {}) {
       ytid: song.ytid
     })
     audio.src = mediaUrl
-    const startAt = typeof song.start === 'number' ? song.start : 0
-    if (startAt > 0) {
-      const seekToStart = () => {
-        const maxStart = Number.isFinite(audio.duration) ? Math.max(0, audio.duration - 0.01) : startAt
-        audio.currentTime = Math.min(startAt, maxStart)
+    const hasStartRatio = typeof startRatio === 'number' && startRatio > 0 && startRatio < 1
+    const startAt = hasStartRatio ? null : typeof song.start === 'number' ? song.start : 0
+    const seekToStart = () => {
+      let target = null
+      if (hasStartRatio) {
+        target = Number.isFinite(audio.duration) ? startRatio * audio.duration : null
+      } else if (startAt > 0) {
+        target = Number.isFinite(audio.duration) ? Math.min(startAt, Math.max(0, audio.duration - 0.01)) : startAt
       }
+
+      if (target !== null) {
+        audio.currentTime = Math.max(0, target)
+      }
+    }
+    if (hasStartRatio || startAt > 0) {
       if (Number.isFinite(audio.duration) && audio.duration > 0) {
         seekToStart()
       } else {
