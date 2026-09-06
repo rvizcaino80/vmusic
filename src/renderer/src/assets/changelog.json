@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "1.7.3",
+      "date": "2026-09-06",
+      "changes": {
+        "new": [
+          "Compositor como texto libre en canciones"
+        ]
+      }
+    },
+    {
       "version": "1.7.2",
       "date": "2026-09-06",
       "changes": {
